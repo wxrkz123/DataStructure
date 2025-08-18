@@ -1,0 +1,54 @@
+# 用户特定的文件
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio 自动生成的文件
+*.ncb
+*.sdf
+*.cache
+*.dbmdl
+*.opendb
+*.pdb
+*.psess
+*.vsp
+*.vsps
+*.vssscc
+*.vsix
+*.vsixmanifest
+
+# 构建结果
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+[Oo]utput/
+[Ll]og/
+[Ll]ogs/
+bin/
+obj/
+
+# NuGet 相关文件
+.nuget/
+packages/
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+*.csproj.user
+
+# Visual Studio Code & Rider 特定文件
+.vscode/
+.idea/
+
+# 备份和临时文件
+*~
+*.bak
+*.tmp
+
+# ASP.NET Scaffolding
+ScaffoldingReadMe.txt
+
+# Tye (可选)
+.tye/
