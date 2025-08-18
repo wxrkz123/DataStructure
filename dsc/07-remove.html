@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BST 递归删除过程 - 分情况深度解析</title>
+
+    <!-- Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        .notyf__message { color: #334155; }
+        .code-line-wrapper { display: flex; align-items: flex-start; padding: 4px 10px; border-radius: 4px; transition: background-color 0.3s ease; font-size: 0.8rem; border-left: 3px solid transparent; }
+        .code-line-wrapper.highlight { background-color: rgba(255, 255, 255, 0.15); border-left-color: #facc15; }
+        .line-number { text-align: right; width: 1.5em; margin-right: 1.5em; color: #94a3b8; user-select: none; }
+        .code-text { white-space: pre-wrap; font-weight: 500; flex: 1; }
+        .code-line-wrapper.highlight .code-text { font-weight: bold; }
+        .stack-frame { transition: all 0.4s ease-in-out; }
+        .address { font-family: 'Courier New', Courier, monospace; background-color: #e0e7ff; color: #4338ca; padding: 2px 5px; border-radius: 4px; font-weight: bold; }
+        .value { font-family: 'Courier New', Courier, monospace; background-color: #dcfce7; color: #15803d; padding: 2px 5px; border-radius: 4px; font-weight: bold; }
+        .explanation-icon { font-size: 1.5rem; margin-right: 0.75rem; opacity: 0.8; }
+        .case-button {
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+        .case-button:disabled { background-color: #e2e8f0; color: #94a3b8; cursor: not-allowed; }
+        .case-button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); }
+    </style>
+</head>
+<body class="bg-slate-100">
+
+<div id="app" class="flex flex-col h-screen p-4 gap-4">
+
+    <!-- Header and Controls -->
+    <header class="bg-white/90 backdrop-blur-lg shadow-lg rounded-xl p-4 z-20 shrink-0">
+        <div class="max-w-7xl mx-auto">
+            <h1 class="text-3xl font-bold text-slate-800 text-center mb-2">BST 递归删除 - 分情况深度解析</h1>
+            <p class="text-center text-slate-600 mb-4">选择一个场景进行演示，然后通过“下一步”观察每种情况下的代码逻辑和树结构变化。</p>
+            <div class="flex justify-center items-center gap-3">
+                 <div class="flex gap-3 bg-slate-100 p-2 rounded-lg">
+                    <button @click="startCase(1, 20)" :disabled="isBusy" class="case-button bg-sky-100 text-sky-700 border-sky-200 hover:bg-sky-200">
+                        <i class="fa-solid fa-leaf"></i> 案例一: 删除叶子节点 (20)
+                    </button>
+                    <button @click="startCase(2, 70)" :disabled="isBusy" class="case-button bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200">
+                        <i class="fa-solid fa-child"></i> 案例二: 删除单孩子节点 (70)
+                    </button>
+                     <button @click="startCase(3, 50)" :disabled="isBusy" class="case-button bg-red-100 text-red-700 border-red-200 hover:bg-red-200">
+                        <i class="fa-solid fa-people-group"></i> 案例三: 删除双孩子节点 (50)
+                    </button>
+                </div>
+                 <button @click="resetTree" :disabled="isBusy" class="bg-slate-600 hover:bg-slate-700 text-white font-semibold py-2 px-5 rounded-md transition flex items-center gap-2">
+                    <i class="fa-solid fa-arrows-rotate"></i> 重置视图
+                </button>
+                 <button @click="nextStep" :disabled="animationSteps.length === 0 || isFinished" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-8 rounded-md transition disabled:bg-slate-400 flex items-center gap-2 text-lg">
+                    下一步 <i class="fa-solid fa-forward-step"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-0">
+        <div class="bg-white shadow-lg rounded-xl p-4 flex flex-col min-h-0">
+            <h2 class="text-xl font-bold text-slate-700 mb-2 border-b pb-2 shrink-0">C 代码执行流程 (_remove_recursive)</h2>
+            <div class="font-mono bg-slate-800 text-white p-3 rounded-lg text-sm overflow-auto mb-4">
+                <!-- Vue will render the code lines here -->
+                <div v-for="(line, index) in code" :key="index" :class="{'highlight': index === activeLine}" class="code-line-wrapper">
+                    <span class="line-number">{{ line.num }}</span>
+                    <span class="code-text">{{ line.text }}</span>
+                </div>
+            </div>
+             <h2 class="text-xl font-bold text-slate-700 mb-2 border-b pb-2 shrink-0">
+                <i class="fa-solid fa-comment-dots text-sky-600"></i> 动画讲解
+             </h2>
+            <div class="flex-grow bg-sky-50 p-4 rounded-lg text-slate-800 overflow-y-auto">
+                <div class="flex items-start">
+                    <i :class="explanation.icon" class="explanation-icon" :style="{ color: explanation.color }"></i>
+                    <p v-html="explanation.text" class="transition-opacity duration-300 flex-1"></p>
+                </div>
+            </div>
+        </div>
+        <div class="flex flex-col gap-4 min-h-0">
+            <div class="bg-white shadow-lg rounded-xl p-4 flex flex-col flex-grow">
+                <h2 class="text-xl font-bold text-slate-700 mb-2 border-b pb-2 text-center shrink-0">二叉搜索树 (ECharts)</h2>
+                <div id="echarts-bst-container" class="w-full flex-grow min-h-0"></div>
+            </div>
+            <div class="bg-white shadow-lg rounded-xl p-4 flex flex-col h-2/5">
+                 <h2 class="text-xl font-bold text-slate-700 mb-2 border-b pb-2 shrink-0">调用栈 (Call Stack)</h2>
+                <div class="flex-grow bg-slate-50 p-2 rounded-lg space-y-2 overflow-y-auto">
+                     <div v-if="callStack.length === 0" class="text-center text-slate-500 pt-8"><p>选择一个案例开始演示</p></div>
+                     <div v-for="frame in callStack" :key="frame.id" class="stack-frame bg-white p-3 rounded-lg shadow-md" :style="{ 'border-left': `5px solid ${frame.color}` }">
+                        <div class="flex justify-between items-center"><span class="font-bold text-slate-800">{{ frame.functionName }}</span><span class="text-xs font-mono text-white px-2 py-0.5 rounded-full" :class="frame.statusClass">{{ frame.statusText }}</span></div><hr class="my-2">
+                        <div class="text-sm space-y-1 font-mono"><p><strong>node:</strong> <span class="address">{{ frame.nodeAddress }}</span></p><p><strong>data:</strong> <span class="value">{{ frame.data }}</span></p></div>
+                        <div v-if="frame.returnValue" class="mt-2 p-2 rounded-md bg-purple-100 text-purple-800 text-sm font-semibold text-center"><i class="fa-solid fa-arrow-left-long"></i> 返回值: <span class="address">{{ frame.returnValue }}</span></div>
+                     </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+    const { createApp, ref, reactive, onMounted } = Vue;
+
+    class BstNode {
+        constructor(value, address) { this.value = value; this.address = address; this.left = null; this.right = null; this.highlight = null; }
+    }
+
+    createApp({
+        setup() {
+            const notyf = new Notyf();
+            let chartInstance = null;
+            const root = ref(null);
+            const isBusy = ref(false);
+            const isFinished = ref(false);
+            const explanation = ref({ text: '请从上方选择一个删除案例进行演示。', icon: 'fa-solid fa-arrow-pointer', color: '#0ea5e9' });
+            const activeLine = ref(-1);
+            const callStack = ref([]);
+            const animationSteps = ref([]);
+            const currentStepIndex = ref(-1);
+            
+            let memoryCounter = 0x1000;
+            const allocateAddress = () => `0x${(memoryCounter += Math.floor(Math.random() * 12 + 8) * 8).toString(16).toUpperCase()}`;
+
+            // --- MODIFICATION START: Replaced code with your C code ---
+            const code = ref([
+                {num: 1, text: "static Node* _remove_recursive(BST* bst, Node* node, const void* key) {"},
+                {num: 2, text: ""},
+                {num: 3, text: "    if (node == NULL) return NULL;"},
+                {num: 4, text: ""},
+                {num: 5, text: "    int cmp = bst->compare(key, node->data);"},
+                {num: 6, text: "    if (cmp < 0) {"},
+                {num: 7, text: "        node->left = _remove_recursive(bst, node->left, key);"},
+                {num: 8, text: "    }"},
+                {num: 9, text: "    else if (cmp > 0) {"},
+                {num: 10, text: "        node->right = _remove_recursive(bst, node->right, key);"},
+                {num: 11, text: "    }"},
+                {num: 12, text: "    else {"},
+                {num: 13, text: "        bst->size--;" },
+                {num: 14, text: ""},
+                {num: 15, text: "        // Case: Deleting a leaf node"},
+                {num: 16, text: "        if (node->left == NULL && node->right == NULL) {"},
+                {num: 17, text: "            free(node->data);"},
+                {num: 18, text: "            free(node);"},
+                {num: 19, text: "            return NULL;"},
+                {num: 20, text: "        }"},
+                {num: 21, text: ""},
+                {num: 22, text: "        // Case: Deleting a node with one child"},
+                {num: 23, text: "        if (node->left == NULL) {"},
+                {num: 24, text: "            Node* temp = node->right;"},
+                {num: 25, text: "            free(node->data);"},
+                {num: 26, text: "            free(node);"},
+                {num: 27, text: "            return temp;"},
+                {num: 28, text: "        }"},
+                {num: 29, text: "        else if (node->right == NULL) {"},
+                {num: 30, text: "            Node* temp = node->left;"},
+                {num: 31, text: "            free(node->data);"},
+                {num: 32, text: "            free(node);"},
+                {num: 33, text: "            return temp;"},
+                {num: 34, text: "        }"},
+                {num: 35, text: ""},
+                {num: 36, text: "        // Case: Deleting a node with two children"},
+                {num: 37, text: "        Node* successor = _find_min_recursive(node->right);"},
+                {num: 38, text: ""},
+                {num: 39, text: "        memcpy(node->data, successor->data, bst->element_size);"},
+                {num: 40, text: ""},
+                {num: 41, text: "        node->right = _remove_recursive(bst, node->right, successor->data);"},
+                {num: 42, text: "    }"},
+                {num: 43, text: "    return node;"},
+                {num: 44, text: "}"},
+            ]);
+            // --- MODIFICATION END ---
+            
+            const findNodeByAddress = (node, address) => {
+                if (!node) return null; if (node.address === address) return node;
+                return findNodeByAddress(node.left, address) || findNodeByAddress(node.right, address);
+            };
+
+            const createNodeFromData = (data) => {
+                if (!data) return null;
+                const node = new BstNode(data.value, data.address);
+                node.left = createNodeFromData(data.left); node.right = createNodeFromData(data.right);
+                return node;
+            };
+
+            const transformToEchartsData = (bstNode) => {
+                if (!bstNode) return null;
+                const item = { name: `${bstNode.value}\n(${bstNode.address})`, itemStyle: {}, tooltip: { formatter: () => `<strong>值:</strong> ${bstNode.value}<br><strong>地址:</strong> <span class="address">${bstNode.address}</span>` }, children: [] };
+                const colors = { target: { border: '#ef4444', bg: '#fee2e2', width: 4 }, path: { border: '#f59e0b', bg: '#fef3c7', width: 3 }, successor: { border: '#8b5cf6', bg: '#ede9fe', width: 4 }, promoted: { border: '#22c55e', bg: '#dcfce7', width: 4 }, default: { border: '#64748b', bg: '#f1f5f9', width: 2 } };
+                const style = colors[bstNode.highlight] || colors.default;
+                item.itemStyle = { borderColor: style.border, color: style.bg, borderWidth: style.width };
+                const leftChild = transformToEchartsData(bstNode.left), rightChild = transformToEchartsData(bstNode.right);
+                if (leftChild || rightChild) { item.children.push(leftChild || { name: '', symbol: 'none' }); item.children.push(rightChild || { name: '', symbol: 'none' }); }
+                return item;
+            };
+
+            const updateChart = () => { if (chartInstance) chartInstance.setOption({ series: [{ data: root.value ? [transformToEchartsData(root.value)] : [] }] }); };
+            
+            const startCase = (caseNum, valueToDelete) => {
+                resetTree();
+                isBusy.value = true; 
+                const caseInfo = {
+                    1: { text: `开始演示<b>案例一</b>：删除值为 <span class="value">${valueToDelete}</span> 的<b>叶子节点</b>。`, icon: 'fa-solid fa-leaf', color: '#0ea5e9' },
+                    2: { text: `开始演示<b>案例二</b>：删除值为 <span class="value">${valueToDelete}</span> 的<b>单孩子节点</b>。`, icon: 'fa-solid fa-child', color: '#f59e0b' },
+                    3: { text: `开始演示<b>案例三</b>：删除值为 <span class="value">${valueToDelete}</span> 的<b>双孩子节点</b>。`, icon: 'fa-solid fa-people-group', color: '#ef4444' }
+                };
+                explanation.value = caseInfo[caseNum];
+                
+                let steps = [], stackFrameIdCounter = 0;
+                const simulationTree = JSON.parse(JSON.stringify(root.value));
+
+                function _findMin(node) { return node.left ? _findMin(node.left) : node; }
+                
+                // --- MODIFICATION START: Updated trace function logic and line numbers ---
+                function trace(node, data) {
+                    const frameId = ++stackFrameIdCounter;
+                    const frameColor = ['#3b82f6', '#16a34a', '#d946ef', '#f97316', '#8b5cf6'][(frameId-1) % 5];
+                    const nodeAddress = node ? node.address : 'NULL', nodeValue = node ? node.value : null;
+                    
+                    steps.push({ line: 1, action: { type: 'stackPush', frame: { id: frameId, functionName: `调用 #${frameId}`, nodeAddress, data, statusText: '执行中', statusClass: 'bg-blue-600', color: frameColor } } });
+                    if (node) steps.push({ action: { type: 'highlight', address: nodeAddress, style: 'path' } });
+                    
+                    if (node == null) {
+                        steps.push({ line: 3, explanation: {text: `<code>node</code> 为 NULL，说明未找到值为 <span class="value">${data}</span> 的节点或已到达路径末端。直接返回 NULL。`, icon: 'fa-solid fa-ban'}, action: { type: 'stackUpdate', statusText: '返回 NULL', returnValue: 'NULL' } });
+                        steps.push({ action: { type: 'stackPop' } });
+                        return null;
+                    }
+                    
+                    steps.push({ line: 5 }); // int cmp = ...
+                    const cmp = data - node.value; // Simulate comparison
+
+                    if (cmp < 0) {
+                        steps.push({ line: 6, explanation: {text: `比较结果: ${data} < ${nodeValue}，向左子树递归查找。`, icon: 'fa-solid fa-arrow-left'}, action: {type: 'stackUpdate', statusText: '等待左路'} });
+                        const returnedChild = trace(node.left, data);
+                        node.left = returnedChild;
+                        steps.push({ line: 7, explanation: {text: `左路调用返回，用其返回值更新 <code>node->left</code>。`, icon: 'fa-solid fa-link'}, action: {type:'multi', actions: [{type:'stackRestore', frameId}, {type:'link', parentAddress:nodeAddress, direction:'left', childData: returnedChild}]} });
+                    } else if (cmp > 0) {
+                        steps.push({ line: 9, explanation: {text: `比较结果: ${data} > ${nodeValue}，向右子树递归查找。`, icon: 'fa-solid fa-arrow-right'}, action: {type: 'stackUpdate', statusText: '等待右路'} });
+                        const returnedChild = trace(node.right, data);
+                        node.right = returnedChild;
+                        steps.push({ line: 10, explanation: {text: `右路调用返回，用其返回值更新 <code>node->right</code>。`, icon: 'fa-solid fa-link'}, action: {type:'multi', actions: [{type:'stackRestore', frameId}, {type:'link', parentAddress:nodeAddress, direction:'right', childData: returnedChild}]} });
+                    } else { // Found the node
+                        steps.push({ line: 12, explanation: {text: `<b>找到目标节点 ${nodeValue}！</b> 开始执行删除逻辑。`, icon: 'fa-solid fa-crosshairs'}, action: {type:'highlight', address:nodeAddress, style: 'target'} });
+                        steps.push({ line: 13 }); // bst->size--;
+
+                        // Case: Leaf node
+                        if (node.left == null && node.right == null) {
+                            steps.push({ line: 16, explanation: {text: `<b>命中删除逻辑 (叶子节点)</b>：此节点无子节点。`, icon: 'fa-solid fa-leaf'} });
+                            steps.push({ line: 19, explanation: {text: `函数返回 <code>NULL</code>，父节点的指针将被更新为 <code>NULL</code>。`, icon: 'fa-solid fa-arrow-up-from-bracket'}, action: {type:'stackUpdate', statusText: '返回 NULL', returnValue: 'NULL'} });
+                            steps.push({ action: { type: 'stackPop' } });
+                            return null;
+                        }
+
+                        // Case: Single right child
+                        if (node.left == null) {
+                            steps.push({ line: 23, explanation: {text: `<b>命中删除逻辑 (单孩子)</b>：此节点无左孩子，有右孩子。`, icon: 'fa-solid fa-child'} });
+                            steps.push({ line: 27, explanation: {text: `函数返回右孩子 <span class="value">${node.right.value}</span> 的地址，父节点的指针将被更新。`, icon: 'fa-solid fa-arrow-up-from-bracket'}, action: {type:'stackUpdate', statusText: '返回右孩子', returnValue: node.right.address} });
+                            steps.push({ action: { type: 'stackPop' } });
+                            return node.right;
+                        } 
+                        
+                        // Case: Single left child
+                        else if (node.right == null) {
+                            steps.push({ line: 29, explanation: {text: `<b>命中删除逻辑 (单孩子)</b>：此节点无右孩子，有左孩子。`, icon: 'fa-solid fa-child'} });
+                            steps.push({ line: 33, explanation: {text: `函数返回左孩子 <span class="value">${node.left.value}</span> 的地址，父节点的指针将被更新。`, icon: 'fa-solid fa-arrow-up-from-bracket'}, action: {type:'stackUpdate', statusText: '返回左孩子', returnValue: node.left.address} });
+                            steps.push({ action: { type: 'stackPop' } });
+                            return node.left;
+                        }
+
+                        // Case: Two children
+                        steps.push({ line: 36, explanation: {text: `<b>命中删除逻辑 (双孩子)</b>：此节点有两个孩子。`, icon: 'fa-solid fa-people-group'} });
+                        const successor = _findMin(node.right);
+                        steps.push({ line: 37, explanation: {text: `在右子树中找到中序后继节点：<span class="value">${successor.value}</span>。`, icon: 'fa-solid fa-magnifying-glass-arrow-right'}, action: {type:'highlight', address:successor.address, style:'successor'} });
+                        
+                        steps.push({ line: 39, explanation: {text: `通过 <code>memcpy</code> 将后继节点的值 <span class="value">${successor.value}</span> 复制到当前节点。`, icon: 'fa-solid fa-copy'}, action: {type:'updateValue', address:nodeAddress, newValue:successor.value} });
+                        node.value = successor.value;
+                        
+                        steps.push({ line: 41, explanation: {text: `问题转化为在右子树中删除值为 <span class="value">${successor.value}</span> 的节点。`, icon: 'fa-solid fa-recycle'}, action: {type:'stackUpdate', statusText: '等待右路'} });
+                        const returnedChild = trace(node.right, successor.value);
+                        node.right = returnedChild;
+                        
+                        steps.push({ line: 41, explanation: {text: `右子树的删除操作已返回，用其结果更新 <code>node->right</code>。`, icon: 'fa-solid fa-link'}, action: {type:'multi', actions: [{type:'stackRestore', frameId}, {type:'link', parentAddress:nodeAddress, direction:'right', childData: returnedChild}]} });
+                    }
+                    // --- MODIFICATION END ---
+
+                    steps.push({ line: 43, explanation: {text: `当前函数返回节点 <span class="value">${node.value}</span> 的地址，因为该子树的根未变。`, icon: 'fa-solid fa-arrow-left'}, action: {type:'stackUpdate', statusText: '返回原地址', returnValue: node.address} });
+                    steps.push({ action: { type: 'stackPop' } });
+                    return node;
+                }
+                
+                trace(simulationTree, valueToDelete);
+                steps.push({ line: -1, explanation: { text: `<b>全部完成!</b> 调用栈已清空，删除操作完成！`, icon: 'fa-solid fa-party-horn' }, action: { type: 'clearHighlights' } });
+                animationSteps.value = steps;
+                notyf.success(`已为删除 ${valueToDelete} 生成 ${steps.length} 个动画步骤。`);
+                
+                isBusy.value = false;
+                
+                // Automatically click nextStep if it's the first one
+                if (currentStepIndex.value === -1) {
+                    nextStep();
+                }
+            };
+
+            const nextStep = () => {
+                if (currentStepIndex.value >= animationSteps.value.length - 1) { isFinished.value = true; notyf.success('演示已结束！'); return; }
+                currentStepIndex.value++;
+                const step = animationSteps.value[currentStepIndex.value];
+                if(step.explanation) explanation.value = step.explanation;
+                activeLine.value = step.line ? step.line - 1 : activeLine.value;
+                
+                const processAction = (action) => {
+                    if (!action) return;
+                    switch (action.type) {
+                        case 'highlight': findNodeByAddress(root.value, action.address).highlight = action.style; break;
+                        case 'updateValue': findNodeByAddress(root.value, action.address).value = action.newValue; break;
+                        case 'clearHighlights': (function clear(n){ if(n){ n.highlight=null; clear(n.left); clear(n.right); }})(root.value); break;
+                        case 'link': {
+                            const parent = findNodeByAddress(root.value, action.parentAddress);
+                            if (parent) parent[action.direction] = createNodeFromData(action.childData);
+                            break;
+                        }
+                        case 'stackPush': callStack.value.unshift(action.frame); break;
+                        case 'stackPop': callStack.value.shift(); break;
+                        case 'stackUpdate': if(callStack.value[0]) Object.assign(callStack.value[0], action); break;
+                        case 'stackRestore': Object.assign(callStack.value.find(f=>f.id===action.frameId), {statusText:'恢复执行', statusClass:'bg-blue-600', returnValue:null}); break;
+                        case 'multi': action.actions.forEach(processAction); break;
+                    }
+                };
+                processAction(step.action);
+                updateChart();
+            };
+            
+            const resetAnimationState = () => {
+                isBusy.value = false; isFinished.value = false;
+                animationSteps.value = []; currentStepIndex.value = -1;
+                callStack.value = []; activeLine.value = -1;
+                explanation.value = { text: '请从上方选择一个删除案例进行演示。', icon: 'fa-solid fa-arrow-pointer', color: '#0ea5e9' };
+            };
+            
+            const resetTree = () => {
+                resetAnimationState();
+                memoryCounter = 0x1000;
+                root.value = new BstNode(50, `0x${memoryCounter.toString(16).toUpperCase()}`);
+                root.value.left = new BstNode(30, allocateAddress());
+                root.value.right = new BstNode(70, allocateAddress());
+                root.value.left.left = new BstNode(20, allocateAddress());
+                root.value.left.right = new BstNode(40, allocateAddress());
+                root.value.right.left = new BstNode(60, allocateAddress());
+                updateChart();
+                notyf.success('树已重置。');
+            };
+
+            onMounted(() => {
+                chartInstance = echarts.init(document.getElementById('echarts-bst-container'));
+                chartInstance.setOption({
+                    tooltip: { trigger: 'item', confine: true, backgroundColor: 'rgba(255,255,255,0.95)', borderWidth: 1, borderColor: '#e2e8f0' },
+                    series: [{ type: 'tree', data: [], symbol: 'circle', symbolSize: 70, orient: 'TB', edgeShape: 'curve', initialTreeDepth: -1, expandAndCollapse: false, label: { show: true, position: 'inside', fontSize: 12, color: '#0f172a', fontWeight: 'bold' }, lineStyle: { color: '#64748b', width: 2 }, emphasis: { disabled: true } }]
+                });
+                resetTree();
+                window.addEventListener('resize', () => chartInstance?.resize());
+            });
+           return { isBusy, isFinished, explanation, activeLine, code, callStack, animationSteps, startCase, resetTree, nextStep };
+
+        }
+    }).mount('#app');
+</script>
+
+</body>
+</html>

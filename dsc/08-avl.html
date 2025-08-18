@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AVL树交互式可视化</title>
+
+    <!-- 依赖库 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+    <style>
+        body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+        .tooltip-box {
+            background-color: rgba(255, 255, 255, 0.95); 
+            border: 1px solid #e2e8f0;
+            padding: 10px; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            color: #334155; 
+            font-size: 14px;
+        }
+        .tooltip-box .prop { 
+            font-weight: 600; 
+            color: #475569; 
+        }
+        .tooltip-box .value { 
+            font-weight: bold; 
+            font-family: 'Courier New', monospace; 
+            background-color: #f1f5f9; 
+            padding: 2px 6px; 
+            border-radius: 4px; 
+        }
+        .explanation-text .value {
+            font-family: 'Courier New', Courier, monospace; 
+            background-color: #e0f2fe;
+            color: #0c4a6e; 
+            padding: 2px 5px; 
+            border-radius: 4px; 
+            font-weight: bold;
+        }
+        .explanation-text .op { 
+            font-weight: bold; 
+            color: #c026d3; 
+        }
+        .explanation-text .balance {
+            font-weight: bold;
+            padding: 2px 5px;
+            border-radius: 4px;
+        }
+        .explanation-text .balance.balanced { 
+            background-color: #dcfce7;
+            color: #166534;
+        }
+        .explanation-text .balance.unbalanced { 
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .speed-control input[type="range"] {
+            width: 100px;
+        }
+        #echarts-container {
+            min-height: 400px;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+<div id="app" class="flex flex-col h-screen p-4 gap-4">
+
+    <!-- 标题与操作栏 -->
+    <header class="bg-white shadow-lg rounded-xl p-4 z-10 shrink-0">
+        <div class="max-w-7xl mx-auto">
+            <h1 class="text-3xl font-bold text-slate-900 text-center">AVL树交互式可视化</h1>
+            <p class="text-center text-slate-500 mt-2 mb-4">通过分步动画，深入理解AVL树的插入、删除、查找与平衡旋转</p>
+            
+            <div class="flex flex-wrap justify-center items-center gap-x-6 gap-y-4">
+                <div class="flex items-center gap-2">
+                    <input type="number" v-model.number="inputs.insert" placeholder="数值" @keyup.enter="runInsert" :disabled="isBusy" class="w-24 text-center px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 transition">
+                    <button @click="runInsert" :disabled="isBusy" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-400 flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i> 插入
+                    </button>
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="number" v-model.number="inputs.delete" placeholder="数值" @keyup.enter="runDelete" :disabled="isBusy" class="w-24 text-center px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-red-500 transition">
+                    <button @click="runDelete" :disabled="isBusy" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-400 flex items-center gap-2">
+                        <i class="fa-solid fa-trash-can"></i> 删除
+                    </button>
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="number" v-model.number="inputs.search" placeholder="数值" @keyup.enter="runSearch" :disabled="isBusy" class="w-24 text-center px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-green-500 transition">
+                    <button @click="runSearch" :disabled="isBusy" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-400 flex items-center gap-2">
+                        <i class="fa-solid fa-magnifying-glass"></i> 查找
+                    </button>
+                </div>
+                
+                <div class="flex items-center gap-4 border-l-2 pl-6 ml-2">
+                    <button @click="reset" :disabled="isBusy" class="bg-slate-600 hover:bg-slate-700 text-white font-semibold py-2 px-5 rounded-md transition disabled:bg-slate-400 flex items-center gap-2">
+                        <i class="fa-solid fa-refresh"></i> 重置
+                    </button>
+                    <button @click="randomTree" :disabled="isBusy" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-5 rounded-md transition disabled:bg-slate-400 flex items-center gap-2">
+                        <i class="fa-solid fa-dice"></i> 随机树
+                    </button>
+                </div>
+                
+                <div class="flex items-center gap-4 border-l-2 pl-6 ml-2">
+                   
+                    <button @click="nextStep" :disabled="!canGoNext" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-8 rounded-md transition disabled:bg-slate-400 flex items-center gap-2 text-lg">
+                        下一步 <i class="fa-solid fa-forward-step"></i>
+                    </button>
+                    <button @click="autoPlay" :disabled="!isBusy || autoPlaying" class="bg-sky-600 hover:bg-sky-700 text-white font-semibold py-2 px-5 rounded-md transition disabled:bg-slate-400 flex items-center gap-2">
+                        <i class="fa-solid fa-play"></i> 自动播放
+                    </button>
+                    <button @click="stopAutoPlay" v-if="autoPlaying" class="bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 px-5 rounded-md transition flex items-center gap-2">
+                        <i class="fa-solid fa-pause"></i> 暂停
+                    </button>
+                </div>
+                
+                <div class="speed-control" v-if="autoPlaying">
+                    <label class="text-sm font-medium">速度:</label>
+                    <input type="range" v-model="playSpeed" min="100" max="2000" step="100" class="slider">
+                    <span class="text-sm">{{ playSpeed }}ms</span>
+                </div>
+            </div>
+            
+            <!-- 进度条 -->
+            <div v-if="isBusy" class="mt-4">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-sm text-gray-600">步骤进度</span>
+                    <span class="text-sm text-gray-600">{{ currentStep + 1 }} / {{ totalSteps }}</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div class="bg-blue-600 h-2 rounded-full transition-all duration-300" :style="{ width: progressPercentage + '%' }"></div>
+                </div>
+            </div>
+        </div>
+    </header>
+    
+    <!-- 主内容区 -->
+    <main class="flex-grow grid grid-cols-1 lg:grid-cols-3 gap-4 min-h-0">
+        <div class="lg:col-span-2 flex flex-col gap-4 min-h-0">
+            <div class="bg-white shadow-lg rounded-xl p-4 shrink-0">
+                <div class="bg-sky-50 p-4 rounded-lg text-slate-800 flex items-center gap-4">
+                    <i :class="explanation.icon" class="text-2xl text-sky-600 fa-fw"></i>
+                    <p v-html="explanation.text" class="explanation-text transition-opacity duration-300 flex-1"></p>
+                </div>
+            </div>
+            <div class="bg-white shadow-lg rounded-xl p-4 flex flex-col flex-grow min-h-0">
+                <h2 class="text-xl font-bold text-slate-700 mb-4 border-b pb-3 text-center shrink-0">AVL树状态</h2>
+                <div id="echarts-container" class="flex-1 w-full min-h-0"></div>
+            </div>
+        </div>
+        <div class="bg-white shadow-lg rounded-xl p-4 flex flex-col min-h-0">
+            <h2 class="text-xl font-bold text-slate-700 mb-4 border-b pb-3 shrink-0">操作记录</h2>
+            <div class="flex-grow bg-slate-100 p-2 rounded-lg overflow-y-auto">
+                <div v-if="operationStack.length === 0" class="text-center text-slate-500 pt-16">
+                    <i class="fa-solid fa-layer-group text-4xl mb-3"></i>
+                    <p>操作开始后，此处将显示详细过程</p>
+                </div>
+                <div v-for="item in operationStack" :key="item.id" class="bg-white p-3 rounded-lg shadow mb-2 border-l-4 transition-all" 
+                     :style="{ 'border-color': item.color }"
+                     :class="{ 'ring-2 ring-blue-400': item.isCurrent }">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="font-bold text-slate-800 text-sm">{{ item.title }}</span>
+                        <i :class="item.icon" class="text-lg" :style="{ color: item.color }"></i>
+                    </div>
+                    <div class="text-sm text-slate-600" v-html="item.detail"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+</div>
+
+<script>
+const { createApp, reactive, computed, onMounted, toRefs, nextTick } = Vue;
+
+// AVL节点类
+class AvlNode {
+    constructor(value) {
+        this.value = value;
+        this.left = null;
+        this.right = null;
+        this.height = 1;
+        this.highlight = 'default';
+    }
+    
+    clone() {
+        const node = new AvlNode(this.value);
+        node.height = this.height;
+        node.highlight = this.highlight;
+        node.left = this.left ? this.left.clone() : null;
+        node.right = this.right ? this.right.clone() : null;
+        return node;
+    }
+}
+
+// AVL树操作类
+class AVLTreeOperations {
+    static getHeight(node) {
+        return node ? node.height : 0;
+    }
+    
+    static updateHeight(node) {
+        if (!node) return 0;
+        node.height = 1 + Math.max(this.getHeight(node.left), this.getHeight(node.right));
+        return node.height;
+    }
+    
+    static getBalance(node) {
+        return node ? this.getHeight(node.left) - this.getHeight(node.right) : 0;
+    }
+    
+    static rightRotate(y) {
+        const x = y.left;
+        const T2 = x.right;
+        
+        x.right = y;
+        y.left = T2;
+        
+        this.updateHeight(y);
+        this.updateHeight(x);
+        
+        return x;
+    }
+    
+    static leftRotate(x) {
+        const y = x.right;
+        const T2 = y.left;
+        
+        y.left = x;
+        x.right = T2;
+        
+        this.updateHeight(x);
+        this.updateHeight(y);
+        
+        return y;
+    }
+    
+    static findMin(node) {
+        while (node.left !== null) {
+            node = node.left;
+        }
+        return node;
+    }
+    
+    static findNode(node, value) {
+        if (!node || node.value === value) return node;
+        return value < node.value ? this.findNode(node.left, value) : this.findNode(node.right, value);
+    }
+    
+    // 标准AVL插入（无动画）
+    static insert(node, value) {
+        if (!node) return new AvlNode(value);
+        
+        if (value < node.value) {
+            node.left = this.insert(node.left, value);
+        } else if (value > node.value) {
+            node.right = this.insert(node.right, value);
+        } else {
+            return node;
+        }
+        
+        this.updateHeight(node);
+        const balance = this.getBalance(node);
+        
+        // LL
+        if (balance > 1 && value < node.left.value) {
+            return this.rightRotate(node);
+        }
+        
+        // RR
+        if (balance < -1 && value > node.right.value) {
+            return this.leftRotate(node);
+        }
+        
+        // LR
+        if (balance > 1 && value > node.left.value) {
+            node.left = this.leftRotate(node.left);
+            return this.rightRotate(node);
+        }
+        
+        // RL
+        if (balance < -1 && value < node.right.value) {
+            node.right = this.rightRotate(node.right);
+            return this.leftRotate(node);
+        }
+        
+        return node;
+    }
+    
+    // 标准AVL删除（无动画）
+    static delete(node, value) {
+        if (!node) return null;
+        
+        if (value < node.value) {
+            node.left = this.delete(node.left, value);
+        } else if (value > node.value) {
+            node.right = this.delete(node.right, value);
+        } else {
+            if (!node.left || !node.right) {
+                node = node.left || node.right;
+            } else {
+                const minNode = this.findMin(node.right);
+                node.value = minNode.value;
+                node.right = this.delete(node.right, minNode.value);
+            }
+        }
+        
+        if (!node) return null;
+        
+        this.updateHeight(node);
+        const balance = this.getBalance(node);
+        
+        // LL
+        if (balance > 1 && this.getBalance(node.left) >= 0) {
+            return this.rightRotate(node);
+        }
+        
+        // LR
+        if (balance > 1 && this.getBalance(node.left) < 0) {
+            node.left = this.leftRotate(node.left);
+            return this.rightRotate(node);
+        }
+        
+        // RR
+        if (balance < -1 && this.getBalance(node.right) <= 0) {
+            return this.leftRotate(node);
+        }
+        
+        // RL
+        if (balance < -1 && this.getBalance(node.right) > 0) {
+            node.right = this.rightRotate(node.right);
+            return this.leftRotate(node);
+        }
+        
+        return node;
+    }
+}
+
+// 动画构建器类
+class AnimationBuilder {
+    constructor() {
+        this.steps = [];
+        this.operationIdCounter = 0;
+    }
+    
+    reset() {
+        this.steps = [];
+        this.operationIdCounter = 0;
+    }
+    
+    addStep(explanation, treeModifier = null, highlights = {}, stackItem = null) {
+        this.steps.push({
+            explanation,
+            treeModifier,
+            highlights,
+            stackItem: stackItem ? { ...stackItem, id: this.operationIdCounter++ } : null
+        });
+    }
+    
+    // 构建插入动画
+    buildInsertAnimation(root, value) {
+        this.reset();
+        
+        this.addStep(
+            { text: `开始插入节点 <span class="value">${value}</span>`, icon: 'fa-solid fa-play' },
+            null,
+            {},
+            { title: '开始插入', icon: 'fa-solid fa-play', color: '#3b82f6', detail: `目标值: <b>${value}</b>` }
+        );
+        
+        // 递归构建插入步骤
+        this._insertRecursive(root, value, []);
+        
+        this.addStep(
+            { text: `插入节点 <span class="value">${value}</span> 完成！`, icon: 'fa-solid fa-check-circle' },
+            null,
+            { [value]: 'found' }
+        );
+        
+        return this.steps;
+    }
+    
+    _insertRecursive(node, value, path) {
+        if (!node) {
+            // 找到插入位置
+            this.addStep(
+                { text: `找到插入位置，创建新节点 <span class="value">${value}</span>`, icon: 'fa-solid fa-plus-circle' },
+                (tree) => {
+                    if (path.length === 0) {
+                        return new AvlNode(value);
+                    }
+                    // 遍历路径并插入新节点
+                    const newTree = tree.clone();
+                    let current = newTree;
+                    for (let i = 0; i < path.length - 1; i++) {
+                        current = value < current.value ? current.left : current.right;
+                    }
+                    if (value < current.value) {
+                        current.left = new AvlNode(value);
+                    } else {
+                        current.right = new AvlNode(value);
+                    }
+                    return newTree;
+                },
+                { [value]: 'new', ...Object.fromEntries(path.map(p => [p, 'path'])) },
+                { title: '创建节点', icon: 'fa-solid fa-plus', color: '#10b981', detail: `新节点 <b>${value}</b> 已创建` }
+            );
+            return;
+        }
+        
+        path.push(node.value);
+        
+        // 访问当前节点
+        this.addStep(
+            { text: `访问节点 <span class="value">${node.value}</span>`, icon: 'fa-solid fa-eye' },
+            null,
+            { [node.value]: 'current', ...Object.fromEntries(path.slice(0, -1).map(p => [p, 'path'])) }
+        );
+        
+        // 比较并决定方向
+        if (value === node.value) {
+            this.addStep(
+                { text: `节点 <span class="value">${value}</span> 已存在`, icon: 'fa-solid fa-times-circle' },
+                null,
+                { [node.value]: 'deleted' }
+            );
+            return;
+        } else if (value < node.value) {
+            this.addStep(
+                { text: `<span class="value">${value}</span> < <span class="value">${node.value}</span>，向左子树移动`, icon: 'fa-solid fa-arrow-left' },
+                null,
+                { ...Object.fromEntries(path.map(p => [p, 'path'])) }
+            );
+            this._insertRecursive(node.left, value, [...path]);
+        } else {
+            this.addStep(
+                { text: `<span class="value">${value}</span> > <span class="value">${node.value}</span>，向右子树移动`, icon: 'fa-solid fa-arrow-right' },
+                null,
+                { ...Object.fromEntries(path.map(p => [p, 'path'])) }
+            );
+            this._insertRecursive(node.right, value, [...path]);
+        }
+        
+        // 回溯：更新高度和检查平衡
+        this._addBalanceSteps(node.value, value, path);
+    }
+    
+    _addBalanceSteps(nodeValue, insertedValue, path) {
+        // 更新高度
+        this.addStep(
+            { text: `回溯到节点 <span class="value">${nodeValue}</span>，更新高度`, icon: 'fa-solid fa-arrow-up' },
+            (tree) => {
+                const newTree = tree.clone();
+                const node = AVLTreeOperations.findNode(newTree, nodeValue);
+                if (node) {
+                    AVLTreeOperations.updateHeight(node);
+                }
+                return newTree;
+            },
+            { [nodeValue]: 'current' }
+        );
+        
+        // 检查平衡
+        this.addStep(
+            { text: `检查节点 <span class="value">${nodeValue}</span> 的平衡`, icon: 'fa-solid fa-balance-scale' },
+            (tree) => {
+                const newTree = tree.clone();
+                const node = AVLTreeOperations.findNode(newTree, nodeValue);
+                if (!node) return newTree;
+                
+                const balance = AVLTreeOperations.getBalance(node);
+                
+                if (Math.abs(balance) <= 1) return newTree;
+                
+                // 需要旋转
+                let rotationType = '';
+                let rotatedTree = newTree;
+                
+                if (balance > 1) {
+                    if (insertedValue < node.left.value) {
+                        // LL型
+                        rotationType = 'LL';
+                        rotatedTree = this._rotateInTree(newTree, nodeValue, 'right');
+                    } else {
+                        // LR型
+                        rotationType = 'LR';
+                        const leftChild = node.left;
+                        rotatedTree = this._rotateInTree(newTree, leftChild.value, 'left');
+                        rotatedTree = this._rotateInTree(rotatedTree, nodeValue, 'right');
+                    }
+                } else if (balance < -1) {
+                    if (insertedValue > node.right.value) {
+                        // RR型
+                        rotationType = 'RR';
+                        rotatedTree = this._rotateInTree(newTree, nodeValue, 'left');
+                    } else {
+                        // RL型
+                        rotationType = 'RL';
+                        const rightChild = node.right;
+                        rotatedTree = this._rotateInTree(newTree, rightChild.value, 'right');
+                        rotatedTree = this._rotateInTree(rotatedTree, nodeValue, 'left');
+                    }
+                }
+                
+                if (rotationType) {
+                    // 添加旋转记录
+                    this.steps[this.steps.length - 1].stackItem = {
+                        title: `${rotationType}型旋转`,
+                        icon: rotationType.includes('L') ? 'fa-solid fa-rotate-left' : 'fa-solid fa-rotate-right',
+                        color: '#8b5cf6',
+                        detail: `节点 <b>${nodeValue}</b> 执行${rotationType}旋转`,
+                        id: this.operationIdCounter++
+                    };
+                }
+                
+                return rotatedTree;
+            },
+            { [nodeValue]: 'pivot' }
+        );
+    }
+    
+    _rotateInTree(tree, nodeValue, direction) {
+        // 在树中找到节点并执行旋转
+        if (!tree) return null;
+        
+        if (tree.value === nodeValue) {
+            return direction === 'left' ? AVLTreeOperations.leftRotate(tree) : AVLTreeOperations.rightRotate(tree);
+        }
+        
+        if (nodeValue < tree.value) {
+            tree.left = this._rotateInTree(tree.left, nodeValue, direction);
+        } else {
+            tree.right = this._rotateInTree(tree.right, nodeValue, direction);
+        }
+        
+        return tree;
+    }
+    
+    // 构建删除动画
+    buildDeleteAnimation(root, value) {
+        this.reset();
+        
+        this.addStep(
+            { text: `开始删除节点 <span class="value">${value}</span>`, icon: 'fa-solid fa-trash' },
+            null,
+            {},
+            { title: '开始删除', icon: 'fa-solid fa-trash', color: '#dc2626', detail: `目标值: <b>${value}</b>` }
+        );
+        
+        // 构建删除步骤
+        this._deleteRecursive(root, value, []);
+        
+        this.addStep(
+            { text: `删除节点 <span class="value">${value}</span> 完成！`, icon: 'fa-solid fa-check-circle' },
+            null,
+            {}
+        );
+        
+        return this.steps;
+    }
+    
+    _deleteRecursive(node, value, path) {
+        if (!node) {
+            this.addStep(
+                { text: `未找到节点 <span class="value">${value}</span>`, icon: 'fa-solid fa-times-circle' },
+                null,
+                {}
+            );
+            return;
+        }
+        
+        path.push(node.value);
+        
+        this.addStep(
+            { text: `访问节点 <span class="value">${node.value}</span>`, icon: 'fa-solid fa-eye' },
+            null,
+            { [node.value]: 'current', ...Object.fromEntries(path.slice(0, -1).map(p => [p, 'path'])) }
+        );
+        
+        if (value < node.value) {
+            this.addStep(
+                { text: `<span class="value">${value}</span> < <span class="value">${node.value}</span>，向左子树查找`, icon: 'fa-solid fa-arrow-left' },
+                null,
+                { ...Object.fromEntries(path.map(p => [p, 'path'])) }
+            );
+            this._deleteRecursive(node.left, value, [...path]);
+        } else if (value > node.value) {
+            this.addStep(
+                { text: `<span class="value">${value}</span> > <span class="value">${node.value}</span>，向右子树查找`, icon: 'fa-solid fa-arrow-right' },
+                null,
+                { ...Object.fromEntries(path.map(p => [p, 'path'])) }
+            );
+            this._deleteRecursive(node.right, value, [...path]);
+        } else {
+            // 找到要删除的节点
+            this.addStep(
+                { text: `找到要删除的节点 <span class="value">${value}</span>`, icon: 'fa-solid fa-crosshairs' },
+                null,
+                { [value]: 'deleted' },
+                { title: '找到目标', icon: 'fa-solid fa-crosshairs', color: '#dc2626', detail: `准备删除节点 <b>${value}</b>` }
+            );
+            
+            // 执行删除
+            this.addStep(
+                { text: `执行删除操作`, icon: 'fa-solid fa-trash' },
+                (tree) => AVLTreeOperations.delete(tree.clone(), value),
+                {},
+                { title: '删除节点', icon: 'fa-solid fa-trash', color: '#dc2626', detail: `节点 <b>${value}</b> 已删除` }
+            );
+        }
+    }
+    
+    // 构建查找动画
+    buildSearchAnimation(root, value) {
+        this.reset();
+        
+        this.addStep(
+            { text: `开始查找节点 <span class="value">${value}</span>`, icon: 'fa-solid fa-search' },
+            null,
+            {},
+            { title: '开始查找', icon: 'fa-solid fa-search', color: '#10b981', detail: `目标值: <b>${value}</b>` }
+        );
+        
+        let current = root;
+        let path = [];
+        
+        while (current) {
+            path.push(current.value);
+            
+            this.addStep(
+                { text: `检查节点 <span class="value">${current.value}</span>`, icon: 'fa-solid fa-eye' },
+                null,
+                { [current.value]: 'current', ...Object.fromEntries(path.slice(0, -1).map(p => [p, 'path'])) }
+            );
+            
+            if (value === current.value) {
+                this.addStep(
+                    { text: `找到节点 <span class="value">${value}</span>！`, icon: 'fa-solid fa-check-circle' },
+                    null,
+                    { [value]: 'found' },
+                    { title: '查找成功', icon: 'fa-solid fa-check', color: '#10b981', detail: `找到节点 <b>${value}</b>` }
+                );
+                return this.steps;
+            } else if (value < current.value) {
+                this.addStep(
+                    { text: `<span class="value">${value}</span> < <span class="value">${current.value}</span>，向左`, icon: 'fa-solid fa-arrow-left' },
+                    null,
+                    { ...Object.fromEntries(path.map(p => [p, 'path'])) }
+                );
+                current = current.left;
+            } else {
+                this.addStep(
+                    { text: `<span class="value">${value}</span> > <span class="value">${current.value}</span>，向右`, icon: 'fa-solid fa-arrow-right' },
+                    null,
+                    { ...Object.fromEntries(path.map(p => [p, 'path'])) }
+                );
+                current = current.right;
+            }
+        }
+        
+        this.addStep(
+            { text: `未找到节点 <span class="value">${value}</span>`, icon: 'fa-solid fa-times-circle' },
+            null,
+            {},
+            { title: '查找失败', icon: 'fa-solid fa-times', color: '#dc2626', detail: `节点 <b>${value}</b> 不存在` }
+        );
+        
+        return this.steps;
+    }
+}
+
+// Vue应用
+createApp({
+    setup() {
+        const state = reactive({
+            root: null,
+            inputs: { insert: null, delete: null, search: null },
+            isBusy: false,
+            autoPlaying: false,
+            playSpeed: 1000,
+            explanation: { 
+                text: '欢迎使用AVL树可视化工具！请在上方输入框操作。', 
+                icon: 'fa-solid fa-circle-info' 
+            },
+            operationStack: [],
+            animationSteps: [],
+            currentStep: -1,
+        });
+        
+        let chart = null;
+        let autoPlayTimer = null;
+        const animationBuilder = new AnimationBuilder();
+        
+        // 计算属性
+        const canGoNext = computed(() => state.isBusy && state.currentStep < state.animationSteps.length - 1);
+        const canGoPrevious = computed(() => state.isBusy && state.currentStep > 0);
+        const totalSteps = computed(() => state.animationSteps.length);
+        const progressPercentage = computed(() => {
+            if (state.animationSteps.length === 0) return 0;
+            return ((state.currentStep + 1) / state.animationSteps.length) * 100;
+        });
+        
+        // 初始化图表
+        const initChart = async () => {
+            await nextTick();
+            const container = document.getElementById('echarts-container');
+            if (!container) return;
+            
+            chart = echarts.init(container);
+            const option = {
+                tooltip: {
+                    trigger: 'item',
+                    formatter: (params) => {
+                        if (!params.data?.nodeData) return '';
+                        const { value, height, balance } = params.data.nodeData;
+                        return `<div class="tooltip-box">
+                            <div><span class="prop">值:</span> <span class="value">${value}</span></div>
+                            <div><span class="prop">高度:</span> <span class="value">${height}</span></div>
+                            <div><span class="prop">平衡因子:</span> <span class="value">${balance}</span></div>
+                        </div>`;
+                    }
+                },
+                series: [{
+                    type: 'tree',
+                    data: [],
+                    top: '5%',
+                    left: '5%',
+                    bottom: '5%',
+                    right: '5%',
+                    symbol: 'circle',
+                    symbolSize: 45,
+                    orient: 'vertical',
+                    expandAndCollapse: false,
+                    label: {
+                        position: 'inside',
+                        verticalAlign: 'middle',
+                        align: 'center',
+                        fontSize: 12,
+                        color: '#fff',
+                        fontWeight: 'bold'
+                    },
+                    leaves: {
+                        label: {
+                            position: 'inside',
+                            verticalAlign: 'middle',
+                            align: 'center'
+                        }
+                    },
+                    lineStyle: {
+                        color: '#94a3b8',
+                        width: 2,
+                        curveness: 0.5
+                    },
+                    emphasis: {
+                        focus: 'none'
+                    },
+                    animation: true,
+                    animationDuration: 500,
+                    animationEasing: 'cubicOut'
+                }]
+            };
+            chart.setOption(option);
+            window.addEventListener('resize', () => chart?.resize());
+        };
+        
+        // 更新图表
+        const updateChart = () => {
+            if (!chart) return;
+            const data = state.root ? [transformToEchartsData(state.root)] : [];
+            chart.setOption({ series: [{ data }] });
+        };
+        
+        // 转换节点为Echarts数据
+        const transformToEchartsData = (node) => {
+            if (!node) return null;
+            
+            const styles = {
+                default: { color: '#94a3b8', border: '#64748b' },
+                current: { color: '#38bdf8', border: '#0284c7' },
+                path: { color: '#fbbf24', border: '#f59e0b' },
+                pivot: { color: '#f472b6', border: '#ec4899' },
+                found: { color: '#4ade80', border: '#16a34a' },
+                deleted: { color: '#f87171', border: '#dc2626' },
+                rotating: { color: '#a78bfa', border: '#8b5cf6' },
+                new: { color: '#34d399', border: '#10b981' }
+            };
+            
+            const style = styles[node.highlight] || styles.default;
+            const balance = AVLTreeOperations.getBalance(node);
+            
+            return {
+                name: `${node.value}\nh:${node.height} b:${balance}`,
+                value: node.value,
+                nodeData: { value: node.value, height: node.height, balance },
+                itemStyle: {
+                    color: style.color,
+                    borderColor: style.border,
+                    borderWidth: 3
+                },
+                children: [
+                    node.left ? transformToEchartsData(node.left) : null,
+                    node.right ? transformToEchartsData(node.right) : null
+                ].filter(Boolean)
+            };
+        };
+        
+        // 清除高亮
+        const clearHighlights = (node) => {
+            if (!node) return;
+            node.highlight = 'default';
+            clearHighlights(node.left);
+            clearHighlights(node.right);
+        };
+        
+        // 应用高亮
+        const applyHighlights = (highlights) => {
+            clearHighlights(state.root);
+            for (const [value, style] of Object.entries(highlights)) {
+                const node = AVLTreeOperations.findNode(state.root, Number(value));
+                if (node) node.highlight = style;
+            }
+        };
+        
+        // 执行步骤
+        const executeStep = (stepIndex) => {
+            if (stepIndex < 0 || stepIndex >= state.animationSteps.length) return;
+            
+            const step = state.animationSteps[stepIndex];
+            state.currentStep = stepIndex;
+            
+            // 更新说明
+            if (step.explanation) {
+                state.explanation = step.explanation;
+            }
+            
+            // 修改树结构
+            if (step.treeModifier) {
+                state.root = step.treeModifier(state.root);
+            }
+            
+            // 应用高亮
+            if (step.highlights) {
+                applyHighlights(step.highlights);
+            }
+            
+            // 添加操作记录
+            if (step.stackItem && !state.operationStack.find(item => item.id === step.stackItem.id)) {
+                state.operationStack.unshift(step.stackItem);
+            }
+            
+            // 更新当前高亮的操作记录
+            state.operationStack.forEach(item => {
+                item.isCurrent = step.stackItem && item.id === step.stackItem.id;
+            });
+            
+            updateChart();
+        };
+        
+        // 下一步
+        const nextStep = () => {
+            if (canGoNext.value) {
+                executeStep(state.currentStep + 1);
+            }
+            
+            if (state.currentStep >= state.animationSteps.length - 1) {
+                finishAnimation();
+            }
+        };
+        
+       
+        
+        // 自动播放
+        const autoPlay = () => {
+            if (!state.isBusy || state.autoPlaying) return;
+            
+            state.autoPlaying = true;
+            autoPlayTimer = setInterval(() => {
+                if (canGoNext.value) {
+                    nextStep();
+                } else {
+                    stopAutoPlay();
+                }
+            }, state.playSpeed);
+        };
+        
+        // 停止自动播放
+        const stopAutoPlay = () => {
+            state.autoPlaying = false;
+            if (autoPlayTimer) {
+                clearInterval(autoPlayTimer);
+                autoPlayTimer = null;
+            }
+        };
+        
+        // 完成动画
+        const finishAnimation = () => {
+            state.isBusy = false;
+            state.autoPlaying = false;
+            stopAutoPlay();
+            state.explanation = {
+                text: '<b>操作完成！</b>可进行下一步操作。',
+                icon: 'fa-solid fa-check-circle'
+            };
+            clearHighlights(state.root);
+            updateChart();
+        };
+        
+        // 重置
+        const reset = () => {
+            stopAutoPlay();
+            state.isBusy = false;
+            state.animationSteps = [];
+            state.currentStep = -1;
+            state.operationStack = [];
+            state.explanation = {
+                text: '树已重置，请开始新的操作。',
+                icon: 'fa-solid fa-circle-info'
+            };
+            
+            // 创建默认树
+            state.root = new AvlNode(30);
+            state.root.left = new AvlNode(20);
+            state.root.right = new AvlNode(40);
+            state.root.left.left = new AvlNode(10);
+            state.root.left.right = new AvlNode(25);
+            state.root.right.left = new AvlNode(35);
+            state.root.right.right = new AvlNode(50);
+            
+            AVLTreeOperations.updateHeight(state.root.left.left);
+            AVLTreeOperations.updateHeight(state.root.left.right);
+            AVLTreeOperations.updateHeight(state.root.left);
+            AVLTreeOperations.updateHeight(state.root.right.left);
+            AVLTreeOperations.updateHeight(state.root.right.right);
+            AVLTreeOperations.updateHeight(state.root.right);
+            AVLTreeOperations.updateHeight(state.root);
+            
+            updateChart();
+        };
+        
+        // 生成随机树
+        const randomTree = () => {
+            stopAutoPlay();
+            state.root = null;
+            const values = new Set();
+            const count = Math.floor(Math.random() * 8) + 7;
+            
+            while (values.size < count) {
+                values.add(Math.floor(Math.random() * 100) + 1);
+            }
+            
+            for (const val of values) {
+                state.root = AVLTreeOperations.insert(state.root, val);
+            }
+            
+            state.explanation = {
+                text: `生成了包含 ${count} 个节点的随机AVL树。`,
+                icon: 'fa-solid fa-dice'
+            };
+            
+            updateChart();
+        };
+        
+        // 运行操作
+        const runOperation = (operation, value) => {
+            if (typeof value !== 'number' || isNaN(value)) {
+                alert('请输入有效的数字！');
+                return;
+            }
+            
+            stopAutoPlay();
+            state.isBusy = true;
+            state.currentStep = -1;
+            state.operationStack = [];
+            clearHighlights(state.root);
+            
+            let steps = [];
+            
+            switch (operation) {
+                case 'insert':
+                    if (AVLTreeOperations.findNode(state.root, value)) {
+                        alert(`节点 ${value} 已存在！`);
+                        state.isBusy = false;
+                        return;
+                    }
+                    steps = animationBuilder.buildInsertAnimation(state.root, value);
+                    break;
+                    
+                case 'delete':
+                    if (!AVLTreeOperations.findNode(state.root, value)) {
+                        alert(`节点 ${value} 不存在！`);
+                        state.isBusy = false;
+                        return;
+                    }
+                    steps = animationBuilder.buildDeleteAnimation(state.root, value);
+                    break;
+                    
+                case 'search':
+                    steps = animationBuilder.buildSearchAnimation(state.root, value);
+                    break;
+            }
+            
+            state.animationSteps = steps;
+            nextStep();
+        };
+        
+        // 生命周期
+        onMounted(async () => {
+            await initChart();
+            reset();
+        });
+        
+        return {
+            ...toRefs(state),
+            canGoNext,
+            canGoPrevious,
+            totalSteps,
+            progressPercentage,
+            reset,
+            randomTree,
+            nextStep,
+            autoPlay,
+            stopAutoPlay,
+            runInsert: () => runOperation('insert', state.inputs.insert),
+            runDelete: () => runOperation('delete', state.inputs.delete),
+            runSearch: () => runOperation('search', state.inputs.search),
+        };
+    }
+}).mount('#app');
+</script>
+
+</body>
+</html>

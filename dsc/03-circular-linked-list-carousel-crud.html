@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>循环链表：终极CRUD演示 - 图片轮播</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/petite-vue"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+        /* 简单的图片切换动画 */
+        .carousel-image { transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out; }
+    </style>
+</head>
+
+<body class="p-8">
+<main id="app" v-scope @vue:mounted="init()" class="grid grid-cols-1 lg:grid-cols-5 gap-8 max-w-7xl mx-auto">
+
+    <!-- ============================================= -->
+    <!--          左侧：图片轮播界面 (3/5)             -->
+    <!-- ============================================= -->
+    <div class="lg:col-span-3 bg-white p-6 rounded-2xl shadow-xl border border-slate-200 flex flex-col">
+        <header class="mb-4">
+            <h1 class="text-3xl font-bold text-slate-800">本周特推</h1>
+            <p class="text-slate-500 mt-1">这个图片轮播由一个循环链表驱动。</p>
+        </header>
+
+        <!-- 主图显示区域 (READ) -->
+        <div class="relative w-full aspect-video rounded-xl overflow-hidden shadow-lg">
+            <img :key="currentNode.id" :src="currentNode.value.imageUrl" class="carousel-image w-full h-full object-cover absolute top-0 left-0">
+             <!-- 左右切换按钮 -->
+            <button @click="prevSlide()" class="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/30 text-white rounded-full hover:bg-black/60 transition"><i class="fas fa-chevron-left"></i></button>
+            <button @click="nextSlide()" class="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/30 text-white rounded-full hover:bg-black/60 transition"><i class="fas fa-chevron-right"></i></button>
+        </div>
+
+        <!-- 缩略图导航 -->
+        <div class="flex justify-center gap-3 mt-4 py-4 overflow-x-auto">
+            <img v-for="node in list.toArray()" :src="node.value.imageUrl" @click="jumpToSlide(node)"
+                 class="w-16 h-10 object-cover rounded-md cursor-pointer border-2 transition"
+                 :class="currentNode === node ? 'border-blue-500 scale-110' : 'border-transparent hover:border-slate-400'">
+        </div>
+
+        <!-- 当前图片信息与操作 (UPDATE) -->
+        <div class="mt-4 pt-4 border-t border-slate-200">
+            <label class="font-bold text-slate-700">编辑当前标题 (Update)</label>
+            <div class="flex items-center gap-3 mt-2">
+                <input type="text" v-model="currentNode.value.caption" class="flex-grow w-full px-4 py-2 bg-slate-100 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <button @click="updateCaption()" class="px-5 py-2 font-semibold text-white bg-blue-500 rounded-md hover:bg-blue-600 transition">保存</button>
+            </div>
+        </div>
+
+         <!-- 列表管理 (CREATE / DELETE) -->
+        <div class="mt-4 pt-4 border-t border-slate-200">
+             <label class="font-bold text-slate-700">管理轮播列表</label>
+            <div class="grid grid-cols-2 gap-4 mt-2">
+                <button @click="addSlide()" class="w-full bg-green-100 text-green-700 font-bold hover:bg-green-200 transition py-2 rounded-full">添加新幻灯片 (Create)</button>
+                <button @click="removeCurrentSlide()" class="w-full bg-red-100 text-red-700 font-bold hover:bg-red-200 transition py-2 rounded-full">移除当前幻灯片 (Delete)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================= -->
+    <!--         右侧：终极CRUD教学模块 (2/5)          -->
+    <!-- ============================================= -->
+    <div class="lg:col-span-2 bg-[#1e293b] text-slate-200 rounded-2xl p-8 shadow-xl sticky top-8 h-fit">
+        <h3 class="text-xl font-bold text-white mb-4 flex items-center"><i class="fas fa-retweet mr-3 text-sky-400"></i>循环链表 · CRUD 解析</h3>
+        <div class="bg-black/20 p-4 rounded-lg space-y-4">
+            <div> <p class="text-xs font-bold text-slate-400">当前操作</p> <p class="text-sky-400 font-bold text-lg">{{ info.title }}</p> </div>
+            <div> <p class="text-xs font-bold text-slate-400">详细描述</p> <p class="text-sm text-slate-300 leading-relaxed">{{ info.description }}</p> </div>
+            <div v-if="info.pointers.length > 0">
+                 <p class="text-xs font-bold text-slate-400">核心代码/指针变化</p>
+                 <div class="mt-1 space-y-1 text-xs font-mono"> <p v-for="p in info.pointers" class="bg-black/20 p-2 rounded-md" v-html="p"></p> </div>
+            </div>
+            <div> <p class="text-xs font-bold text-slate-400">性能分析 (Big O)</p> <p class="text-sm text-slate-300" v-html="info.complexity"></p> </div>
+        </div>
+    </div>
+</main>
+
+
+<script>
+    // --- 定义双向循环链表节点和类 ---
+    let nodeIdCounter = 0;
+    class Node { constructor(value) { this.id = nodeIdCounter++; this.value = value; this.next = null; this.prev = null; } }
+    class DoublyCircularLinkedList {
+        constructor() { this.head = null; this.size = 0; }
+        
+        append(value) {
+            const newNode = new Node(value);
+            if (!this.head) {
+                this.head = newNode;
+                newNode.next = newNode;
+                newNode.prev = newNode;
+            } else {
+                const tail = this.head.prev;
+                tail.next = newNode;
+                newNode.prev = tail;
+                newNode.next = this.head;
+                this.head.prev = newNode;
+            }
+            this.size++;
+        }
+
+        insertAfter(node, value) {
+            const newNode = new Node(value);
+            const oldNext = node.next;
+            node.next = newNode;
+            newNode.prev = node;
+            newNode.next = oldNext;
+            oldNext.prev = newNode;
+            this.size++;
+            return newNode;
+        }
+
+        delete(node) {
+            if (this.size === 1 && node === this.head) { this.head = null; this.size = 0; return; }
+            node.prev.next = node.next;
+            node.next.prev = node.prev;
+            if (node === this.head) { this.head = node.next; }
+            this.size--;
+        }
+        
+        toArray() {
+            if (!this.head) return [];
+            const arr = []; let current = this.head;
+            do { arr.push(current); current = current.next; } while (current !== this.head);
+            return arr;
+        }
+    }
+
+    PetiteVue.createApp({
+        // --- 数据模型 ---
+        list: new DoublyCircularLinkedList(),
+        currentNode: { value: { caption: '加载中...', imageUrl: '' } }, // 占位符
+        info: { title: '请开始操作', description: '点击轮播图或按钮，观察循环链表的操作。', pointers: [], complexity: 'N/A' },
+
+        // --- 初始化 ---
+        init() {
+            nodeIdCounter = 0; this.list = new DoublyCircularLinkedList();
+            const initialSlides = [
+                { caption: '山间日出 (Sunrise over Mountains)', imageUrl: 'https://picsum.photos/id/1018/800/450' },
+                { caption: '繁华都市夜景 (Cityscape at Night)', imageUrl: 'https://picsum.photos/id/102/800/450' },
+                { caption: '静谧的林间小路 (Forest Path)', imageUrl: 'https://picsum.photos/id/1015/800/450' },
+                { caption: '翱翔的雄鹰 (Soaring Eagle)', imageUrl: 'https://picsum.photos/id/1024/800/450' },
+            ];
+            initialSlides.forEach(s => this.list.append(s));
+            this.currentNode = this.list.head;
+            this.updateInfo('init');
+        },
+
+        // --- C.R.U.D. 方法 ---
+        // == READ (读取/遍历) ==
+        nextSlide() { if(this.currentNode) { this.updateInfo('read_next'); this.currentNode = this.currentNode.next; } },
+        prevSlide() { if(this.currentNode) { this.updateInfo('read_prev'); this.currentNode = this.currentNode.prev; } },
+        jumpToSlide(node) { this.updateInfo('read_jump'); this.currentNode = node; },
+
+        // == CREATE (创建/插入) ==
+        addSlide() {
+            const newSlide = { caption: '新的风景 (New Scenery)', imageUrl: `https://picsum.photos/id/${1030 + this.list.size}/800/450` };
+            const newNode = this.list.insertAfter(this.currentNode, newSlide);
+            this.updateInfo('create', { target: this.currentNode, newNode });
+            this.currentNode = newNode;
+        },
+
+        // == UPDATE (更新) ==
+        updateCaption() { this.updateInfo('update', { target: this.currentNode }); },
+
+        // == DELETE (删除) ==
+        removeCurrentSlide() {
+            if (this.list.size <= 1) { this.updateInfo('error', { message: '轮播至少需要保留一张图片。' }); return; }
+            const nodeToDelete = this.currentNode;
+            this.currentNode = this.currentNode.next;
+            this.updateInfo('delete', { target: nodeToDelete });
+            this.list.delete(nodeToDelete);
+        },
+
+        // --- 超级教学模块 ---
+        updateInfo(action, details = {}) {
+            const name = (node) => `幻灯片('${node.value.caption.slice(0,10)}...')`;
+            const code = (str) => `<span class="text-yellow-300">${str}</span>`;
+            switch (action) {
+                case 'init': this.info = { title: '轮播已就绪', description: '轮播已初始化为一个双向循环链表。注意最后一个节点的.next指向头节点，头节点的.prev指向尾节点，形成一个闭环。', pointers: [], complexity: '准备就绪' }; break;
+                case 'read_next': this.info = { title: 'READ: 下一张', description: `通过访问当前节点的 .next 指针进行跳转。因为是循环的，所以尾节点的.next会指向头节点。`, pointers: [`currentNode = ${code('currentNode.next')}`], complexity: `<b>O(1) - 恒定时间</b>。指针跳转，瞬间完成。` }; break;
+                case 'read_prev': this.info = { title: 'READ: 上一张', description: `通过访问当前节点的 .prev 指针进行跳转。因为是循环的，所以头节点的.prev会指向尾节点。`, pointers: [`currentNode = ${code('currentNode.prev')}`], complexity: `<b>O(1) - 恒定时间</b>。双向循环链表的优势。` }; break;
+                case 'read_jump': this.info = { title: 'READ: 跳转到指定幻灯片', description: `直接将当前节点指针指向了被点击的缩略图对应的节点。`, pointers: [], complexity: `查找操作理论上是O(n)，但UI辅助下是O(1)。` }; break;
+                case 'create':
+                     this.info = { title: 'CREATE: 插入新幻灯片', description: `在 ${name(details.target)} 后插入了 ${name(details.newNode)}。`, pointers: [`newNode.next = ${code(`${name(details.target)}.next`)}`, `newNode.prev = ${code(name(details.target))}`, `${code(`${name(details.target)}.next`)}.prev = newNode`, `${code(name(details.target))}.next = newNode`], complexity: `<b>O(1) - 恒定时间</b>。与普通双向链表一样，插入只需修改4个指针，效率极高。` }; break;
+                case 'update': this.info = { title: 'UPDATE: 更新标题', description: `更新了 ${name(details.target)} 的标题内容。`, pointers: [`nodeToUpdate.value.caption = ${code(`"${details.target.value.caption}"`)}`], complexity: `<b>O(1) - 恒定时间</b>。一旦定位到节点，更新其内部数据是瞬间的。` }; break;
+                case 'delete':
+                     this.info = { title: 'DELETE: 移除当前幻灯片', description: `正在移除 ${name(details.target)}。`, pointers: [`node.prev.next = ${code('node.next')}`, `node.next.prev = ${code('node.prev')}`], complexity: `<b>O(1) - 恒定时间</b>。因为是双向的，我们可以轻易地访问到要删除节点的前后邻居，并修改它们的指针来“跳过”它，从而维持链表的循环。` }; break;
+                case 'error': this.info = { title: '操作不允许', description: details.message, pointers: [], complexity: 'N/A' }; break;
+            }
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>

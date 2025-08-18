@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图算法自动演示系统</title>
+    
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+    <style>
+        :root {
+            --primary: #2563eb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        body {
+            background: var(--bg-gradient);
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+
+        .main-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+        }
+
+        .algorithm-tabs {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .tab-button {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f1f5f9;
+            color: #64748b;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tab-button.active {
+            background: linear-gradient(135deg, #2563eb, #3b82f6);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(37, 99, 235, 0.3);
+        }
+
+        .tab-button:hover:not(.active) {
+            background: #e2e8f0;
+            transform: translateY(-1px);
+        }
+
+        .chart-area {
+            flex: 1;
+            position: relative;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        .control-bar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .control-button {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .control-button.primary {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .control-button.primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .control-button.secondary {
+            background: linear-gradient(135deg, #6b7280, #4b5563);
+            color: white;
+            box-shadow: 0 4px 15px rgba(107, 114, 128, 0.3);
+        }
+
+        .control-button.danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+        }
+
+        .control-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.running {
+            background: #10b981;
+        }
+
+        .status-dot.paused {
+            background: #f59e0b;
+        }
+
+        .status-dot.stopped {
+            background: #6b7280;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .algorithm-info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            max-width: 300px;
+            z-index: 10;
+        }
+
+        .algorithm-title {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+
+        .algorithm-desc {
+            font-size: 0.85rem;
+            color: #64748b;
+            line-height: 1.4;
+        }
+
+        .step-info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+            display: none;
+        }
+
+        .step-info.active {
+            display: block;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .step-text {
+            font-size: 0.9rem;
+            color: #1e293b;
+            line-height: 1.5;
+            margin-bottom: 0.5rem;
+        }
+
+        .step-progress {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+
+        .progress-bar {
+            flex: 1;
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: 2px;
+            margin: 0 1rem;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #059669);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        .error-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            font-weight: 600;
+            z-index: 1000;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+            to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .header {
+                padding: 0.75rem 1rem;
+            }
+            
+            .algorithm-tabs {
+                gap: 0.25rem;
+            }
+            
+            .tab-button {
+                padding: 0.5rem 1rem;
+                font-size: 0.8rem;
+            }
+            
+            .control-bar {
+                padding: 0.75rem 1rem;
+                flex-wrap: wrap;
+            }
+            
+            .control-button {
+                padding: 0.5rem 1rem;
+                font-size: 0.8rem;
+            }
+            
+            .algorithm-info {
+                top: 10px;
+                left: 10px;
+                max-width: calc(100% - 20px);
+                padding: 0.75rem 1rem;
+            }
+            
+            .step-info {
+                bottom: 10px;
+                left: 10px;
+                right: 10px;
+                padding: 0.75rem 1rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app" class="main-container">
+        
+        <!-- 顶部算法选择 -->
+        <header class="header">
+            <div class="text-center mb-4">
+                <h1 class="text-2xl md:text-3xl font-bold text-slate-800 mb-2">
+                    🔬 图算法可视化演示系统
+                </h1>
+                <p class="text-sm text-slate-600">专业重构版 - 精确算法实现与交互体验</p>
+            </div>
+            
+            <div class="algorithm-tabs">
+                <button v-for="algo in algorithms" :key="algo.id" 
+                        @click="selectAlgorithm(algo.id)"
+                        :class="['tab-button', { active: selectedAlgorithm === algo.id }]">
+                    <i :class="[algo.icon, 'mr-2']"></i>{{ algo.name }}
+                </button>
+            </div>
+        </header>
+
+        <!-- 主要可视化区域 -->
+        <main class="chart-area">
+            <div class="chart-container" ref="chartContainer"></div>
+            
+            <!-- 算法信息卡片 -->
+            <div class="algorithm-info" v-if="currentAlgorithm">
+                <div class="algorithm-title">{{ currentAlgorithm.name }}</div>
+                <div class="algorithm-desc">{{ currentAlgorithm.description }}</div>
+                <div class="text-xs text-slate-500 mt-2">
+                    <span class="font-medium">复杂度:</span> {{ currentAlgorithm.complexity }} | 
+                    <span class="font-medium">难度:</span> {{ currentAlgorithm.difficulty }}
+                </div>
+            </div>
+
+            <!-- 步骤信息显示 -->
+            <div class="step-info" :class="{ active: currentStep }" v-if="currentStep">
+                <div class="step-text">{{ currentStep.description }}</div>
+                <div class="step-progress">
+                    <span>步骤 {{ currentStepIndex + 1 }}</span>
+                    <div class="progress-bar">
+                        <div class="progress-fill" :style="{ width: progressPercentage + '%' }"></div>
+                    </div>
+                    <span>{{ totalSteps }} 步</span>
+                </div>
+            </div>
+
+            <!-- 错误信息显示 -->
+            <div class="error-message" :class="{ show: errorMessage }" v-if="errorMessage">
+                {{ errorMessage }}
+            </div>
+        </main>
+
+        <!-- 底部控制栏 -->
+        <footer class="control-bar">
+            <div class="status-indicator">
+                <div class="status-dot" :class="statusClass"></div>
+                <span>{{ statusText }}</span>
+            </div>
+            
+            <button @click="startDemo" :disabled="isRunning" 
+                    class="control-button primary">
+                <i class="fas fa-play"></i>开始演示
+            </button>
+            
+            <button @click="pauseDemo" :disabled="!isRunning" 
+                    class="control-button secondary">
+                <i class="fas fa-pause"></i>暂停
+            </button>
+
+            <button @click="nextStep" :disabled="isRunning || isCompleted" 
+                    class="control-button secondary">
+                <i class="fas fa-step-forward"></i>单步执行
+            </button>
+            
+            <button @click="resetDemo" class="control-button danger">
+                <i class="fas fa-stop"></i>重置
+            </button>
+            
+            <div class="flex items-center gap-2 text-sm">
+                <span class="text-slate-600">速度:</span>
+                <input type="range" v-model="demoSpeed" min="1" max="10" 
+                       class="w-20" style="accent-color: #10b981;">
+                <span class="text-slate-700 font-medium">{{ demoSpeed }}</span>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        const { createApp, ref, reactive, computed, onMounted, onUnmounted, nextTick } = Vue;
+
+        createApp({
+            setup() {
+                // ========== 核心状态 ==========
+                const selectedAlgorithm = ref('bfs');
+                const isRunning = ref(false);
+                const isPaused = ref(false);
+                const isCompleted = ref(false);
+                const demoSpeed = ref(5);
+                const currentStepIndex = ref(-1);
+                const currentStep = ref(null);
+                const totalSteps = ref(0);
+                const chartContainer = ref(null);
+                const errorMessage = ref('');
+                
+                let chartInstance = null;
+                let demoTimer = null;
+                let algorithmSteps = [];
+
+                // ========== 算法定义 ==========
+                const algorithms = [
+                    {
+                        id: 'bfs',
+                        name: 'BFS广度优先',
+                        icon: 'fas fa-water',
+                        description: '像水波纹一样层层扩散，保证找到最短路径',
+                        difficulty: '简单',
+                        complexity: 'O(V+E)',
+                        color: '#10b981'
+                    },
+                    {
+                        id: 'dfs',
+                        name: 'DFS深度优先', 
+                        icon: 'fas fa-long-arrow-alt-down',
+                        description: '像走迷宫一样，一条路走到底再回头',
+                        difficulty: '简单',
+                        complexity: 'O(V+E)',
+                        color: '#8b5cf6'
+                    },
+                    {
+                        id: 'dijkstra',
+                        name: 'Dijkstra最短路径',
+                        icon: 'fas fa-route',
+                        description: '像GPS导航，每次都选择当前最短的路',
+                        difficulty: '中等',
+                        complexity: 'O(V²)',
+                        color: '#f59e0b'
+                    },
+                    {
+                        id: 'prim',
+                        name: 'Prim最小生成树',
+                        icon: 'fas fa-project-diagram',
+                        description: '像建朋友圈，每次都拉最近的朋友加入',
+                        difficulty: '中等', 
+                        complexity: 'O(V²)',
+                        color: '#ef4444'
+                    }
+                ];
+
+                // ========== 图数据设计 ==========
+                const graphData = {
+                    bfs: {
+                        nodes: [
+                            { id: 'Start', name: 'Start', x: 80, y: 250, symbolSize: 65 },
+                            { id: 'A', name: 'A', x: 220, y: 180, symbolSize: 50 },
+                            { id: 'B', name: 'B', x: 220, y: 320, symbolSize: 50 },
+                            { id: 'C', name: 'C', x: 360, y: 120, symbolSize: 50 },
+                            { id: 'D', name: 'D', x: 360, y: 250, symbolSize: 50 },
+                            { id: 'E', name: 'E', x: 360, y: 380, symbolSize: 50 },
+                            { id: 'Goal', name: 'Goal', x: 500, y: 200, symbolSize: 65 },
+                            { id: 'End', name: 'End', x: 500, y: 300, symbolSize: 65 }
+                        ],
+                        links: [
+                            { source: 'Start', target: 'A', value: 1 },
+                            { source: 'Start', target: 'B', value: 1 },
+                            { source: 'A', target: 'C', value: 1 },
+                            { source: 'A', target: 'D', value: 1 },
+                            { source: 'B', target: 'D', value: 1 },
+                            { source: 'B', target: 'E', value: 1 },
+                            { source: 'C', target: 'Goal', value: 1 },
+                            { source: 'D', target: 'Goal', value: 1 },
+                            { source: 'D', target: 'End', value: 1 },
+                            { source: 'E', target: 'End', value: 1 }
+                        ]
+                    },
+                    
+                    dfs: {
+                        nodes: [
+                            { id: 'Root', name: 'Root', x: 300, y: 60, symbolSize: 65 },
+                            { id: 'L', name: 'L', x: 180, y: 160, symbolSize: 55 },
+                            { id: 'R', name: 'R', x: 420, y: 160, symbolSize: 55 },
+                            { id: 'LL', name: 'LL', x: 120, y: 260, symbolSize: 50 },
+                            { id: 'LR', name: 'LR', x: 240, y: 260, symbolSize: 50 },
+                            { id: 'RL', name: 'RL', x: 360, y: 260, symbolSize: 50 },
+                            { id: 'RR', name: 'RR', x: 480, y: 260, symbolSize: 50 },
+                            { id: 'LLL', name: 'LLL', x: 80, y: 360, symbolSize: 45 },
+                            { id: 'LLR', name: 'LLR', x: 160, y: 360, symbolSize: 45 }
+                        ],
+                        links: [
+                            { source: 'Root', target: 'L', value: 1 },
+                            { source: 'Root', target: 'R', value: 1 },
+                            { source: 'L', target: 'LL', value: 1 },
+                            { source: 'L', target: 'LR', value: 1 },
+                            { source: 'R', target: 'RL', value: 1 },
+                            { source: 'R', target: 'RR', value: 1 },
+                            { source: 'LL', target: 'LLL', value: 1 },
+                            { source: 'LL', target: 'LLR', value: 1 }
+                        ]
+                    },
+                    
+                    dijkstra: {
+                        nodes: [
+                            { id: 'Source', name: 'Source', x: 80, y: 250, symbolSize: 65 },
+                            { id: 'A', name: 'A', x: 200, y: 150, symbolSize: 50 },
+                            { id: 'B', name: 'B', x: 200, y: 350, symbolSize: 50 },
+                            { id: 'C', name: 'C', x: 350, y: 100, symbolSize: 50 },
+                            { id: 'D', name: 'D', x: 350, y: 250, symbolSize: 50 },
+                            { id: 'E', name: 'E', x: 350, y: 400, symbolSize: 50 },
+                            { id: 'Target', name: 'Target', x: 500, y: 250, symbolSize: 65 }
+                        ],
+                        links: [
+                            { source: 'Source', target: 'A', value: 10 },
+                            { source: 'Source', target: 'B', value: 3 },
+                            { source: 'A', target: 'C', value: 2 },
+                            { source: 'C', target: 'Target', value: 4 },
+                            { source: 'B', target: 'D', value: 1 },
+                            { source: 'D', target: 'Target', value: 6 },
+                            { source: 'B', target: 'E', value: 8 },
+                            { source: 'E', target: 'Target', value: 2 },
+                            { source: 'A', target: 'D', value: 5 },
+                            { source: 'D', target: 'E', value: 3 }
+                        ]
+                    },
+                    
+                    prim: {
+                        nodes: [
+                            { id: 'Center', name: 'Center', x: 300, y: 250, symbolSize: 65 },
+                            { id: 'N', name: 'N', x: 300, y: 120, symbolSize: 55 },
+                            { id: 'NE', name: 'NE', x: 420, y: 160, symbolSize: 55 },
+                            { id: 'E', name: 'E', x: 480, y: 250, symbolSize: 55 },
+                            { id: 'SE', name: 'SE', x: 420, y: 340, symbolSize: 55 },
+                            { id: 'S', name: 'S', x: 300, y: 380, symbolSize: 55 },
+                            { id: 'SW', name: 'SW', x: 180, y: 340, symbolSize: 55 },
+                            { id: 'W', name: 'W', x: 120, y: 250, symbolSize: 55 },
+                            { id: 'NW', name: 'NW', x: 180, y: 160, symbolSize: 55 }
+                        ],
+                        links: [
+                            { source: 'Center', target: 'N', value: 4 },
+                            { source: 'Center', target: 'NE', value: 8 },
+                            { source: 'Center', target: 'E', value: 6 },
+                            { source: 'Center', target: 'SE', value: 9 },
+                            { source: 'Center', target: 'S', value: 3 },
+                            { source: 'Center', target: 'SW', value: 7 },
+                            { source: 'Center', target: 'W', value: 2 },
+                            { source: 'Center', target: 'NW', value: 5 },
+                            { source: 'N', target: 'NE', value: 1 },
+                            { source: 'NE', target: 'E', value: 3 },
+                            { source: 'E', target: 'SE', value: 4 },
+                            { source: 'SE', target: 'S', value: 6 },
+                            { source: 'S', target: 'SW', value: 2 },
+                            { source: 'SW', target: 'W', value: 5 },
+                            { source: 'W', target: 'NW', value: 3 },
+                            { source: 'NW', target: 'N', value: 7 }
+                        ]
+                    }
+                };
+
+                // ========== 计算属性 ==========
+                const currentAlgorithm = computed(() => algorithms.find(a => a.id === selectedAlgorithm.value));
+                const progressPercentage = computed(() => {
+                    if (totalSteps.value === 0) return 0;
+                    return Math.round((currentStepIndex.value + 1) / totalSteps.value * 100);
+                });
+
+                const statusClass = computed(() => {
+                    if (isRunning.value) return 'running';
+                    if (isPaused.value) return 'paused';
+                    return 'stopped';
+                });
+
+                const statusText = computed(() => {
+                    if (isRunning.value) return '自动演示中...';
+                    if (isPaused.value) return '演示已暂停';
+                    if (isCompleted.value) return '演示完成';
+                    if (currentStepIndex.value >= 0) return '可继续演示';
+                    return '准备就绪';
+                });
+
+                // ========== 错误处理 ==========
+                const showError = (message) => {
+                    errorMessage.value = message;
+                    setTimeout(() => {
+                        errorMessage.value = '';
+                    }, 3000);
+                };
+
+                const safeAccess = (obj, path, defaultValue = null) => {
+                    try {
+                        return path.split('.').reduce((o, p) => o && o[p], obj) || defaultValue;
+                    } catch (e) {
+                        return defaultValue;
+                    }
+                };
+
+                // ========== 核心方法 ==========
+                
+                // 选择算法
+                const selectAlgorithm = (algoId) => {
+                    if (isRunning.value) return;
+                    
+                    try {
+                        selectedAlgorithm.value = algoId;
+                        resetDemo();
+                        initChart();
+                    } catch (error) {
+                        showError('算法切换失败: ' + error.message);
+                    }
+                };
+
+                // 初始化图表
+                const initChart = () => {
+                    try {
+                        if (!chartContainer.value || !currentAlgorithm.value) return;
+
+                        if (chartInstance) {
+                            chartInstance.dispose();
+                        }
+
+                        chartInstance = echarts.init(chartContainer.value);
+                        updateChart();
+                    } catch (error) {
+                        showError('图表初始化失败: ' + error.message);
+                    }
+                };
+
+                // 更新图表显示
+                const updateChart = (highlightData = null) => {
+                    try {
+                        if (!chartInstance || !currentAlgorithm.value) return;
+
+                        const algo = currentAlgorithm.value;
+                        const data = graphData[algo.id];
+
+                        if (!data || !data.nodes || !data.links) {
+                            throw new Error('图数据不完整');
+                        }
+
+                        // 安全地处理节点样式
+                        const nodes = data.nodes.map(node => {
+                            let nodeColor = algo.color;
+                            let borderWidth = 2;
+                            let borderColor = '#fff';
+                            let symbolSize = node.symbolSize || 50;
+
+                            // 根据算法状态设置样式
+                            const visited = safeAccess(highlightData, 'visited', []);
+                            const current = safeAccess(highlightData, 'current');
+                            const queue = safeAccess(highlightData, 'queue', []);
+
+                            if (visited.includes && visited.includes(node.id)) {
+                                nodeColor = '#10b981';
+                            }
+                            if (current === node.id) {
+                                nodeColor = '#ef4444';
+                                symbolSize += 15;
+                                borderWidth = 5;
+                                borderColor = '#fbbf24';
+                            }
+                            if (queue.includes && queue.includes(node.id)) {
+                                nodeColor = '#f59e0b';
+                                symbolSize += 8;
+                            }
+
+                            return {
+                                ...node,
+                                symbolSize: symbolSize,
+                                itemStyle: {
+                                    color: nodeColor,
+                                    borderColor: borderColor,
+                                    borderWidth: borderWidth,
+                                    shadowBlur: 15,
+                                    shadowColor: `${nodeColor}40`
+                                }
+                            };
+                        });
+
+                        // 安全地处理边样式
+                        const links = data.links.map(link => {
+                            const activeEdges = safeAccess(highlightData, 'activeEdges', []);
+                            const isActive = activeEdges.some && activeEdges.some(e => 
+                                (e.source === link.source && e.target === link.target) ||
+                                (e.source === link.target && e.target === link.source)
+                            );
+
+                            return {
+                                ...link,
+                                lineStyle: {
+                                    color: isActive ? '#ef4444' : '#94a3b8',
+                                    width: isActive ? 4 : 2,
+                                    curveness: 0.2
+                                }
+                            };
+                        });
+
+                        const option = {
+                            animationDuration: 300,
+                            animationEasing: 'ease-in-out',
+                            series: [{
+                                type: 'graph',
+                                layout: 'none',
+                                roam: true,
+                                label: {
+                                    show: true,
+                                    position: 'inside',
+                                    fontSize: 16,
+                                    fontWeight: 'bold',
+                                    color: '#1e293b'
+                                },
+                                edgeSymbol: ['none', 'arrow'],
+                                edgeSymbolSize: [4, 10], 
+                                edgeLabel: {
+                                    show: algo.id === 'dijkstra' || algo.id === 'prim',
+                                    formatter: '{c}',
+                                    fontSize: 14,
+                                    color: '#1e40af',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                    padding: [2, 6],
+                                    borderRadius: 4
+                                },
+                                data: nodes,
+                                links: links,
+                                emphasis: {
+                                    focus: 'adjacency',
+                                    lineStyle: { width: 6 }
+                                }
+                            }]
+                        };
+
+                        chartInstance.setOption(option, true);
+                    } catch (error) {
+                        showError('图表更新失败: ' + error.message);
+                    }
+                };
+
+                // 生成算法步骤
+                const generateSteps = (algoId) => {
+                    try {
+                        const stepGenerators = {
+                            bfs: () => [
+                                { 
+                                    description: '🌊 从起始点开始，像水波纹一样向外扩散', 
+                                    visited: ['Start'], 
+                                    current: 'Start', 
+                                    queue: ['Start'],
+                                    activeEdges: []
+                                },
+                                { 
+                                    description: '📋 将起始点的直接邻居加入队列（第2层）', 
+                                    visited: ['Start'], 
+                                    current: 'Start', 
+                                    queue: ['A', 'B'],
+                                    activeEdges: [{ source: 'Start', target: 'A' }, { source: 'Start', target: 'B' }]
+                                },
+                                { 
+                                    description: '🔍 访问第2层节点A，发现它的邻居', 
+                                    visited: ['Start', 'A'], 
+                                    current: 'A', 
+                                    queue: ['B', 'C', 'D'],
+                                    activeEdges: [{ source: 'A', target: 'C' }, { source: 'A', target: 'D' }]
+                                },
+                                { 
+                                    description: '🔍 访问第2层节点B，发现更多邻居', 
+                                    visited: ['Start', 'A', 'B'], 
+                                    current: 'B', 
+                                    queue: ['C', 'D', 'E'],
+                                    activeEdges: [{ source: 'B', target: 'D' }, { source: 'B', target: 'E' }]
+                                },
+                                { 
+                                    description: '🎯 开始访问第3层：节点C', 
+                                    visited: ['Start', 'A', 'B', 'C'], 
+                                    current: 'C', 
+                                    queue: ['D', 'E', 'Goal'],
+                                    activeEdges: [{ source: 'C', target: 'Goal' }]
+                                },
+                                { 
+                                    description: '🎯 访问第3层：节点D', 
+                                    visited: ['Start', 'A', 'B', 'C', 'D'], 
+                                    current: 'D', 
+                                    queue: ['E', 'Goal', 'End'],
+                                    activeEdges: [{ source: 'D', target: 'Goal' }, { source: 'D', target: 'End' }]
+                                },
+                                { 
+                                    description: '🏆 到达目标！BFS保证找到最短路径', 
+                                    visited: ['Start', 'A', 'B', 'C', 'D', 'Goal'], 
+                                    current: 'Goal', 
+                                    queue: ['E', 'End'],
+                                    activeEdges: []
+                                }
+                            ],
+                            
+                            dfs: () => [
+                                { 
+                                    description: '🌳 从根节点开始，准备深入探索', 
+                                    visited: ['Root'], 
+                                    current: 'Root',
+                                    activeEdges: []
+                                },
+                                { 
+                                    description: '⬅️ 优先选择左子树，深入节点L', 
+                                    visited: ['Root', 'L'], 
+                                    current: 'L',
+                                    activeEdges: [{ source: 'Root', target: 'L' }]
+                                },
+                                { 
+                                    description: '⬇️ 继续深入L的左子树：节点LL', 
+                                    visited: ['Root', 'L', 'LL'], 
+                                    current: 'LL',
+                                    activeEdges: [{ source: 'L', target: 'LL' }]
+                                },
+                                { 
+                                    description: '🍃 到达叶子节点LLL，无法继续深入', 
+                                    visited: ['Root', 'L', 'LL', 'LLL'], 
+                                    current: 'LLL',
+                                    activeEdges: [{ source: 'LL', target: 'LLL' }]
+                                },
+                                { 
+                                    description: '↩️ 回溯到LL，访问其右子节点LLR', 
+                                    visited: ['Root', 'L', 'LL', 'LLL', 'LLR'], 
+                                    current: 'LLR',
+                                    activeEdges: [{ source: 'LL', target: 'LLR' }]
+                                },
+                                { 
+                                    description: '↩️ 回溯到L，访问其右子树LR', 
+                                    visited: ['Root', 'L', 'LL', 'LLL', 'LLR', 'LR'], 
+                                    current: 'LR',
+                                    activeEdges: [{ source: 'L', target: 'LR' }]
+                                },
+                                { 
+                                    description: '↩️ 回溯到根，开始探索右子树R', 
+                                    visited: ['Root', 'L', 'LL', 'LLL', 'LLR', 'LR', 'R'], 
+                                    current: 'R',
+                                    activeEdges: [{ source: 'Root', target: 'R' }]
+                                },
+                                { 
+                                    description: '🎯 深入右子树：访问RL和RR', 
+                                    visited: ['Root', 'L', 'LL', 'LLL', 'LLR', 'LR', 'R', 'RL', 'RR'], 
+                                    current: 'RR',
+                                    activeEdges: [{ source: 'R', target: 'RL' }, { source: 'R', target: 'RR' }]
+                                }
+                            ],
+                            
+                            dijkstra: () => [
+                                { 
+                                    description: '🎯 初始化：源点距离为0，其他为无穷大', 
+                                    visited: [], 
+                                    current: 'Source', 
+                                    distances: { Source: 0 },
+                                    activeEdges: []
+                                },
+                                { 
+                                    description: '🔍 选择距离最小的节点Source，更新邻居', 
+                                    visited: ['Source'], 
+                                    current: 'Source', 
+                                    distances: { Source: 0, A: 10, B: 3 },
+                                    activeEdges: [{ source: 'Source', target: 'A' }, { source: 'Source', target: 'B' }]
+                                },
+                                { 
+                                    description: '🎯 贪心选择：B距离更小(3)，先访问B', 
+                                    visited: ['Source', 'B'], 
+                                    current: 'B', 
+                                    distances: { Source: 0, A: 10, B: 3, D: 4, E: 11 },
+                                    activeEdges: [{ source: 'B', target: 'D' }, { source: 'B', target: 'E' }]
+                                },
+                                { 
+                                    description: '📊 通过D到Target距离为10，通过E为13', 
+                                    visited: ['Source', 'B', 'D'], 
+                                    current: 'D', 
+                                    distances: { Source: 0, A: 10, B: 3, D: 4, E: 11, Target: 10 },
+                                    activeEdges: [{ source: 'D', target: 'Target' }, { source: 'D', target: 'E' }]
+                                },
+                                { 
+                                    description: '🔄 检查A路径：Source→A→C→Target = 16', 
+                                    visited: ['Source', 'B', 'D', 'A'], 
+                                    current: 'A', 
+                                    distances: { Source: 0, A: 10, B: 3, C: 12, D: 4, E: 11, Target: 10 },
+                                    activeEdges: [{ source: 'A', target: 'C' }]
+                                },
+                                { 
+                                    description: '🏆 找到最短路径：Source → B → D → Target (总距离10)', 
+                                    visited: ['Source', 'B', 'D', 'A', 'Target'], 
+                                    current: 'Target', 
+                                    distances: { Source: 0, A: 10, B: 3, C: 12, D: 4, E: 11, Target: 10 },
+                                    activeEdges: [{ source: 'Source', target: 'B' }, { source: 'B', target: 'D' }, { source: 'D', target: 'Target' }]
+                                }
+                            ],
+                            
+                            prim: () => [
+                                { 
+                                    description: '🌟 从中心节点开始构建最小生成树', 
+                                    visited: ['Center'], 
+                                    current: 'Center', 
+                                    mstEdges: [],
+                                    activeEdges: []
+                                },
+                                { 
+                                    description: '🔍 找到最小边：Center-W (权重2)，加入W', 
+                                    visited: ['Center', 'W'], 
+                                    current: 'W', 
+                                    mstEdges: [{ source: 'Center', target: 'W' }],
+                                    activeEdges: [{ source: 'Center', target: 'W' }]
+                                },
+                                { 
+                                    description: '🎯 下一个最小边：Center-S (权重3)，加入S', 
+                                    visited: ['Center', 'W', 'S'], 
+                                    current: 'S', 
+                                    mstEdges: [{ source: 'Center', target: 'W' }, { source: 'Center', target: 'S' }],
+                                    activeEdges: [{ source: 'Center', target: 'W' }, { source: 'Center', target: 'S' }]
+                                },
+                                { 
+                                    description: '🌱 选择连接MST的最小边：S-SW (权重2)', 
+                                    visited: ['Center', 'W', 'S', 'SW'], 
+                                    current: 'SW', 
+                                    mstEdges: [{ source: 'Center', target: 'W' }, { source: 'Center', target: 'S' }, { source: 'S', target: 'SW' }],
+                                    activeEdges: [{ source: 'Center', target: 'W' }, { source: 'Center', target: 'S' }, { source: 'S', target: 'SW' }]
+                                },
+                                { 
+                                    description: '🔗 继续选择最小边：W-NW (权重3)', 
+                                    visited: ['Center', 'W', 'S', 'SW', 'NW'], 
+                                    current: 'NW', 
+                                    mstEdges: [{ source: 'Center', target: 'W' }, { source: 'Center', target: 'S' }, { source: 'S', target: 'SW' }, { source: 'W', target: 'NW' }],
+                                    activeEdges: [{ source: 'Center', target: 'W' }, { source: 'Center', target: 'S' }, { source: 'S', target: 'SW' }, { source: 'W', target: 'NW' }]
+                                },
+                                { 
+                                    description: '⭐ 选择NW-N (权重1)：外围最小边', 
+                                    visited: ['Center', 'W', 'S', 'SW', 'NW', 'N'], 
+                                    current: 'N', 
+                                    mstEdges: [{ source: 'Center', target: 'W' }, { source: 'Center', target: 'S' }, { source: 'S', target: 'SW' }, { source: 'W', target: 'NW' }, { source: 'NW', target: 'N' }],
+                                    activeEdges: [{ source: 'Center', target: 'W' }, { source: 'Center', target: 'S' }, { source: 'S', target: 'SW' }, { source: 'W', target: 'NW' }, { source: 'NW', target: 'N' }]
+                                },
+                                { 
+                                    description: '🎊 继续添加节点，完成最小生成树', 
+                                    visited: ['Center', 'W', 'S', 'SW', 'NW', 'N', 'NE', 'E', 'SE'], 
+                                    current: 'SE', 
+                                    mstEdges: [
+                                        { source: 'Center', target: 'W' }, 
+                                        { source: 'Center', target: 'S' }, 
+                                        { source: 'S', target: 'SW' }, 
+                                        { source: 'W', target: 'NW' }, 
+                                        { source: 'NW', target: 'N' },
+                                        { source: 'N', target: 'NE' },
+                                        { source: 'NE', target: 'E' },
+                                        { source: 'E', target: 'SE' }
+                                    ],
+                                    activeEdges: [
+                                        { source: 'Center', target: 'W' }, 
+                                        { source: 'Center', target: 'S' }, 
+                                        { source: 'S', target: 'SW' }, 
+                                        { source: 'W', target: 'NW' }, 
+                                        { source: 'NW', target: 'N' },
+                                        { source: 'N', target: 'NE' },
+                                        { source: 'NE', target: 'E' },
+                                        { source: 'E', target: 'SE' }
+                                    ]
+                                }
+                            ]
+                        };
+
+                        const generator = stepGenerators[algoId];
+                        if (!generator) {
+                            throw new Error(`未找到算法 ${algoId} 的步骤生成器`);
+                        }
+
+                        return generator();
+                    } catch (error) {
+                        showError('生成算法步骤失败: ' + error.message);
+                        return [];
+                    }
+                };
+
+                // 开始演示
+                const startDemo = async () => {
+                    try {
+                        if (!currentAlgorithm.value || isRunning.value) return;
+
+                        isRunning.value = true;
+                        isPaused.value = false;
+                        isCompleted.value = false;
+                        
+                        // 生成步骤
+                        algorithmSteps = generateSteps(selectedAlgorithm.value);
+                        if (algorithmSteps.length === 0) {
+                            throw new Error('无法生成算法步骤');
+                        }
+                        
+                        totalSteps.value = algorithmSteps.length;
+
+                        // 从当前步骤继续或从头开始
+                        let startIndex = currentStepIndex.value + 1;
+                        if (startIndex >= algorithmSteps.length) {
+                            startIndex = 0;
+                            currentStepIndex.value = -1;
+                        }
+
+                        // 自动执行每一步
+                        for (let i = startIndex; i < algorithmSteps.length; i++) {
+                            if (!isRunning.value) break;
+
+                            currentStepIndex.value = i;
+                            currentStep.value = algorithmSteps[i];
+                            
+                            // 更新可视化
+                            updateChart(algorithmSteps[i]);
+
+                            // 等待动画完成 + 步骤间隔
+                            await new Promise(resolve => {
+                                demoTimer = setTimeout(resolve, 300 + (2000 / demoSpeed.value));
+                            });
+                        }
+
+                        isRunning.value = false;
+                        if (currentStepIndex.value >= algorithmSteps.length - 1) {
+                            isCompleted.value = true;
+                        }
+                    } catch (error) {
+                        isRunning.value = false;
+                        showError('演示执行失败: ' + error.message);
+                    }
+                };
+
+                // 暂停演示
+                const pauseDemo = () => {
+                    isRunning.value = false;
+                    isPaused.value = true;
+                    if (demoTimer) {
+                        clearTimeout(demoTimer);
+                        demoTimer = null;
+                    }
+                };
+
+                // 单步执行
+                const nextStep = () => {
+                    try {
+                        if (isRunning.value) return;
+
+                        if (algorithmSteps.length === 0) {
+                            algorithmSteps = generateSteps(selectedAlgorithm.value);
+                            totalSteps.value = algorithmSteps.length;
+                        }
+
+                        if (currentStepIndex.value < algorithmSteps.length - 1) {
+                            currentStepIndex.value++;
+                            currentStep.value = algorithmSteps[currentStepIndex.value];
+                            updateChart(algorithmSteps[currentStepIndex.value]);
+                            isPaused.value = false;
+                            
+                            if (currentStepIndex.value >= algorithmSteps.length - 1) {
+                                isCompleted.value = true;
+                            }
+                        }
+                    } catch (error) {
+                        showError('单步执行失败: ' + error.message);
+                    }
+                };
+
+                // 重置演示
+                const resetDemo = () => {
+                    try {
+                        isRunning.value = false;
+                        isPaused.value = false;
+                        isCompleted.value = false;
+                        currentStepIndex.value = -1;
+                        currentStep.value = null;
+                        totalSteps.value = 0;
+                        algorithmSteps = [];
+                        
+                        if (demoTimer) {
+                            clearTimeout(demoTimer);
+                            demoTimer = null;
+                        }
+                        
+                        if (chartInstance) {
+                            updateChart();
+                        }
+                    } catch (error) {
+                        showError('重置失败: ' + error.message);
+                    }
+                };
+
+                // 生命周期
+                onMounted(() => {
+                    try {
+                        initChart();
+                        
+                        // 延迟一下再开始第一个算法演示
+                        setTimeout(() => {
+                            // 不自动开始，让用户手动控制
+                        }, 500);
+                    } catch (error) {
+                        showError('初始化失败: ' + error.message);
+                    }
+                });
+
+                onUnmounted(() => {
+                    if (chartInstance) {
+                        chartInstance.dispose();
+                    }
+                    if (demoTimer) {
+                        clearTimeout(demoTimer);
+                    }
+                });
+
+                return {
+                    // 状态
+                    selectedAlgorithm, isRunning, isPaused, isCompleted, demoSpeed, 
+                    currentStepIndex, currentStep, totalSteps, chartContainer, errorMessage,
+
+                    // 数据
+                    algorithms, currentAlgorithm, progressPercentage, statusClass, statusText,
+
+                    // 方法
+                    selectAlgorithm, startDemo, pauseDemo, nextStep, resetDemo
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

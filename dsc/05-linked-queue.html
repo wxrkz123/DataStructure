@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>现代链式队列浏览器 - 指针级高亮教学版</title>
+
+    <!-- Dependencies -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@formkit/auto-animate@0.8.2/index.global.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+    <script src="https://unpkg.com/@popperjs/core@2"></script>
+    <script src="https://unpkg.com/tippy.js@6"></script>
+
+    <style>
+        body { background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+        .notyf__toast { border-radius: 0.5rem; }
+        .node-element, .pointer-highlight { transition: all 0.4s ease-in-out; }
+        
+        .highlight-context { 
+            border-color: #f97316 !important; background-color: #fff7ed !important; transform: scale(1.02);
+        }
+        .highlight-result {
+            border-color: #22c55e !important; background-color: #f0fdf4 !important; transform: scale(1.05);
+        }
+        .highlight-delete {
+            border-color: #ef4444 !important; background-color: #fef2f2 !important; opacity: 0.5; transform: scale(0.95);
+        }
+        .highlight-pointer-section {
+            background-color: #fef08a; border-radius: 0.375rem; transform: scale(1.05); box-shadow: 0 0 0 2px #facc15;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app" class="max-w-4xl mx-auto px-4 py-8">
+    
+    <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-slate-800">现代链式队列浏览器</h1>
+        <p class="text-slate-500 mt-2">基于链表实现，无容量限制的动态队列</p>
+    </div>
+
+    <!-- Controls Panel -->
+    <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+            <div class="space-y-4">
+                <h3 class="font-semibold text-lg text-slate-700 border-b pb-2">操作</h3>
+                <div class="flex gap-2">
+                    <input type="text" v-model="inputs.value" placeholder="入队值" @keyup.enter="enqueue" class="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500 transition">
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button @click="enqueue" :disabled="isBusy" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300 disabled:cursor-not-allowed">入队 (Enqueue)</button>
+                    <button @click="dequeue" :disabled="isBusy || !front" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300 disabled:cursor-not-allowed">出队 (Dequeue)</button>
+                </div>
+            </div>
+            <div class="space-y-4">
+                 <h3 class="font-semibold text-lg text-slate-700 border-b pb-2">管理</h3>
+                 <button @click="resetQueue" :disabled="isBusy" class="w-full bg-slate-600 hover:bg-slate-700 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300">重置队列</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Visualization -->
+    <div class="bg-white p-6 rounded-xl shadow-lg">
+        <!-- Header Info -->
+        <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-200">
+             <div class="flex items-center gap-2 text-xl font-bold text-slate-700" data-tippy-content="Front 指针永远指向队头节点">
+                <span class="bg-blue-100 text-blue-800 text-sm font-semibold mr-2 px-2.5 py-0.5 rounded-full">FRONT</span>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-blue-500"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg>
+                <span class="text-xl font-mono" :class="front ? 'text-blue-600' : 'text-slate-400'">{{ front ? front.value : 'null' }}</span>
+            </div>
+             <div class="text-lg font-semibold text-slate-600">Size: <span class="font-bold text-blue-600">{{ size }}</span></div>
+             <div class="flex items-center gap-2 text-xl font-bold text-slate-700" data-tippy-content="Rear 指针永远指向队尾节点">
+                <span class="text-xl font-mono" :class="rear ? 'text-pink-600' : 'text-slate-400'">{{ rear ? rear.value : 'null' }}</span>
+                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-pink-500"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" /></svg>
+                <span class="bg-pink-100 text-pink-800 text-sm font-semibold ml-2 px-2.5 py-0.5 rounded-full">REAR</span>
+            </div>
+        </div>
+        
+        <!-- Queue Nodes -->
+        <div v-auto-animate="{ duration: 500 }" class="space-x-4 min-h-[150px] relative flex items-start">
+            <div v-if="!front" class="text-center text-slate-400 py-8 w-full">队列为空。</div>
+
+            <div v-for="(node, index) in visualNodes" :key="node.id" 
+                 class="node-element bg-slate-50 border-2 border-slate-200 p-4 rounded-lg flex items-center shadow-sm w-48 shrink-0"
+                 :class="{ 'highlight-context': node.highlight === 'context', 'highlight-result': node.highlight === 'result', 'highlight-delete': node.highlight === 'delete' }" 
+                 :data-tippy-content="`Node Value: ${node.value}`">
+                
+                <!-- Node Value -->
+                <div class="flex items-center gap-3">
+                    <span class="bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded">VAL</span>
+                    <span class="font-mono text-xl font-semibold text-slate-800">{{ node.value }}</span>
+                </div>
+
+                <!-- Pointer Section -->
+                <div v-if="node.next" class="ml-auto pointer-highlight" :class="{'highlight-pointer-section': node.highlight === 'pointer'}">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-green-500"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 8.25 21 12m0 0-3.75 3.75M21 12H3" /></svg>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, reactive, onMounted, nextTick, watch } = Vue;
+
+    createApp({
+        setup() {
+            // --- State ---
+            const front = ref(null);
+            const rear = ref(null);
+            const size = ref(0);
+            const isBusy = ref(false);
+            let idCounter = 0;
+            const visualNodes = ref([]);
+            const inputs = reactive({ value: 'D' });
+
+            // --- Tools ---
+            const notyf = new Notyf({ duration: 4500, position: { x: 'right', y: 'top' }, dismissible: true, types: [ { type: 'info', backgroundColor: '#3b82f6', icon: false }, { type: 'success', backgroundColor: '#22c55e' }, { type: 'error', backgroundColor: '#ef4444' }] });
+            const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+            // --- Core Logic ---
+            const createNode = (value) => ({ id: idCounter++, value, next: null, highlight: null });
+            const syncVisuals = () => {
+                const nodes = [];
+                let current = front.value;
+                while (current) {
+                    nodes.push(current);
+                    current = current.next;
+                }
+                visualNodes.value = nodes;
+            };
+            const clearAllHighlights = () => { visualNodes.value.forEach(n => n.highlight = null); };
+
+            // --- Operations ---
+            const resetQueue = async () => {
+                isBusy.value = true;
+                front.value = null; rear.value = null; size.value = 0; idCounter = 0;
+                syncVisuals();
+                await nextTick();
+                
+                for (const val of ['A', 'B', 'C']) {
+                    const newNode = createNode(val);
+                    if (!front.value) {
+                        front.value = newNode;
+                        rear.value = newNode;
+                    } else {
+                        rear.value.next = newNode;
+                        rear.value = newNode;
+                    }
+                    size.value++;
+                }
+                syncVisuals();
+                await nextTick();
+                notyf.success('链式队列已重置。');
+                isBusy.value = false;
+            };
+
+            const enqueue = async () => {
+                const val = inputs.value;
+                if (!val || isBusy.value) return;
+                isBusy.value = true;
+                clearAllHighlights();
+
+                notyf.open({ type: 'info', message: `<b>第1步:</b> 创建一个值为 '${val}' 的新节点。` });
+                const newNode = createNode(val);
+                newNode.highlight = 'result';
+                visualNodes.value.push(newNode); // Temporarily add for animation
+                await sleep(2500);
+
+                if (!front.value) { // Case 1: Queue is empty
+                    notyf.open({ type: 'info', message: `<b>第2步 (空队):</b> 'front' 和 'rear' 指针同时指向新节点。` });
+                    front.value = newNode;
+                    rear.value = newNode;
+                } else { // Case 2: Queue is not empty
+                    notyf.open({ type: 'info', message: `<b>第2步:</b> 将当前队尾节点的 'next' 指针指向新节点。` });
+                    rear.value.highlight = 'pointer';
+                    await sleep(3000);
+                    rear.value.next = newNode;
+                    
+                    notyf.open({ type: 'info', message: `<b>第3步:</b> 更新 'rear' 指针，使其指向新的队尾节点。` });
+                    rear.value.highlight = null;
+                    rear.value = newNode;
+                }
+                size.value++;
+                syncVisuals();
+                await nextTick();
+
+                rear.value.highlight = 'result';
+                notyf.success(`<b>完成:</b> 节点 '${val}' 已成功入队！`);
+                
+                await sleep(2500);
+                clearAllHighlights();
+                inputs.value = '';
+                isBusy.value = false;
+            };
+
+            const dequeue = async () => {
+                if (!front.value || isBusy.value) return;
+                isBusy.value = true;
+                clearAllHighlights();
+
+                const nodeToRemove = front.value;
+                const removedValue = nodeToRemove.value;
+
+                notyf.open({ type: 'info', message: `<b>第1步:</b> 定位到要移除的队头节点 (Front)。` });
+                nodeToRemove.highlight = 'delete';
+                await sleep(2500);
+                
+                notyf.open({ type: 'info', message: `<b>第2步:</b> 更新 'front' 指针，使其指向下一个节点。` });
+                front.value = front.value.next; 
+                
+                // CRITICAL STEP: If queue becomes empty, rear must also be null
+                if (!front.value) {
+                    rear.value = null;
+                    notyf.open({ type: 'info', message: `队列已变为空，'rear' 指针也已置为 null。` });
+                }
+                size.value--;
+                
+                await sleep(2500);
+                syncVisuals();
+                await nextTick();
+
+                notyf.success(`<b>完成:</b> 节点 '${removedValue}' 已成功出队。`);
+                isBusy.value = false;
+            };
+            
+            const initTooltips = () => { tippy('[data-tippy-content]', { arrow: true, animation: 'fade', theme: 'light-border', allowHTML: true }); };
+            watch(visualNodes, () => { nextTick(() => { initTooltips(); }); }, { deep: true, immediate: true });
+            onMounted(() => { resetQueue(); });
+
+            return { front, rear, size, isBusy, inputs, visualNodes, resetQueue, enqueue, dequeue };
+        }
+    }).mount('#app');
+</script>
+
+</body>
+</html>

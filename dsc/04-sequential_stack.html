@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>现代顺序栈浏览器 - 指针级高亮教学版</title>
+
+    <!-- Dependencies -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@formkit/auto-animate@0.8.2/index.global.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+    <script src="https://unpkg.com/@popperjs/core@2"></script>
+    <script src="https://unpkg.com/tippy.js@6"></script>
+
+    <style>
+        body { background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+        .notyf__toast { border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }
+        .notyf__message { font-size: 1rem; }
+        
+        .stack-element, .stack-capacity-element { transition: all 0.4s ease-in-out; }
+        
+        .highlight-top { 
+            border-color: #f97316 !important; 
+            background-color: #fff7ed !important; 
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(249, 115, 22, 0.5);
+        }
+        .highlight-add {
+            border-color: #22c55e !important; background-color: #f0fdf4 !important; transform: scale(1.05);
+        }
+        .highlight-remove {
+            border-color: #ef4444 !important; background-color: #fef2f2 !important; opacity: 0.5; transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+
+<div id="app" class="max-w-4xl mx-auto px-4 py-8">
+    
+    <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-slate-800">现代顺序栈浏览器</h1>
+        <p class="text-slate-500 mt-2">一个直观的、交互式的顺序栈（数组实现）演示</p>
+    </div>
+
+    <!-- Controls Panel -->
+    <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="space-y-4">
+                <h3 class="font-semibold text-lg text-slate-700 border-b pb-2">基本操作</h3>
+                <div class="flex gap-2">
+                    <input type="text" v-model="inputs.value" placeholder="入栈值" @keyup.enter="push" class="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button @click="push" :disabled="isBusy || isFull" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300 disabled:cursor-not-allowed">入栈 (Push)</button>
+                    <button @click="pop" :disabled="isBusy || isEmpty" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300 disabled:cursor-not-allowed">出栈 (Pop)</button>
+                </div>
+                 <div class="flex flex-wrap gap-2">
+                    <button @click="peek" :disabled="isBusy || isEmpty" class="flex-1 bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300 disabled:cursor-not-allowed">查看栈顶 (Peek)</button>
+                </div>
+            </div>
+            <div class="space-y-4">
+                <h3 class="font-semibold text-lg text-slate-700 border-b pb-2">管理</h3>
+                 <div class="flex items-center gap-2">
+                    <label for="capacity" class="text-slate-600">容量:</label>
+                    <input type="range" v-model.number="inputs.capacity" @change="resetStack" min="5" max="15" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                    <span class="font-mono text-blue-600">{{ inputs.capacity }}</span>
+                </div>
+                <button @click="resetStack" :disabled="isBusy" class="w-full bg-slate-600 hover:bg-slate-700 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300">重置栈</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Visualization -->
+    <div class="bg-white p-6 rounded-xl shadow-lg">
+        <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-200">
+             <div class="flex items-center gap-3 text-xl font-bold text-slate-700">
+                <span class="bg-blue-100 text-blue-800 text-sm font-semibold px-2.5 py-0.5 rounded-full">栈底 (Base)</span>
+             </div>
+             <div class="text-lg font-semibold text-slate-600">
+                Top 指针: <span class="font-mono text-orange-600 font-bold text-xl">{{ top }}</span>
+                <span class="mx-2">|</span>
+                大小: <span class="font-mono text-blue-600 font-bold text-xl">{{ size }}</span>
+             </div>
+             <div class="flex items-center gap-3 text-xl font-bold text-slate-700">
+                <span class="bg-orange-100 text-orange-800 text-sm font-semibold px-2.5 py-0.5 rounded-full">栈顶 (Top)</span>
+            </div>
+        </div>
+        
+        <div v-auto-animate="{ duration: 500 }" class="relative flex flex-col-reverse items-center bg-slate-50 rounded-lg p-4 min-h-[400px]">
+            <div v-if="isEmpty" class="text-center text-slate-400 py-8 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">栈为空。</div>
+            
+            <!-- Stack Elements -->
+            <div v-for="(item, index) in stack" :key="index"
+                 class="stack-element w-4/5 bg-slate-100 border-2 border-slate-200 p-3 my-1 rounded-lg flex items-center justify-center shadow"
+                 :class="{ 'highlight-top': index === top, 'highlight-add': item.highlight === 'add', 'highlight-remove': item.highlight === 'remove' }"
+                 :data-tippy-content="`索引: ${index}<br>值: ${item.value}`">
+                 <span class="font-mono text-xl font-semibold text-slate-800">{{ item.value }}</span>
+            </div>
+             <!-- Capacity Placeholders -->
+             <div v-for="i in (capacity - size)" :key="'placeholder-' + i" class="stack-capacity-element w-4/5 bg-slate-50 border-2 border-dashed border-slate-200 p-3 my-1 rounded-lg flex items-center justify-center">
+                <span class="text-slate-300 text-sm"></span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, reactive, computed, onMounted, nextTick, watch } = Vue;
+
+    createApp({
+        setup() {
+            // --- State ---
+            const stack = ref([]); // 使用数组模拟栈
+            const capacity = ref(8); // 栈的总容量
+            const top = ref(-1); // 栈顶指针，-1 表示空栈
+            const isBusy = ref(false);
+            const inputs = reactive({ value: 'A', capacity: 8 });
+
+            // --- Computed Properties ---
+            const size = computed(() => top.value + 1);
+            const isEmpty = computed(() => top.value === -1);
+            const isFull = computed(() => top.value === capacity.value - 1);
+
+            // --- Tools ---
+            const notyf = new Notyf({ duration: 4000, position: { x: 'right', y: 'top' }, dismissible: true, types: [ { type: 'info', backgroundColor: '#3b82f6', icon: false }, { type: 'success', backgroundColor: '#22c55e' }, { type: 'error', backgroundColor: '#ef4444' }] });
+            const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+            const initTooltips = () => { tippy('[data-tippy-content]', { arrow: true, animation: 'fade', theme: 'light-border', allowHTML: true }); };
+
+            // --- Core Operations ---
+            const clearHighlights = () => {
+                stack.value.forEach(item => item.highlight = null);
+            };
+
+            const resetStack = async () => {
+                isBusy.value = true;
+                capacity.value = inputs.capacity;
+                stack.value = [];
+                top.value = -1;
+                
+                await nextTick(); // 等待DOM更新
+                
+                // 预填充一些数据
+                const initialData = ['Z', 'Y', 'X'];
+                for (const val of initialData) {
+                    if (top.value < capacity.value - 1) {
+                         top.value++;
+                         stack.value[top.value] = { value: val, highlight: null };
+                    }
+                }
+                await nextTick();
+                initTooltips();
+                notyf.success(`栈已重置，容量为 ${capacity.value}。`);
+                isBusy.value = false;
+            };
+
+            const push = async () => {
+                const val = inputs.value;
+                if (!val || isBusy.value) return;
+                if (isFull.value) { notyf.error('栈已满，无法入栈！'); return; }
+
+                isBusy.value = true;
+                clearHighlights();
+
+                notyf.open({ type: 'info', message: `<b>第1步:</b> 栈顶指针 'top' 准备上移。当前 top = ${top.value}。` });
+                await sleep(2000);
+
+                top.value++;
+                notyf.open({ type: 'info', message: `<b>第2步:</b> 'top' 上移完成。现在 top = ${top.value}。` });
+                await sleep(2000);
+
+                const newItem = { value: val, highlight: 'add' };
+                stack.value[top.value] = newItem;
+                 await nextTick();
+                
+                notyf.success(`<b>第3步:</b> 元素 '${val}' 已被放置在索引 ${top.value} 处。`);
+                
+                await sleep(2000);
+                newItem.highlight = null;
+                inputs.value = '';
+                isBusy.value = false;
+            };
+
+            const pop = async () => {
+                if (isEmpty.value || isBusy.value) { notyf.error('栈为空，无法出栈！'); return; }
+                isBusy.value = true;
+                clearHighlights();
+                
+                const itemToRemove = stack.value[top.value];
+                const removedValue = itemToRemove.value;
+                
+                notyf.open({ type: 'info', message: `<b>第1步:</b> 定位到栈顶元素 (橙色高亮)，准备移除。` });
+                itemToRemove.highlight = 'remove';
+                await sleep(2500);
+
+                notyf.open({ type: 'info', message: `<b>第2步:</b> 元素 '${removedValue}' 已从数组中“逻辑移除”，栈顶指针 'top' 准备下移。` });
+                // 在数组中保留但使其视觉上消失
+                await sleep(2000);
+                
+                top.value--;
+                notyf.success(`<b>第3步:</b> 'top' 下移完成，出栈操作结束。现在 top = ${top.value}。`);
+
+                // 物理上移除元素以更新视图
+                stack.value.splice(top.value + 1, 1);
+
+                isBusy.value = false;
+            };
+
+            const peek = async () => {
+                if(isEmpty.value || isBusy.value) return;
+                isBusy.value = true;
+                clearHighlights();
+
+                const topItem = stack.value[top.value];
+                notyf.success(`查找到栈顶元素: '${topItem.value}'`);
+                
+                // 临时高亮栈顶
+                const originalTop = top.value;
+                 watch(() => top.value, (newTop) => {
+                    // 如果在 peek 期间 top 改变了, 停止高亮
+                    if(newTop !== originalTop) {
+                         topItem.highlight = null;
+                    }
+                });
+                
+                document.querySelector('.highlight-top')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                await sleep(2000);
+                isBusy.value = false;
+            }
+            
+            // --- Lifecycle Hooks ---
+            watch(stack, () => { nextTick(() => { initTooltips(); }); }, { deep: true, immediate: true });
+            onMounted(() => { resetStack(); });
+
+            return {
+                stack, capacity, top, isBusy, inputs, size, isEmpty, isFull,
+                resetStack, push, pop, peek
+            };
+        }
+    }).mount('#app');
+</script>
+
+</body>
+</html>

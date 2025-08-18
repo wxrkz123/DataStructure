@@ -1,0 +1,1723 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B树教学演示系统 Pro</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(-100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes highlight {
+            0% { background-color: transparent; }
+            50% { background-color: #fef3c7; }
+            100% { background-color: transparent; }
+        }
+        
+        .fade-enter-active, .fade-leave-active {
+            transition: all 0.5s ease;
+        }
+        
+        .fade-enter-from, .fade-leave-to {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        
+        .slide-up-enter-active {
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        .pulse-animation {
+            animation: pulse 0.6s ease-in-out;
+        }
+        
+        .highlight-animation {
+            animation: highlight 1.5s ease-in-out;
+        }
+        
+        .step-active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transform: scale(1.05);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        
+        .btn-primary {
+            @apply bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg active:scale-95;
+        }
+        
+        .btn-secondary {
+            @apply bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg active:scale-95;
+        }
+        
+        .btn-danger {
+            @apply bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg active:scale-95;
+        }
+        
+        .btn-warning {
+            @apply bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg active:scale-95;
+        }
+        
+        .card {
+            @apply bg-white rounded-xl shadow-lg p-6 mb-4 transition-all duration-300 hover:shadow-xl;
+        }
+        
+        .log-item {
+            @apply p-3 mb-2 rounded-lg bg-gray-50 border-l-4 transition-all duration-300;
+        }
+        
+        .log-item.insert { @apply border-green-500 hover:bg-green-50; }
+        .log-item.delete { @apply border-red-500 hover:bg-red-50; }
+        .log-item.search { @apply border-blue-500 hover:bg-blue-50; }
+        .log-item.split { @apply border-yellow-500 hover:bg-yellow-50; }
+        .log-item.merge { @apply border-purple-500 hover:bg-purple-50; }
+        .log-item.step { @apply border-indigo-500 bg-indigo-50; }
+        
+        .code-line {
+            @apply font-mono text-sm p-2 rounded transition-all duration-300;
+        }
+        
+        .code-line.active {
+            @apply bg-yellow-200 font-bold;
+        }
+        
+        .tooltip {
+            @apply absolute z-50 px-3 py-2 text-sm text-white bg-gray-900 rounded-lg shadow-xl;
+        }
+        
+        .modal-overlay {
+            @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50;
+        }
+        
+        .modal-content {
+            @apply bg-white rounded-xl shadow-2xl p-8 max-w-2xl max-h-[80vh] overflow-y-auto;
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        .step-indicator {
+            @apply inline-block w-8 h-8 rounded-full bg-gray-300 text-white text-center leading-8 font-bold transition-all duration-300;
+        }
+        
+        .step-indicator.active {
+            @apply bg-gradient-to-r from-blue-500 to-purple-500 scale-110;
+        }
+        
+        .step-indicator.completed {
+            @apply bg-green-500;
+        }
+        
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 min-h-screen">
+    <div id="app">
+        <div class="container mx-auto px-4 py-8">
+            <!-- 标题部分 -->
+            <div class="text-center mb-8">
+                <h1 class="text-4xl font-bold text-gray-800 mb-2">
+                    <i class="fas fa-tree text-green-500 mr-2"></i>
+                    B树教学演示系统 <span class="text-sm text-purple-600">Pro</span>
+                </h1>
+                <p class="text-gray-600">交互式可视化学习B树数据结构 - 增强版</p>
+            </div>
+
+            <!-- 快捷键提示 -->
+            <div v-if="showKeyboardHints" class="fixed top-4 right-4 bg-white rounded-lg shadow-lg p-4 z-40">
+                <h3 class="font-bold mb-2">键盘快捷键</h3>
+                <ul class="text-sm space-y-1">
+                    <li><kbd class="px-2 py-1 bg-gray-200 rounded">I</kbd> 插入模式</li>
+                    <li><kbd class="px-2 py-1 bg-gray-200 rounded">D</kbd> 删除模式</li>
+                    <li><kbd class="px-2 py-1 bg-gray-200 rounded">S</kbd> 查找模式</li>
+                    <li><kbd class="px-2 py-1 bg-gray-200 rounded">Z</kbd> 撤销</li>
+                    <li><kbd class="px-2 py-1 bg-gray-200 rounded">Y</kbd> 重做</li>
+                    <li><kbd class="px-2 py-1 bg-gray-200 rounded">R</kbd> 重置</li>
+                    <li><kbd class="px-2 py-1 bg-gray-200 rounded">P</kbd> 暂停/继续</li>
+                    <li><kbd class="px-2 py-1 bg-gray-200 rounded">?</kbd> 切换帮助</li>
+                </ul>
+                <button @click="showKeyboardHints = false" class="mt-2 text-xs text-gray-500 hover:text-gray-700">
+                    关闭 (按 ? 重新打开)
+                </button>
+            </div>
+
+            <!-- 控制面板 -->
+            <div class="card">
+                <h2 class="text-2xl font-semibold mb-4 text-gray-700">
+                    <i class="fas fa-cogs text-blue-500 mr-2"></i>
+                    控制面板
+                    <button @click="showKeyboardHints = !showKeyboardHints" 
+                            class="float-right text-sm bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded-lg">
+                        <i class="fas fa-keyboard mr-1"></i>快捷键 (?)
+                    </button>
+                </h2>
+                
+                <!-- 模式选择 -->
+                <div class="mb-4 flex gap-2">
+                    <button @click="setMode('normal')" 
+                            :class="['px-4 py-2 rounded-lg transition-all', mode === 'normal' ? 'bg-blue-500 text-white' : 'bg-gray-200']">
+                        <i class="fas fa-mouse-pointer mr-1"></i>普通模式
+                    </button>
+                    <button @click="setMode('step')" 
+                            :class="['px-4 py-2 rounded-lg transition-all', mode === 'step' ? 'bg-purple-500 text-white' : 'bg-gray-200']">
+                        <i class="fas fa-shoe-prints mr-1"></i>单步模式
+                    </button>
+                    <button @click="setMode('auto')" 
+                            :class="['px-4 py-2 rounded-lg transition-all', mode === 'auto' ? 'bg-green-500 text-white' : 'bg-gray-200']">
+                        <i class="fas fa-play mr-1"></i>自动演示
+                    </button>
+                </div>
+                
+                <!-- 阶数设置 -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        B树阶数 (M = {{ order }})
+                        <span class="text-xs text-gray-500 ml-2">
+                            (最小度数 t = {{ minDegree }}, 最多 {{ maxKeys }} 个键)
+                        </span>
+                    </label>
+                    <div class="flex items-center gap-4">
+                        <input type="range" v-model="order" min="3" max="6" 
+                               class="flex-1" @change="resetTree">
+                        <button @click="resetTree" class="btn-warning" title="重置 (R)">
+                            <i class="fas fa-redo mr-2"></i>重置B树
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                    <div class="flex gap-2">
+                        <input v-model.number="inputValue" type="number" 
+                               placeholder="输入值 (I)" 
+                               class="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               @keyup.enter="insert" ref="insertInput">
+                        <button @click="insert" class="btn-primary">
+                            <i class="fas fa-plus mr-1"></i>插入
+                        </button>
+                    </div>
+                    
+                    <div class="flex gap-2">
+                        <input v-model.number="deleteValue" type="number" 
+                               placeholder="删除值 (D)" 
+                               class="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                               @keyup.enter="deleteKey" ref="deleteInput">
+                        <button @click="deleteKey" class="btn-danger">
+                            <i class="fas fa-minus mr-1"></i>删除
+                        </button>
+                    </div>
+                    
+                    <div class="flex gap-2">
+                        <input v-model.number="searchValue" type="number" 
+                               placeholder="查找值 (S)" 
+                               class="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                               @keyup.enter="search" ref="searchInput">
+                        <button @click="search" class="btn-secondary">
+                            <i class="fas fa-search mr-1"></i>查找
+                        </button>
+                    </div>
+                    
+                    <div class="flex gap-2">
+                        <button @click="randomInsert" class="btn-warning flex-1">
+                            <i class="fas fa-random mr-1"></i>随机
+                        </button>
+                        <button @click="batchInsert" class="btn-warning flex-1">
+                            <i class="fas fa-list mr-1"></i>批量
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 历史操作 -->
+                <div class="mb-4 flex gap-2">
+                    <button @click="undo" :disabled="historyIndex <= 0" 
+                            :class="['px-4 py-2 rounded-lg transition-all', historyIndex > 0 ? 'bg-gray-500 hover:bg-gray-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed']">
+                        <i class="fas fa-undo mr-1"></i>撤销 (Z)
+                    </button>
+                    <button @click="redo" :disabled="historyIndex >= history.length - 1" 
+                            :class="['px-4 py-2 rounded-lg transition-all', historyIndex < history.length - 1 ? 'bg-gray-500 hover:bg-gray-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed']">
+                        <i class="fas fa-redo mr-1"></i>重做 (Y)
+                    </button>
+                    <span class="text-sm text-gray-500 ml-4 py-2">
+                        历史记录: {{ historyIndex + 1 }} / {{ history.length }}
+                    </span>
+                </div>
+
+                <!-- 教学案例 -->
+                <div class="mb-4">
+                    <h3 class="text-lg font-semibold mb-2 text-gray-700">
+                        <i class="fas fa-graduation-cap text-purple-500 mr-2"></i>
+                        教学案例
+                    </h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <button v-for="example in examples" :key="example.id"
+                                @click="runExample(example.id)" 
+                                class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-2 rounded-lg text-sm transition-all">
+                            <i :class="example.icon + ' mr-1'"></i>{{ example.name }}
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 动画速度控制 -->
+                <div class="flex items-center gap-4">
+                    <label class="text-sm font-medium text-gray-700">
+                        动画速度：
+                    </label>
+                    <input type="range" v-model="animationSpeed" min="500" max="3000" step="250"
+                           class="flex-1">
+                    <span class="text-sm text-gray-600">{{ animationSpeed }}ms</span>
+                    <button v-if="mode === 'step'" @click="nextStep" 
+                            :disabled="!isStepMode || currentStep >= totalSteps"
+                            class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg disabled:bg-gray-300">
+                        <i class="fas fa-step-forward mr-1"></i>下一步
+                    </button>
+                </div>
+            </div>
+
+            <!-- 算法步骤展示 -->
+            <transition name="fade">
+                <div v-if="showAlgorithmSteps && currentOperation" class="card">
+                    <h2 class="text-2xl font-semibold mb-4 text-gray-700">
+                        <i class="fas fa-code text-indigo-500 mr-2"></i>
+                        算法步骤 - {{ currentOperation.type }}
+                    </h2>
+                    
+                    <!-- 步骤指示器 -->
+                    <div class="flex gap-2 mb-4 overflow-x-auto pb-2">
+                        <span v-for="(step, index) in currentOperation.steps" :key="index"
+                              :class="['step-indicator', 
+                                       { 'active': index === currentStepIndex,
+                                         'completed': index < currentStepIndex }]">
+                            {{ index + 1 }}
+                        </span>
+                    </div>
+                    
+                    <!-- 当前步骤说明 -->
+                    <div v-if="currentOperation.steps[currentStepIndex]" 
+                         class="p-4 bg-indigo-50 rounded-lg mb-4 highlight-animation">
+                        <h3 class="font-bold text-indigo-700 mb-2">
+                            步骤 {{ currentStepIndex + 1 }}: {{ currentOperation.steps[currentStepIndex].title }}
+                        </h3>
+                        <p class="text-gray-700">{{ currentOperation.steps[currentStepIndex].description }}</p>
+                    </div>
+                    
+                    <!-- 伪代码展示 -->
+                    <div class="bg-gray-900 text-white p-4 rounded-lg overflow-x-auto">
+                        <pre class="font-mono text-sm">
+<code v-for="(line, index) in currentOperation.pseudocode" :key="index"
+      :class="['code-line', { 'active': line.active }]">{{ line.text }}</code>
+                        </pre>
+                    </div>
+                </div>
+            </transition>
+
+            <!-- B树可视化 -->
+            <div class="card">
+                <h2 class="text-2xl font-semibold mb-4 text-gray-700">
+                    <i class="fas fa-sitemap text-green-500 mr-2"></i>
+                    B树结构可视化
+                    <span v-if="isAnimating" class="ml-4 text-sm text-orange-500">
+                        <i class="fas fa-spinner fa-spin mr-1"></i>动画进行中...
+                    </span>
+                </h2>
+                <div id="btree-chart" style="width: 100%; height: 500px;" class="bg-gray-50 rounded-lg"></div>
+            </div>
+
+            <!-- 操作日志 -->
+            <div class="card max-h-96 overflow-y-auto">
+                <h2 class="text-2xl font-semibold mb-4 text-gray-700">
+                    <i class="fas fa-history text-orange-500 mr-2"></i>
+                    操作日志
+                    <button @click="clearLogs" class="float-right text-sm bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded-lg">
+                        <i class="fas fa-trash mr-1"></i>清空
+                    </button>
+                </h2>
+                <transition-group name="slide-up" tag="div">
+                    <div v-for="(log, index) in operationLogs" :key="log.id" 
+                         :class="['log-item', log.type, { 'highlight-animation': index === 0 }]">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <i :class="getLogIcon(log.type)" class="mr-2"></i>
+                                <span class="font-semibold">{{ log.operation }}</span>
+                                <span class="text-gray-600 ml-2">{{ log.detail }}</span>
+                            </div>
+                            <span class="text-xs text-gray-500">{{ log.time }}</span>
+                        </div>
+                    </div>
+                </transition-group>
+                <div v-if="operationLogs.length === 0" class="text-center text-gray-500 py-8">
+                    <i class="fas fa-inbox text-4xl mb-2"></i>
+                    <p>暂无操作记录</p>
+                </div>
+            </div>
+
+            <!-- 调试检查器 -->
+            <div class="card">
+                <h2 class="text-2xl font-semibold mb-4 text-gray-700">
+                    <i class="fas fa-bug text-red-500 mr-2"></i>
+                    调试检查器
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <h3 class="font-semibold mb-2">B树属性</h3>
+                        <ul class="text-sm space-y-1">
+                            <li><span class="font-medium">节点总数:</span> {{ debugInfo.nodeCount }}</li>
+                            <li><span class="font-medium">树高:</span> {{ debugInfo.height }}</li>
+                            <li><span class="font-medium">键总数:</span> {{ debugInfo.totalKeys }}</li>
+                            <li><span class="font-medium">叶子节点数:</span> {{ debugInfo.leafCount }}</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold mb-2">验证状态</h3>
+                        <ul class="text-sm space-y-1">
+                            <li :class="debugInfo.isValid ? 'text-green-600' : 'text-red-600'">
+                                <i :class="debugInfo.isValid ? 'fas fa-check-circle' : 'fas fa-times-circle'"></i>
+                                B树有效性: {{ debugInfo.isValid ? '✓ 通过' : '✗ 失败' }}
+                            </li>
+                            <li :class="debugInfo.isBalanced ? 'text-green-600' : 'text-red-600'">
+                                <i :class="debugInfo.isBalanced ? 'fas fa-check-circle' : 'fas fa-times-circle'"></i>
+                                平衡性: {{ debugInfo.isBalanced ? '✓ 平衡' : '✗ 不平衡' }}
+                            </li>
+                            <li :class="debugInfo.keysInOrder ? 'text-green-600' : 'text-red-600'">
+                                <i :class="debugInfo.keysInOrder ? 'fas fa-check-circle' : 'fas fa-times-circle'"></i>
+                                键序: {{ debugInfo.keysInOrder ? '✓ 有序' : '✗ 无序' }}
+                            </li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold mb-2">性能统计</h3>
+                        <ul class="text-sm space-y-1">
+                            <li><span class="font-medium">插入操作:</span> {{ stats.insertCount }} 次</li>
+                            <li><span class="font-medium">删除操作:</span> {{ stats.deleteCount }} 次</li>
+                            <li><span class="font-medium">查找操作:</span> {{ stats.searchCount }} 次</li>
+                            <li><span class="font-medium">节点分裂:</span> {{ stats.splitCount }} 次</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="mt-4 flex gap-2">
+                    <button @click="validateTree" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg">
+                        <i class="fas fa-check-double mr-2"></i>验证完整性
+                    </button>
+                    <button @click="exportTree" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg">
+                        <i class="fas fa-download mr-2"></i>导出结构
+                    </button>
+                    <button @click="importTree" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
+                        <i class="fas fa-upload mr-2"></i>导入结构
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 批量插入模态框 -->
+        <div v-if="showBatchModal" class="modal-overlay" @click.self="showBatchModal = false">
+            <div class="modal-content">
+                <h3 class="text-xl font-bold mb-4">批量插入</h3>
+                <textarea v-model="batchValues" 
+                          placeholder="输入要插入的值，用逗号或空格分隔"
+                          class="w-full h-32 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </textarea>
+                <div class="mt-4 flex justify-end gap-2">
+                    <button @click="showBatchModal = false" class="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded-lg">
+                        取消
+                    </button>
+                    <button @click="executeBatchInsert" class="btn-primary">
+                        确认插入
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        // B树节点类
+        class BTreeNode {
+            constructor(isLeaf = true) {
+                this.keys = [];
+                this.children = [];
+                this.isLeaf = isLeaf;
+                this.id = Math.random().toString(36).substr(2, 9);
+            }
+
+            clone() {
+                const newNode = new BTreeNode(this.isLeaf);
+                newNode.keys = [...this.keys];
+                newNode.children = this.children.map(child => child.clone());
+                return newNode;
+            }
+        }
+
+        // B树类
+        class BTree {
+            constructor(minDegree) {
+                this.root = new BTreeNode(true);
+                this.minDegree = minDegree;
+                this.maxKeys = 2 * minDegree - 1;
+                this.minKeys = minDegree - 1;
+                this.operationSteps = [];
+            }
+
+            clone() {
+                const newTree = new BTree(this.minDegree);
+                newTree.root = this.root.clone();
+                return newTree;
+            }
+
+            search(node, key, path = []) {
+                let i = 0;
+                while (i < node.keys.length && key > node.keys[i]) {
+                    i++;
+                }
+                
+                path.push({ node, index: i });
+                
+                if (i < node.keys.length && key === node.keys[i]) {
+                    return { found: true, node, index: i, path };
+                }
+                
+                if (node.isLeaf) {
+                    return { found: false, path };
+                }
+                
+                return this.search(node.children[i], key, path);
+            }
+
+            insert(key) {
+                this.operationSteps = [];
+                const root = this.root;
+                
+                this.operationSteps.push({
+                    type: 'check',
+                    description: `检查根节点是否已满（当前 ${root.keys.length}/${this.maxKeys} 个键）`
+                });
+                
+                if (root.keys.length === this.maxKeys) {
+                    this.operationSteps.push({
+                        type: 'split',
+                        description: '根节点已满，需要分裂'
+                    });
+                    
+                    const newRoot = new BTreeNode(false);
+                    newRoot.children.push(this.root);
+                    this.splitChild(newRoot, 0);
+                    this.root = newRoot;
+                    this.insertNonFull(newRoot, key);
+                } else {
+                    this.insertNonFull(root, key);
+                }
+                
+                return this.operationSteps;
+            }
+
+            insertNonFull(node, key) {
+                let i = node.keys.length - 1;
+                
+                if (node.isLeaf) {
+                    this.operationSteps.push({
+                        type: 'insert',
+                        description: `在叶子节点插入键 ${key}`
+                    });
+                    
+                    node.keys.push(null);
+                    while (i >= 0 && key < node.keys[i]) {
+                        node.keys[i + 1] = node.keys[i];
+                        i--;
+                    }
+                    node.keys[i + 1] = key;
+                } else {
+                    while (i >= 0 && key < node.keys[i]) {
+                        i--;
+                    }
+                    i++;
+                    
+                    if (node.children[i].keys.length === this.maxKeys) {
+                        this.operationSteps.push({
+                            type: 'split',
+                            description: `子节点已满，分裂节点`
+                        });
+                        this.splitChild(node, i);
+                        if (key > node.keys[i]) {
+                            i++;
+                        }
+                    }
+                    this.insertNonFull(node.children[i], key);
+                }
+            }
+
+            splitChild(parent, index) {
+                const fullChild = parent.children[index];
+                const newChild = new BTreeNode(fullChild.isLeaf);
+                const midIndex = this.minDegree - 1;
+                
+                newChild.keys = fullChild.keys.splice(midIndex + 1);
+                
+                if (!fullChild.isLeaf) {
+                    newChild.children = fullChild.children.splice(midIndex + 1);
+                }
+                
+                const midKey = fullChild.keys.pop();
+                parent.keys.splice(index, 0, midKey);
+                parent.children.splice(index + 1, 0, newChild);
+                
+                this.operationSteps.push({
+                    type: 'promote',
+                    description: `提升键 ${midKey} 到父节点`
+                });
+            }
+
+            delete(key) {
+                this.operationSteps = [];
+                this.deleteFromNode(this.root, key);
+                
+                if (this.root.keys.length === 0) {
+                    if (!this.root.isLeaf && this.root.children.length > 0) {
+                        this.root = this.root.children[0];
+                    }
+                }
+                
+                return this.operationSteps;
+            }
+
+            deleteFromNode(node, key) {
+                const idx = this.findKeyIndex(node, key);
+                
+                if (idx < node.keys.length && node.keys[idx] === key) {
+                    if (node.isLeaf) {
+                        this.removeFromLeaf(node, idx);
+                    } else {
+                        this.removeFromNonLeaf(node, idx);
+                    }
+                } else if (!node.isLeaf) {
+                    const isInLastChild = (idx === node.keys.length);
+                    
+                    if (node.children[idx].keys.length < this.minDegree) {
+                        this.fill(node, idx);
+                    }
+                    
+                    if (isInLastChild && idx > node.keys.length) {
+                        this.deleteFromNode(node.children[idx - 1], key);
+                    } else {
+                        this.deleteFromNode(node.children[idx], key);
+                    }
+                }
+            }
+
+            findKeyIndex(node, key) {
+                let idx = 0;
+                while (idx < node.keys.length && node.keys[idx] < key) {
+                    idx++;
+                }
+                return idx;
+            }
+
+            removeFromLeaf(node, idx) {
+                this.operationSteps.push({
+                    type: 'remove',
+                    description: `从叶子节点删除键 ${node.keys[idx]}`
+                });
+                node.keys.splice(idx, 1);
+            }
+
+            removeFromNonLeaf(node, idx) {
+                const key = node.keys[idx];
+                
+                if (node.children[idx].keys.length >= this.minDegree) {
+                    const pred = this.getPredecessor(node, idx);
+                    node.keys[idx] = pred;
+                    this.deleteFromNode(node.children[idx], pred);
+                } else if (node.children[idx + 1].keys.length >= this.minDegree) {
+                    const succ = this.getSuccessor(node, idx);
+                    node.keys[idx] = succ;
+                    this.deleteFromNode(node.children[idx + 1], succ);
+                } else {
+                    this.merge(node, idx);
+                    this.deleteFromNode(node.children[idx], key);
+                }
+            }
+
+            getPredecessor(node, idx) {
+                let curr = node.children[idx];
+                while (!curr.isLeaf) {
+                    curr = curr.children[curr.children.length - 1];
+                }
+                return curr.keys[curr.keys.length - 1];
+            }
+
+            getSuccessor(node, idx) {
+                let curr = node.children[idx + 1];
+                while (!curr.isLeaf) {
+                    curr = curr.children[0];
+                }
+                return curr.keys[0];
+            }
+
+            fill(node, idx) {
+                if (idx !== 0 && node.children[idx - 1].keys.length >= this.minDegree) {
+                    this.borrowFromPrev(node, idx);
+                } else if (idx !== node.keys.length && node.children[idx + 1].keys.length >= this.minDegree) {
+                    this.borrowFromNext(node, idx);
+                } else {
+                    if (idx !== node.keys.length) {
+                        this.merge(node, idx);
+                    } else {
+                        this.merge(node, idx - 1);
+                    }
+                }
+            }
+
+            borrowFromPrev(node, childIdx) {
+                const child = node.children[childIdx];
+                const sibling = node.children[childIdx - 1];
+                
+                child.keys.unshift(node.keys[childIdx - 1]);
+                node.keys[childIdx - 1] = sibling.keys.pop();
+                
+                if (!child.isLeaf) {
+                    child.children.unshift(sibling.children.pop());
+                }
+                
+                this.operationSteps.push({
+                    type: 'borrow',
+                    description: '从左兄弟节点借用键'
+                });
+            }
+
+            borrowFromNext(node, childIdx) {
+                const child = node.children[childIdx];
+                const sibling = node.children[childIdx + 1];
+                
+                child.keys.push(node.keys[childIdx]);
+                node.keys[childIdx] = sibling.keys.shift();
+                
+                if (!child.isLeaf) {
+                    child.children.push(sibling.children.shift());
+                }
+                
+                this.operationSteps.push({
+                    type: 'borrow',
+                    description: '从右兄弟节点借用键'
+                });
+            }
+
+            merge(node, idx) {
+                const child = node.children[idx];
+                const sibling = node.children[idx + 1];
+                
+                child.keys.push(node.keys[idx]);
+                child.keys = child.keys.concat(sibling.keys);
+                
+                if (!child.isLeaf) {
+                    child.children = child.children.concat(sibling.children);
+                }
+                
+                node.keys.splice(idx, 1);
+                node.children.splice(idx + 1, 1);
+                
+                this.operationSteps.push({
+                    type: 'merge',
+                    description: '合并节点'
+                });
+            }
+
+            getHeight(node = this.root) {
+                if (node.isLeaf) return 1;
+                return 1 + this.getHeight(node.children[0]);
+            }
+
+            countNodes(node = this.root) {
+                if (!node) return 0;
+                let count = 1;
+                for (let child of node.children) {
+                    count += this.countNodes(child);
+                }
+                return count;
+            }
+
+            countKeys(node = this.root) {
+                if (!node) return 0;
+                let count = node.keys.length;
+                for (let child of node.children) {
+                    count += this.countKeys(child);
+                }
+                return count;
+            }
+
+            validate(node = this.root, min = -Infinity, max = Infinity) {
+                if (node !== this.root && node.keys.length < this.minKeys) {
+                    return false;
+                }
+                if (node.keys.length > this.maxKeys) {
+                    return false;
+                }
+                
+                for (let i = 0; i < node.keys.length - 1; i++) {
+                    if (node.keys[i] >= node.keys[i + 1]) {
+                        return false;
+                    }
+                }
+                
+                for (let key of node.keys) {
+                    if (key <= min || key >= max) {
+                        return false;
+                    }
+                }
+                
+                if (!node.isLeaf) {
+                    for (let i = 0; i <= node.keys.length; i++) {
+                        const childMin = i === 0 ? min : node.keys[i - 1];
+                        const childMax = i === node.keys.length ? max : node.keys[i];
+                        if (!this.validate(node.children[i], childMin, childMax)) {
+                            return false;
+                        }
+                    }
+                }
+                
+                return true;
+            }
+
+            toJSON() {
+                return {
+                    minDegree: this.minDegree,
+                    root: this.nodeToJSON(this.root)
+                };
+            }
+
+            nodeToJSON(node) {
+                return {
+                    keys: node.keys,
+                    isLeaf: node.isLeaf,
+                    children: node.children.map(child => this.nodeToJSON(child))
+                };
+            }
+
+            fromJSON(json) {
+                this.minDegree = json.minDegree;
+                this.maxKeys = 2 * this.minDegree - 1;
+                this.minKeys = this.minDegree - 1;
+                this.root = this.nodeFromJSON(json.root);
+            }
+
+            nodeFromJSON(json) {
+                const node = new BTreeNode(json.isLeaf);
+                node.keys = json.keys;
+                node.children = json.children.map(child => this.nodeFromJSON(child));
+                return node;
+            }
+        }
+
+        createApp({
+            data() {
+                return {
+                    order: 3,
+                    btree: null,
+                    inputValue: '',
+                    deleteValue: '',
+                    searchValue: '',
+                    operationLogs: [],
+                    animationSpeed: 1500,
+                    chart: null,
+                    mode: 'normal', // normal, step, auto
+                    isStepMode: false,
+                    currentStep: 0,
+                    totalSteps: 0,
+                    history: [],
+                    historyIndex: -1,
+                    showKeyboardHints: false,
+                    showBatchModal: false,
+                    batchValues: '',
+                    showAlgorithmSteps: true,
+                    currentOperation: null,
+                    currentStepIndex: 0,
+                    isAnimating: false,
+                    logIdCounter: 0,
+                    examples: [
+                        { id: 'basic', name: '基础插入', icon: 'fas fa-play' },
+                        { id: 'split', name: '节点分裂', icon: 'fas fa-code-branch' },
+                        { id: 'delete', name: '删除操作', icon: 'fas fa-trash' },
+                        { id: 'complex', name: '综合案例', icon: 'fas fa-project-diagram' }
+                    ],
+                    stats: {
+                        insertCount: 0,
+                        deleteCount: 0,
+                        searchCount: 0,
+                        splitCount: 0
+                    },
+                    debugInfo: {
+                        nodeCount: 0,
+                        height: 0,
+                        totalKeys: 0,
+                        leafCount: 0,
+                        isValid: true,
+                        isBalanced: true,
+                        keysInOrder: true
+                    }
+                };
+            },
+            computed: {
+                minDegree() {
+                    return Math.ceil(this.order / 2);
+                },
+                maxKeys() {
+                    return this.order - 1;
+                }
+            },
+            mounted() {
+                // 先初始化树
+                this.initTree();
+                // 然后初始化图表（会在 nextTick 中更新可视化）
+                this.initChart();
+                // 最后设置键盘快捷键
+                this.setupKeyboardShortcuts();
+                
+                // 添加一些初始数据以便展示
+                setTimeout(() => {
+                    if (this.btree.root.keys.length === 0) {
+                        this.addLog('提示', '空树已准备就绪，请插入数据开始', 'info');
+                        // 可选：自动插入一些示例数据
+                        // this.inputValue = 10;
+                        // this.insert();
+                    }
+                }, 500);
+            },
+            methods: {
+                initTree() {
+                    this.btree = new BTree(this.minDegree);
+                    this.saveToHistory();
+                    // 延迟更新可视化，确保图表已初始化
+                    this.$nextTick(() => {
+                        if (this.chart) {
+                            this.updateVisualization();
+                        }
+                    });
+                    this.updateDebugInfo();
+                },
+                
+                initChart() {
+                    // 确保DOM元素存在
+                    this.$nextTick(() => {
+                        const chartDom = document.getElementById('btree-chart');
+                        if (chartDom) {
+                            this.chart = echarts.init(chartDom);
+                            window.addEventListener('resize', () => {
+                                if (this.chart) {
+                                    this.chart.resize();
+                                }
+                            });
+                            // 立即更新可视化
+                            this.updateVisualization();
+                        }
+                    });
+                },
+                
+                setupKeyboardShortcuts() {
+                    document.addEventListener('keydown', (e) => {
+                        // 如果正在输入，不触发快捷键
+                        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                            return;
+                        }
+                        
+                        switch(e.key.toLowerCase()) {
+                            case 'i':
+                                e.preventDefault();
+                                this.$refs.insertInput.focus();
+                                break;
+                            case 'd':
+                                e.preventDefault();
+                                this.$refs.deleteInput.focus();
+                                break;
+                            case 's':
+                                e.preventDefault();
+                                this.$refs.searchInput.focus();
+                                break;
+                            case 'z':
+                                if (!e.ctrlKey && !e.metaKey) {
+                                    e.preventDefault();
+                                    this.undo();
+                                }
+                                break;
+                            case 'y':
+                                if (!e.ctrlKey && !e.metaKey) {
+                                    e.preventDefault();
+                                    this.redo();
+                                }
+                                break;
+                            case 'r':
+                                e.preventDefault();
+                                this.resetTree();
+                                break;
+                            case 'p':
+                                e.preventDefault();
+                                if (this.isAnimating) {
+                                    this.pauseAnimation();
+                                } else if (this.mode === 'step') {
+                                    this.nextStep();
+                                }
+                                break;
+                            case '?':
+                                e.preventDefault();
+                                this.showKeyboardHints = !this.showKeyboardHints;
+                                break;
+                        }
+                    });
+                },
+                
+                setMode(mode) {
+                    this.mode = mode;
+                    this.isStepMode = mode === 'step';
+                    if (mode === 'normal') {
+                        this.showAlgorithmSteps = false;
+                    } else {
+                        this.showAlgorithmSteps = true;
+                    }
+                },
+                
+                resetTree() {
+                    // 重新初始化B树
+                    this.btree = new BTree(this.minDegree);
+                    this.operationLogs = [];
+                    this.history = [];
+                    this.historyIndex = -1;
+                    this.stats = {
+                        insertCount: 0,
+                        deleteCount: 0,
+                        searchCount: 0,
+                        splitCount: 0
+                    };
+                    
+                    // 保存初始状态
+                    this.saveToHistory();
+                    
+                    // 更新可视化和调试信息
+                    this.$nextTick(() => {
+                        if (this.chart) {
+                            this.updateVisualization();
+                        }
+                        this.updateDebugInfo();
+                    });
+                    
+                    this.addLog('系统', '重置B树', 'info');
+                },
+                
+                saveToHistory() {
+                    // 删除当前位置之后的历史记录
+                    this.history = this.history.slice(0, this.historyIndex + 1);
+                    // 添加新的历史记录
+                    this.history.push(this.btree.clone());
+                    this.historyIndex++;
+                    // 限制历史记录数量
+                    if (this.history.length > 50) {
+                        this.history.shift();
+                        this.historyIndex--;
+                    }
+                },
+                
+                undo() {
+                    if (this.historyIndex > 0) {
+                        this.historyIndex--;
+                        this.btree = this.history[this.historyIndex].clone();
+                        this.updateVisualization();
+                        this.updateDebugInfo();
+                        this.addLog('撤销', '恢复到上一步', 'info');
+                    }
+                },
+                
+                redo() {
+                    if (this.historyIndex < this.history.length - 1) {
+                        this.historyIndex++;
+                        this.btree = this.history[this.historyIndex].clone();
+                        this.updateVisualization();
+                        this.updateDebugInfo();
+                        this.addLog('重做', '前进到下一步', 'info');
+                    }
+                },
+                
+                async insert() {
+                    if (this.inputValue === '') return;
+                    const value = parseInt(this.inputValue);
+                    
+                    const searchResult = this.btree.search(this.btree.root, value);
+                    if (searchResult.found) {
+                        this.addLog('插入失败', `键 ${value} 已存在`, 'error');
+                        return;
+                    }
+                    
+                    if (this.mode === 'step' || this.mode === 'auto') {
+                        this.currentOperation = {
+                            type: '插入操作',
+                            value: value,
+                            steps: [
+                                { title: '查找插入位置', description: `从根节点开始查找键 ${value} 的插入位置` },
+                                { title: '检查节点容量', description: '检查目标节点是否已满' },
+                                { title: '插入键值', description: `将键 ${value} 插入到正确位置` },
+                                { title: '调整结构', description: '如果需要，进行节点分裂' }
+                            ],
+                            pseudocode: [
+                                { text: 'function insert(key):', active: false },
+                                { text: '  if root.isFull():', active: false },
+                                { text: '    splitRoot()', active: false },
+                                { text: '  insertNonFull(root, key)', active: false },
+                                { text: '', active: false },
+                                { text: 'function insertNonFull(node, key):', active: false },
+                                { text: '  if node.isLeaf:', active: false },
+                                { text: '    insertIntoLeaf(node, key)', active: false },
+                                { text: '  else:', active: false },
+                                { text: '    child = findChild(node, key)', active: false },
+                                { text: '    if child.isFull():', active: false },
+                                { text: '      splitChild(node, child)', active: false },
+                                { text: '    insertNonFull(child, key)', active: false }
+                            ]
+                        };
+                        
+                        if (this.mode === 'step') {
+                            await this.executeStepByStep(() => {
+                                const steps = this.btree.insert(value);
+                                this.processOperationSteps(steps);
+                            });
+                        } else {
+                            await this.executeWithAnimation(() => {
+                                const steps = this.btree.insert(value);
+                                this.processOperationSteps(steps);
+                            });
+                        }
+                    } else {
+                        const steps = this.btree.insert(value);
+                        this.processOperationSteps(steps);
+                    }
+                    
+                    this.saveToHistory();
+                    this.stats.insertCount++;
+                    this.addLog('插入', `插入键 ${value}`, 'insert');
+                    this.updateVisualization();
+                    this.updateDebugInfo();
+                    this.inputValue = '';
+                },
+                
+                async deleteKey() {
+                    if (this.deleteValue === '') return;
+                    const value = parseInt(this.deleteValue);
+                    
+                    const searchResult = this.btree.search(this.btree.root, value);
+                    if (!searchResult.found) {
+                        this.addLog('删除失败', `键 ${value} 不存在`, 'error');
+                        return;
+                    }
+                    
+                    if (this.mode === 'step' || this.mode === 'auto') {
+                        this.currentOperation = {
+                            type: '删除操作',
+                            value: value,
+                            steps: [
+                                { title: '查找目标键', description: `查找要删除的键 ${value}` },
+                                { title: '确定删除策略', description: '根据节点类型选择删除方法' },
+                                { title: '执行删除', description: `删除键 ${value}` },
+                                { title: '重新平衡', description: '如果需要，进行节点合并或借用' }
+                            ],
+                            pseudocode: [
+                                { text: 'function delete(key):', active: false },
+                                { text: '  node = findNode(key)', active: false },
+                                { text: '  if node.isLeaf:', active: false },
+                                { text: '    removeFromLeaf(node, key)', active: false },
+                                { text: '  else:', active: false },
+                                { text: '    if leftChild.hasEnoughKeys():', active: false },
+                                { text: '      predecessor = getPredecessor()', active: false },
+                                { text: '      replace(key, predecessor)', active: false },
+                                { text: '    elif rightChild.hasEnoughKeys():', active: false },
+                                { text: '      successor = getSuccessor()', active: false },
+                                { text: '      replace(key, successor)', active: false },
+                                { text: '    else:', active: false },
+                                { text: '      mergeWithSibling()', active: false }
+                            ]
+                        };
+                        
+                        if (this.mode === 'step') {
+                            await this.executeStepByStep(() => {
+                                const steps = this.btree.delete(value);
+                                this.processOperationSteps(steps);
+                            });
+                        } else {
+                            await this.executeWithAnimation(() => {
+                                const steps = this.btree.delete(value);
+                                this.processOperationSteps(steps);
+                            });
+                        }
+                    } else {
+                        const steps = this.btree.delete(value);
+                        this.processOperationSteps(steps);
+                    }
+                    
+                    this.saveToHistory();
+                    this.stats.deleteCount++;
+                    this.addLog('删除', `删除键 ${value}`, 'delete');
+                    this.updateVisualization();
+                    this.updateDebugInfo();
+                    this.deleteValue = '';
+                },
+                
+                search() {
+                    if (this.searchValue === '') return;
+                    const value = parseInt(this.searchValue);
+                    
+                    this.currentOperation = {
+                        type: '查找操作',
+                        value: value,
+                        steps: [
+                            { title: '从根节点开始', description: '开始遍历B树' },
+                            { title: '比较键值', description: `将 ${value} 与节点中的键进行比较` },
+                            { title: '选择路径', description: '根据比较结果选择子节点' },
+                            { title: '返回结果', description: '找到目标键或到达叶子节点' }
+                        ],
+                        pseudocode: [
+                            { text: 'function search(node, key):', active: true },
+                            { text: '  i = 0', active: false },
+                            { text: '  while i < node.keys.length and key > node.keys[i]:', active: false },
+                            { text: '    i++', active: false },
+                            { text: '  if i < node.keys.length and key == node.keys[i]:', active: false },
+                            { text: '    return found', active: false },
+                            { text: '  if node.isLeaf:', active: false },
+                            { text: '    return not found', active: false },
+                            { text: '  return search(node.children[i], key)', active: false }
+                        ]
+                    };
+                    
+                    const result = this.btree.search(this.btree.root, value);
+                    
+                    this.stats.searchCount++;
+                    
+                    if (result.found) {
+                        this.addLog('查找成功', `找到键 ${value}`, 'search');
+                        this.highlightPath(result.path);
+                    } else {
+                        this.addLog('查找失败', `未找到键 ${value}`, 'error');
+                    }
+                    this.searchValue = '';
+                },
+                
+                processOperationSteps(steps) {
+                    for (let step of steps) {
+                        if (step.type === 'split') {
+                            this.stats.splitCount++;
+                            this.addLog('节点分裂', step.description, 'split');
+                        } else if (step.type === 'merge') {
+                            this.addLog('节点合并', step.description, 'merge');
+                        }
+                    }
+                },
+                
+                async executeStepByStep(operation) {
+                    this.isAnimating = true;
+                    this.currentStepIndex = 0;
+                    
+                    for (let i = 0; i < this.currentOperation.steps.length; i++) {
+                        this.currentStepIndex = i;
+                        this.updatePseudocodeHighlight(i);
+                        
+                        if (this.mode === 'step') {
+                            await this.waitForNextStep();
+                        } else {
+                            await this.sleep(this.animationSpeed);
+                        }
+                    }
+                    
+                    operation();
+                    this.isAnimating = false;
+                    this.currentOperation = null;
+                },
+                
+                async executeWithAnimation(operation) {
+                    this.isAnimating = true;
+                    
+                    for (let i = 0; i < this.currentOperation.steps.length; i++) {
+                        this.currentStepIndex = i;
+                        this.updatePseudocodeHighlight(i);
+                        await this.sleep(this.animationSpeed / this.currentOperation.steps.length);
+                    }
+                    
+                    operation();
+                    this.isAnimating = false;
+                    
+                    setTimeout(() => {
+                        this.currentOperation = null;
+                    }, 2000);
+                },
+                
+                updatePseudocodeHighlight(stepIndex) {
+                    if (!this.currentOperation || !this.currentOperation.pseudocode) return;
+                    
+                    // 重置所有行
+                    this.currentOperation.pseudocode.forEach(line => line.active = false);
+                    
+                    // 根据步骤高亮相应的代码行
+                    const highlights = {
+                        0: [0, 1],     // 查找位置
+                        1: [2, 3],     // 检查容量
+                        2: [6, 7, 8],  // 插入
+                        3: [10, 11, 12] // 调整结构
+                    };
+                    
+                    const linesToHighlight = highlights[stepIndex] || [];
+                    linesToHighlight.forEach(lineIndex => {
+                        if (this.currentOperation.pseudocode[lineIndex]) {
+                            this.currentOperation.pseudocode[lineIndex].active = true;
+                        }
+                    });
+                },
+                
+                waitForNextStep() {
+                    return new Promise(resolve => {
+                        const checkStep = () => {
+                            if (!this.isStepMode || this.currentStep > this.totalSteps) {
+                                resolve();
+                            } else {
+                                setTimeout(checkStep, 100);
+                            }
+                        };
+                        checkStep();
+                    });
+                },
+                
+                nextStep() {
+                    if (this.isStepMode && this.currentStep <= this.totalSteps) {
+                        this.currentStep++;
+                    }
+                },
+                
+                sleep(ms) {
+                    return new Promise(resolve => setTimeout(resolve, ms));
+                },
+                
+                randomInsert() {
+                    const value = Math.floor(Math.random() * 100) + 1;
+                    this.inputValue = value;
+                    this.insert();
+                },
+                
+                batchInsert() {
+                    this.showBatchModal = true;
+                },
+                
+                executeBatchInsert() {
+                    const values = this.batchValues.split(/[,\s]+/).map(v => parseInt(v)).filter(v => !isNaN(v));
+                    
+                    if (values.length === 0) {
+                        this.addLog('批量插入失败', '没有有效的输入值', 'error');
+                        return;
+                    }
+                    
+                    this.showBatchModal = false;
+                    this.batchValues = '';
+                    
+                    let index = 0;
+                    const insertNext = () => {
+                        if (index < values.length) {
+                            this.inputValue = values[index];
+                            this.insert();
+                            index++;
+                            setTimeout(insertNext, this.animationSpeed / 2);
+                        }
+                    };
+                    
+                    insertNext();
+                },
+                
+                runExample(type) {
+                    this.resetTree();
+                    let sequence = [];
+                    
+                    switch(type) {
+                        case 'basic':
+                            sequence = [10, 20, 30, 40, 50];
+                            this.addLog('教学案例', '基础插入演示 - 展示基本的插入操作', 'info');
+                            break;
+                        case 'split':
+                            sequence = [10, 20, 30, 40, 50, 60, 70, 80, 90];
+                            this.addLog('教学案例', '节点分裂演示 - 展示节点满时的分裂过程', 'split');
+                            break;
+                        case 'delete':
+                            sequence = [10, 20, 30, 40, 50, 60, 70];
+                            this.addLog('教学案例', '删除操作演示 - 展示不同情况下的删除策略', 'info');
+                            break;
+                        case 'complex':
+                            sequence = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60];
+                            this.addLog('教学案例', '综合案例演示 - 展示复杂的B树操作', 'info');
+                            break;
+                    }
+                    
+                    let index = 0;
+                    const insertNext = () => {
+                        if (index < sequence.length) {
+                            this.inputValue = sequence[index];
+                            this.insert();
+                            index++;
+                            setTimeout(insertNext, this.animationSpeed);
+                        } else if (type === 'delete') {
+                            setTimeout(() => {
+                                this.addLog('教学案例', '开始删除操作演示', 'delete');
+                                this.deleteValue = 30;
+                                this.deleteKey();
+                                setTimeout(() => {
+                                    this.deleteValue = 50;
+                                    this.deleteKey();
+                                    setTimeout(() => {
+                                        this.deleteValue = 20;
+                                        this.deleteKey();
+                                    }, this.animationSpeed);
+                                }, this.animationSpeed);
+                            }, this.animationSpeed);
+                        }
+                    };
+                    insertNext();
+                },
+                
+                updateVisualization() {
+                    if (!this.chart) {
+                        console.warn('Chart not initialized');
+                        return;
+                    }
+                    
+                    const data = this.convertToEchartsData(this.btree.root);
+                    
+                    const option = {
+                        backgroundColor: '#f7f7f7',
+                        tooltip: {
+                            trigger: 'item',
+                            formatter: (params) => {
+                                if (!params.data.keys || params.data.keys.length === 0) {
+                                    return '空树 - 请插入数据';
+                                }
+                                return `<div style="padding: 8px;">
+                                    <strong>节点信息</strong><br/>
+                                    键值: [${params.data.keys.join(', ')}]<br/>
+                                    类型: ${params.data.isLeaf ? '叶子节点' : '内部节点'}<br/>
+                                    键数: ${params.data.keys.length}/${this.maxKeys}
+                                </div>`;
+                            }
+                        },
+                        animation: true,
+                        animationDuration: 750,
+                        animationEasing: 'cubicInOut',
+                        series: [{
+                            type: 'tree',
+                            data: [data],
+                            top: '10%',
+                            left: '10%',
+                            bottom: '10%',
+                            right: '10%',
+                            symbolSize: 30,
+                            initialTreeDepth: -1,
+                            orient: 'vertical',
+                            label: {
+                                show: true,
+                                position: 'inside',
+                                verticalAlign: 'middle',
+                                align: 'center',
+                                fontSize: 14,
+                                fontWeight: 'bold',
+                                color: '#fff',
+                                backgroundColor: '#4A90E2',
+                                borderRadius: 6,
+                                padding: [10, 15],
+                                formatter: (params) => {
+                                    if (!params.data.keys || params.data.keys.length === 0) {
+                                        return '空';
+                                    }
+                                    return params.data.keys.join(' | ');
+                                }
+                            },
+                            leaves: {
+                                label: {
+                                    show: true,
+                                    position: 'inside',
+                                    verticalAlign: 'middle',
+                                    align: 'center',
+                                    backgroundColor: '#52C41A'
+                                }
+                            },
+                            emphasis: {
+                                focus: 'descendant',
+                                itemStyle: {
+                                    shadowBlur: 20,
+                                    shadowColor: 'rgba(0, 0, 0, 0.5)',
+                                    borderColor: '#fff',
+                                    borderWidth: 3
+                                }
+                            },
+                            expandAndCollapse: false,
+                            animationDurationUpdate: 750,
+                            lineStyle: {
+                                width: 2,
+                                color: '#999',
+                                curveness: 0
+                            }
+                        }]
+                    };
+                    
+                    this.chart.setOption(option, true);
+                },
+                
+                convertToEchartsData(node, isRoot = true) {
+                    // 处理空节点或空键的情况
+                    if (!node || node.keys.length === 0) {
+                        return {
+                            name: isRoot ? '空树' : '空节点',
+                            keys: [],
+                            isLeaf: true,
+                            children: [],
+                            itemStyle: {
+                                color: '#cccccc',
+                                borderWidth: 2,
+                                borderColor: '#999',
+                                shadowBlur: 5,
+                                shadowColor: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        };
+                    }
+                    
+                    const data = {
+                        name: node.keys.join(' | '),
+                        keys: node.keys,
+                        isLeaf: node.isLeaf,
+                        children: [],
+                        itemStyle: {
+                            color: isRoot ? '#FF6B6B' : (node.isLeaf ? '#52C41A' : '#4A90E2'),
+                            borderWidth: 2,
+                            borderColor: '#fff',
+                            shadowBlur: 10,
+                            shadowColor: 'rgba(0, 0, 0, 0.2)'
+                        },
+                        lineStyle: {
+                            color: '#999',
+                            width: 2
+                        }
+                    };
+                    
+                    if (!node.isLeaf && node.children) {
+                        for (let child of node.children) {
+                            data.children.push(this.convertToEchartsData(child, false));
+                        }
+                    }
+                    
+                    return data;
+                },
+                
+                highlightPath(path) {
+                    if (!this.chart) return;
+                    
+                    const data = this.convertToEchartsData(this.btree.root);
+                    
+                    // 递归高亮路径
+                    const highlightInData = (data, depth = 0) => {
+                        if (depth < path.length && path[depth].node.keys.some(k => data.keys && data.keys.includes(k))) {
+                            data.itemStyle = {
+                                ...data.itemStyle,
+                                color: '#FFD700',
+                                shadowBlur: 30,
+                                shadowColor: 'rgba(255, 215, 0, 0.8)',
+                                borderWidth: 3,
+                                borderColor: '#FFA500'
+                            };
+                            
+                            if (data.children && depth < path.length - 1) {
+                                const childIndex = path[depth].index;
+                                if (childIndex < data.children.length) {
+                                    highlightInData(data.children[childIndex], depth + 1);
+                                }
+                            }
+                        }
+                        return data;
+                    };
+                    
+                    highlightInData(data);
+                    
+                    const option = this.chart.getOption();
+                    option.series[0].data = [data];
+                    this.chart.setOption(option, true);
+                    
+                    // 3秒后恢复
+                    setTimeout(() => {
+                        this.updateVisualization();
+                    }, 3000);
+                },
+                
+                updateDebugInfo() {
+                    this.debugInfo.nodeCount = this.btree.countNodes();
+                    this.debugInfo.height = this.btree.getHeight();
+                    this.debugInfo.totalKeys = this.btree.countKeys();
+                    this.debugInfo.leafCount = this.countLeaves(this.btree.root);
+                    this.validateTree();
+                },
+                
+                countLeaves(node) {
+                    if (node.isLeaf) return 1;
+                    let count = 0;
+                    for (let child of node.children) {
+                        count += this.countLeaves(child);
+                    }
+                    return count;
+                },
+                
+                validateTree() {
+                    this.debugInfo.isValid = this.btree.validate();
+                    this.debugInfo.isBalanced = this.checkBalance();
+                    this.debugInfo.keysInOrder = this.checkKeysOrder();
+                    
+                    if (!this.debugInfo.isValid || !this.debugInfo.isBalanced || !this.debugInfo.keysInOrder) {
+                        this.addLog('警告', 'B树结构异常，请检查', 'error');
+                    }
+                },
+                
+                checkBalance() {
+                    const depths = [];
+                    this.getLeafDepths(this.btree.root, 0, depths);
+                    return depths.every(d => d === depths[0]);
+                },
+                
+                getLeafDepths(node, depth, depths) {
+                    if (node.isLeaf) {
+                        depths.push(depth);
+                    } else {
+                        for (let child of node.children) {
+                            this.getLeafDepths(child, depth + 1, depths);
+                        }
+                    }
+                },
+                
+                checkKeysOrder() {
+                    const keys = this.collectAllKeys(this.btree.root);
+                    for (let i = 0; i < keys.length - 1; i++) {
+                        if (keys[i] >= keys[i + 1]) {
+                            return false;
+                        }
+                    }
+                    return true;
+                },
+                
+                collectAllKeys(node) {
+                    let keys = [];
+                    if (node.isLeaf) {
+                        return node.keys;
+                    }
+                    
+                    for (let i = 0; i < node.children.length; i++) {
+                        keys = keys.concat(this.collectAllKeys(node.children[i]));
+                        if (i < node.keys.length) {
+                            keys.push(node.keys[i]);
+                        }
+                    }
+                    return keys;
+                },
+                
+                exportTree() {
+                    const json = JSON.stringify(this.btree.toJSON(), null, 2);
+                    const blob = new Blob([json], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `btree_${new Date().getTime()}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    this.addLog('导出', '成功导出B树结构', 'info');
+                },
+                
+                importTree() {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = '.json';
+                    input.onchange = (e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            try {
+                                const json = JSON.parse(e.target.result);
+                                this.btree.fromJSON(json);
+                                this.order = this.btree.minDegree * 2 - 1;
+                                this.saveToHistory();
+                                this.updateVisualization();
+                                this.updateDebugInfo();
+                                this.addLog('导入', '成功导入B树结构', 'info');
+                            } catch (error) {
+                                this.addLog('导入失败', '文件格式错误', 'error');
+                            }
+                        };
+                        reader.readAsText(file);
+                    };
+                    input.click();
+                },
+                
+                addLog(operation, detail, type = 'info') {
+                    const time = new Date().toLocaleTimeString();
+                    this.operationLogs.unshift({
+                        id: this.logIdCounter++,
+                        operation,
+                        detail,
+                        type,
+                        time
+                    });
+                    
+                    if (this.operationLogs.length > 50) {
+                        this.operationLogs.pop();
+                    }
+                },
+                
+                clearLogs() {
+                    this.operationLogs = [];
+                    this.addLog('系统', '清空操作日志', 'info');
+                },
+                
+                getLogIcon(type) {
+                    const icons = {
+                        insert: 'fas fa-plus-circle text-green-500',
+                        delete: 'fas fa-minus-circle text-red-500',
+                        search: 'fas fa-search text-blue-500',
+                        split: 'fas fa-code-branch text-yellow-500',
+                        merge: 'fas fa-compress text-purple-500',
+                        step: 'fas fa-shoe-prints text-indigo-500',
+                        info: 'fas fa-info-circle text-gray-500',
+                        error: 'fas fa-exclamation-circle text-red-600'
+                    };
+                    return icons[type] || icons.info;
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

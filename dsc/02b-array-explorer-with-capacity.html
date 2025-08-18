@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Array Explorer v2 - 容量的艺术</title>
+    <style>
+        /* CSS */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 2rem;
+            gap: 2rem;
+        }
+        .container {
+            background: #fff;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 800px;
+            transition: background-color 0.5s ease;
+        }
+        .container.highlight-resize {
+            animation: resize-flash 1s;
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 10px;
+            margin-bottom: 1.5rem;
+            border: 2px solid #e0e0e0;
+            padding: 10px;
+            border-radius: 6px;
+            min-height: 100px;
+            transition: all 0.5s ease-in-out;
+        }
+        .cell {
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 10px;
+            text-align: center;
+            background-color: #fafafa;
+            transition: all 0.3s ease;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 80px;
+        }
+        .cell.unused {
+            background-color: #e9ecef;
+            border-style: dashed;
+        }
+        .cell.highlight-read { background-color: #a7c7e7; transform: scale(1.1); }
+        .cell.highlight-update { background-color: #f7d99a; }
+        .cell.highlight-delete { background-color: #f6a6a6; animation: fadeOut 0.5s forwards; }
+        .cell.highlight-insert { background-color: #a7e7b7; animation: fadeIn 0.5s; }
+
+        .cell-index, .cell-value, .cell-address { display: block; }
+        .cell-index { font-size: 0.75rem; color: #888; }
+        .cell-value { font-size: 1.2rem; font-weight: bold; min-height: 1.5rem; flex-grow: 1; display: flex; align-items: center; justify-content: center;}
+        .cell-address { font-size: 0.7rem; color: #aaa; font-family: 'Courier New', Courier, monospace; }
+
+        .controls, .info-panel { margin-bottom: 1.5rem; }
+        .control-group { margin-bottom: 1rem; }
+        label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
+        input, button {
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            font-size: 1rem;
+            margin-right: 0.5rem;
+            vertical-align: middle;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        
+        #info {
+            background-color: #e3f2fd;
+            border-left: 5px solid #2196f3;
+            padding: 1rem;
+            border-radius: 4px;
+            min-height: 80px;
+            transition: all 0.3s ease;
+        }
+        #info h4 { margin-top: 0; }
+        #info code { background-color: rgba(0,0,0,0.05); padding: 2px 4px; border-radius: 3px; }
+        #info hr { border: 0; border-top: 1px solid #bdc3c7; margin: 0.5rem 0; }
+        
+        .status-bar { 
+            margin-bottom: 1rem; 
+            font-size: 1.1rem; 
+            text-align: center; 
+            background: #f8f9fa;
+            padding: 0.5rem;
+            border-radius: 6px;
+        }
+        .status-bar span { margin: 0 1rem; font-weight: bold; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: scale(1); } }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; transform: scale(0.8); } }
+        @keyframes resize-flash { 
+            0% { background-color: #fff; } 
+            50% { background-color: #ffc107; } 
+            100% { background-color: #fff; } 
+        }
+    </style>
+</head>
+<body>
+
+    <!-- #1: 在根元素上使用 @vue:mounted -->
+    <div id="array-app" v-scope @vue:mounted="init()">
+        <div :class="['container', { 'highlight-resize': isResizing }]">
+            <h2>Array Explorer v2 - 容量的艺术</h2>
+            
+            <div class="status-bar">
+                状态: <span>Size: {{ dynamicArray.size }}</span> | <span>Capacity: {{ dynamicArray.capacity }}</span>
+            </div>
+
+            <!-- #2: 修正 v-for 和 v-if/v-else 的逻辑 -->
+            <div class="grid-container">
+                <!-- 循环整个容量 -->
+                <div v-for="i in dynamicArray.capacity" :key="i"
+                     :class="['cell', (i - 1 < dynamicArray.size) ? dynamicArray.data[i - 1].highlight : 'unused']"
+                     @animationend="(i - 1 < dynamicArray.size) ? (dynamicArray.data[i - 1].highlight = '') : null">
+                    
+                    <!-- 条件渲染：如果是有数据的单元格 -->
+                    <template v-if="i - 1 < dynamicArray.size">
+                        <span class="cell-value">{{ dynamicArray.data[i - 1].value }}</span>
+                        <span class="cell-index">索引: {{ i - 1 }}</span>
+                        <span class="cell-address">地址: {{ calculateAddress(i - 1) }}</span>
+                    </template>
+                    
+                    <!-- 条件渲染：如果是未使用的单元格 -->
+                    <template v-else>
+                        <span class="cell-value"></span>
+                        <span class="cell-index" style="color:#bbb;">未使用</span>
+                        <span class="cell-address"></span>
+                    </template>
+                </div>
+            </div>
+
+            <div class="info-panel">
+                <h4>操作解析：</h4>
+                <div id="info">
+                    <p v-html="infoText"></p>
+                </div>
+            </div>
+
+            <div class="controls">
+                 <!-- 控制面板内容 -->
+                 <div class="control-group">
+                    <label>创建 (Create / Append)</label>
+                    <input type="text" v-model="values.append" placeholder="值" @keyup.enter="appendItem">
+                    <button @click="appendItem">追加到末尾</button>
+                </div>
+                <hr>
+                <div class="control-group">
+                    <label>读取 (Read / Access)</label>
+                    <input type="number" v-model.number="indices.read" placeholder="索引">
+                    <button @click="readItem">读取</button>
+                </div>
+                <div class="control-group">
+                    <label>更新 (Update)</label>
+                    <input type="number" v-model.number="indices.update" placeholder="索引">
+                    <input type="text" v-model="values.update" placeholder="新值">
+                    <button @click="updateItem">更新</button>
+                </div>
+                <hr>
+                <div class="control-group">
+                    <label>插入 (Insert)</label>
+                    <input type="number" v-model.number="indices.insert" placeholder="索引">
+                    <input type="text" v-model="values.insert" placeholder="值">
+                    <button @click="insertItem">插入</button>
+                </div>
+                <div class="control-group">
+                    <label>删除 (Delete)</label>
+                    <input type="number" v-model.number="indices.delete" placeholder="索引">
+                    <button @click="deleteItem">删除</button>
+                </div>
+                <hr>
+                <button @click="resetArray">重置数组</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/petite-vue"></script>
+    <script>
+        PetiteVue.createApp({
+            // --- 数据模型 ---
+            dynamicArray: { data: [], size: 0, capacity: 0 },
+            initialCapacity: 4,
+            baseAddress: 0x1000,
+            elementSize: 8,
+            isResizing: false,
+            infoText: '欢迎来到数组容量浏览器！观察Size和Capacity的变化。',
+            
+            indices: { read: 0, update: 1, insert: 2, delete: 1 },
+            values: { append: 'New', update: 'JS', insert: 'Go' },
+
+            // --- #3: 将 mounted() 重命名为 init() ---
+            init() {
+                this.resetArray();
+            },
+
+            // --- 核心方法 ---
+            resetArray() {
+                this.dynamicArray.data = [];
+                this.dynamicArray.size = 0;
+                this.dynamicArray.capacity = this.initialCapacity;
+                ['C', 'Java'].forEach(val => this.internalAppend(val));
+                this.infoText = '数组已重置。初始容量为4，当前有两个元素。';
+            },
+            
+            // 其余所有 JavaScript 方法...
+            internalAppend(value) {
+                if (this.dynamicArray.size >= this.dynamicArray.capacity) {
+                    this.resize(this.dynamicArray.capacity * 2);
+                }
+                this.dynamicArray.data.push({ value, highlight: '' });
+                this.dynamicArray.size++;
+            },
+            appendItem() {
+                const value = this.values.append;
+                if (!value) return;
+                
+                let info = '';
+                if (this.dynamicArray.size >= this.dynamicArray.capacity) {
+                    const oldCapacity = this.dynamicArray.capacity;
+                    this.resize(this.dynamicArray.capacity * 2);
+                    info = `<b>触发扩容！</b>容量从 ${oldCapacity} 翻倍至 ${this.dynamicArray.capacity}。<br>`;
+                }
+
+                this.dynamicArray.data.push({ value, highlight: 'highlight-insert' });
+                this.dynamicArray.size++;
+                this.infoText = info + `在数组末尾追加了 <code>'${value}'</code>。这是一个<b>摊还 O(1)</b> 操作。`;
+                this.values.append = '';
+            },
+            readItem() {
+                const index = this.indices.read;
+                if (index < 0 || index >= this.dynamicArray.size) {
+                    this.infoText = `<span style="color:red;">错误：索引 ${index} 超出范围！</span>`;
+                    return;
+                }
+                this.highlightCell(index, 'read');
+                const address = this.calculateAddress(index);
+                const offsetDecimal = index * this.elementSize;
+                const offsetHex = offsetDecimal.toString(16);
+                this.infoText = `
+                    <h4>读取操作 (O(1))</h4><p>要读取索引 <code>${index}</code> 的值，计算机执行一次简单的数学计算：</p><p><code>地址 = 基地址 + (索引 × 元素大小)</code></p><hr><p>1. 计算偏移量 (十进制): <code>${index} × ${this.elementSize} = ${offsetDecimal}</code></p><p>2. 将偏移量转为十六进制: <code>${offsetDecimal} (十进制) = 0x${offsetHex.toUpperCase()} (十六进制)</code></p><p>3. 执行十六进制加法: <code>0x${this.baseAddress.toString(16).toUpperCase()} + 0x${offsetHex.toUpperCase()} = ${address}</code></p><hr><p>这个操作非常快，因为它只涉及纯数学计算，无论数组有多大，耗时几乎不变。这就是数组<b>随机访问</b>的威力！</p>
+                `;
+            },
+            updateItem() {
+                const index = this.indices.update;
+                const value = this.values.update;
+                if (index < 0 || index >= this.dynamicArray.size || !value) return;
+                
+                this.dynamicArray.data[index].value = value;
+                this.highlightCell(index, 'update');
+                this.infoText = `
+                    <h4>更新操作 (O(1))</h4><p>更新索引 <code>${index}</code> 的值同样高效。我们先用 <b>O(1)</b> 的时间定位到它，然后直接覆盖其内存中的内容。</p><p>这个操作不会影响数组中的任何其他元素，也不关心容量问题。</p>
+                `;
+            },
+            insertItem() {
+                const index = this.indices.insert;
+                const value = this.values.insert;
+                if (index < 0 || index > this.dynamicArray.size || !value) return;
+                
+                let info = '';
+                if (this.dynamicArray.size >= this.dynamicArray.capacity) {
+                    const oldCapacity = this.dynamicArray.capacity;
+                    this.resize(this.dynamicArray.capacity * 2);
+                    info = `<b>触发扩容！</b>容量从 ${oldCapacity} 翻倍至 ${this.dynamicArray.capacity}。<br>`;
+                }
+                this.dynamicArray.data.splice(index, 0, { value, highlight: 'highlight-insert' });
+                this.dynamicArray.size++;
+                this.infoText = info + `在索引 <code>${index}</code> 处插入 <code>'${value}'</code>。这是一个 <b>O(n)</b> 操作，因为后续元素需要移动。`;
+            },
+            deleteItem() {
+                const index = this.indices.delete;
+                if (index < 0 || index >= this.dynamicArray.size) return;
+                
+                this.highlightCell(index, 'delete');
+                
+                setTimeout(() => {
+                    this.dynamicArray.data.splice(index, 1);
+                    this.dynamicArray.size--;
+                    
+                    let info = '';
+                    if (this.dynamicArray.size > 0 && this.dynamicArray.size <= this.dynamicArray.capacity / 4 && this.dynamicArray.capacity > this.initialCapacity) {
+                        const oldCapacity = this.dynamicArray.capacity;
+                        this.resize(this.dynamicArray.capacity / 2);
+                        info = `<b>触发缩容！</b>Size (${this.dynamicArray.size}) ≤ Capacity/4 (${oldCapacity/4})。容量从 ${oldCapacity} 减半至 ${this.dynamicArray.capacity}。<br>`;
+                    }
+                    this.infoText = info + `删除了索引 <code>${index}</code> 的元素。这是一个 <b>O(n)</b> 操作，因为后续元素可能需要移动来填补空缺。`;
+                }, 500);
+            },
+            calculateAddress(index) {
+                return `0x${(this.baseAddress + index * this.elementSize).toString(16).toUpperCase()}`;
+            },
+            resize(newCapacity) {
+                this.dynamicArray.capacity = newCapacity;
+                // Frank：在JS中，我们不需要像C那样手动realloc。数组的容量是自动管理的。
+                // 我们只是在模拟这个概念。
+                this.triggerResizeAnimation();
+            },
+            triggerResizeAnimation() {
+                this.isResizing = true;
+                setTimeout(() => { this.isResizing = false; }, 1000);
+            },
+            highlightCell(index, highlightClass) {
+                this.dynamicArray.data.forEach(item => item.highlight = '');
+                if (this.dynamicArray.data[index]) {
+                    this.dynamicArray.data[index].highlight = `highlight-${highlightClass}`;
+                }
+            }
+        }).mount('#array-app');
+    </script>
+</body>
+</html>

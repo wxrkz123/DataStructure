@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>现代优先队列浏览器 - 教学版</title>
+
+    <!-- Dependencies -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@formkit/auto-animate@0.8.2/index.global.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+    <script src="https://unpkg.com/@popperjs/core@2"></script>
+    <script src="https://unpkg.com/tippy.js@6"></script>
+
+    <style>
+        body { background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+        .notyf__toast { border-radius: 0.5rem; }
+        .node-element { transition: all 0.5s ease-in-out; }
+        
+        .highlight-high-priority { 
+            border-color: #ef4444 !important; background-color: #fef2f2 !important; 
+            transform: scale(1.05); box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+        }
+        .highlight-add {
+            border-color: #22c55e !important; background-color: #f0fdf4 !important; transform: scale(1.1) translateY(-10px);
+        }
+        .highlight-remove {
+            opacity: 0; transform: scale(0.8) translateY(20px);
+        }
+    </style>
+</head>
+<body>
+
+<div id="app" class="max-w-6xl mx-auto px-4 py-8">
+    
+    <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-slate-800">现代优先队列浏览器</h1>
+        <p class="text-slate-500 mt-2">在这里，不讲“先来后到”，只看“优先级”</p>
+    </div>
+
+    <!-- Controls Panel -->
+    <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+            <div class="space-y-4">
+                <h3 class="font-semibold text-lg text-slate-700 border-b pb-2">操作 (数值越小，优先级越高)</h3>
+                <div class="flex gap-4">
+                    <input type="text" v-model="inputs.value" placeholder="元素值" class="w-2/3 px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                    <input type="number" v-model.number="inputs.priority" placeholder="优先级" class="w-1/3 px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button @click="enqueue" :disabled="isBusy" class="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300 disabled:cursor-not-allowed">入队 (Enqueue)</button>
+                    <button @click="dequeue" :disabled="isBusy || !highestPriorityItem" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300 disabled:cursor-not-allowed">出队 (Dequeue)</button>
+                </div>
+            </div>
+            <div class="space-y-4">
+                 <h3 class="font-semibold text-lg text-slate-700 border-b pb-2">管理</h3>
+                 <button @click="resetQueue" :disabled="isBusy" class="w-full bg-slate-600 hover:bg-slate-700 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300">重置队列</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Visualization -->
+    <div class="bg-white p-6 rounded-xl shadow-lg">
+        <!-- Header Info -->
+        <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-200">
+             <div class="text-center">
+                <div class="font-semibold text-red-600">最高优先级</div>
+                <div class="font-mono text-lg font-bold">{{ highestPriorityItem ? `${highestPriorityItem.value} (P:${highestPriorityItem.priority})` : 'N/A' }}</div>
+            </div>
+             <div class="text-center">
+                 <div class="font-bold text-slate-700 text-lg">队列状态</div>
+                 <div class="text-slate-500">大小: <span class="font-mono">{{ queue.length }}</span></div>
+            </div>
+            <div class="text-center">
+                <div class="font-semibold text-slate-500">最低优先级</div>
+                <div class="font-mono text-lg font-bold">{{ lowestPriorityItem ? `${lowestPriorityItem.value} (P:${lowestPriorityItem.priority})` : 'N/A' }}</div>
+            </div>
+        </div>
+        
+        <!-- Queue Nodes -->
+        <div v-auto-animate="{ duration: 500 }" class="min-h-[120px] bg-slate-50 p-4 rounded-lg flex items-center gap-4 overflow-x-auto">
+            <div v-if="queue.length === 0" class="text-center text-slate-400 py-8 w-full">队列为空。</div>
+            
+            <div v-for="(item, index) in queue" :key="item.id" 
+                 class="node-element bg-white border-2 border-slate-200 p-3 rounded-lg flex flex-col items-center shadow-sm w-32 shrink-0"
+                 :class="{ 'highlight-high-priority': index === 0, 'highlight-add': item.highlight === 'add', 'highlight-remove': item.highlight === 'remove' }" 
+                 :data-tippy-content="`值: ${item.value}<br>优先级: ${item.priority}`">
+                
+                <div class="text-xs font-bold text-white bg-red-500 px-2 py-0.5 rounded-full -mt-5 mb-2 shadow">
+                    P: {{ item.priority }}
+                </div>
+                <div class="font-mono text-2xl font-semibold text-slate-800">
+                    {{ item.value }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, reactive, computed, onMounted, nextTick, watch } = Vue;
+
+    createApp({
+        setup() {
+            // --- State ---
+            const queue = ref([]);
+            const isBusy = ref(false);
+            let idCounter = 0;
+            const inputs = reactive({ value: '修复Bug', priority: 1 });
+
+            // --- Computed Properties ---
+            const highestPriorityItem = computed(() => queue.value.length > 0 ? queue.value[0] : null);
+            const lowestPriorityItem = computed(() => queue.value.length > 0 ? queue.value[queue.value.length - 1] : null);
+
+            // --- Tools ---
+            const notyf = new Notyf({ duration: 4000, position: { x: 'right', y: 'top' }, dismissible: true, types: [ { type: 'info', backgroundColor: '#3b82f6', icon: false }, { type: 'success', backgroundColor: '#22c55e' }, { type: 'error', backgroundColor: '#ef4444' }] });
+            const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+            const initTooltips = () => { tippy('[data-tippy-content]', { arrow: true, animation: 'fade', theme: 'light-border', allowHTML: true }); };
+
+            // --- Core Operations ---
+            const resetQueue = async () => {
+                isBusy.value = true;
+                queue.value = [];
+                idCounter = 0;
+                
+                // Pre-populate
+                const initialData = [
+                    { value: '开发新功能', priority: 3 },
+                    { value: '喝水', priority: 5 },
+                    { value: '开会', priority: 2 }
+                ];
+
+                for (const item of initialData) {
+                    queue.value.push({ ...item, id: idCounter++, highlight: null });
+                }
+                queue.value.sort((a, b) => a.priority - b.priority);
+                
+                await nextTick();
+                initTooltips();
+                notyf.success('优先队列已重置。');
+                isBusy.value = false;
+            };
+
+            const enqueue = async () => {
+                const { value, priority } = inputs;
+                if (!value || typeof priority !== 'number' || isBusy.value) {
+                    notyf.error('请输入有效的元素值和优先级！');
+                    return;
+                }
+                isBusy.value = true;
+                
+                const newItem = { value, priority, id: idCounter++, highlight: 'add' };
+                
+                notyf.open({ type: 'info', message: `<b>第1步:</b> 新任务“${value}” (优先级 ${priority}) 到达。` });
+                queue.value.push(newItem); // Temporarily add to the end for animation
+                await sleep(1500);
+
+                notyf.open({ type: 'info', message: `<b>第2步:</b> 根据优先级重新排序整个队列...` });
+                queue.value.sort((a, b) => a.priority - b.priority);
+                await sleep(1000);
+
+                newItem.highlight = null;
+                notyf.success(`<b>完成:</b> 任务“${value}”已插入正确位置！`);
+
+                inputs.value = '';
+                inputs.priority = Math.floor(Math.random() * 10);
+                isBusy.value = false;
+            };
+
+            const dequeue = async () => {
+                if (!highestPriorityItem.value || isBusy.value) return;
+
+                isBusy.value = true;
+                const itemToDequeue = highestPriorityItem.value;
+                const { value, priority } = itemToDequeue;
+                
+                notyf.open({ type: 'info', message: `<b>第1步:</b> 找到优先级最高的任务：“${value}” (P:${priority})` });
+                itemToDequeue.highlight = 'remove';
+                await sleep(1200);
+
+                queue.value.shift();
+                
+                notyf.success(`<b>完成:</b> 任务“${value}”已出队处理。`);
+                isBusy.value = false;
+            };
+            
+            // --- Lifecycle ---
+            onMounted(resetQueue);
+            watch(queue, () => nextTick(initTooltips), { deep: true, immediate: true });
+
+            return {
+                queue, isBusy, inputs, highestPriorityItem, lowestPriorityItem,
+                resetQueue, enqueue, dequeue
+            };
+        }
+    }).mount('#app');
+</script>
+
+</body>
+</html>

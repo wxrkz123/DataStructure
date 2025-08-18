@@ -1,0 +1,121 @@
+{
+  "minDegree": 3,
+  "root": {
+    "keys": [
+      50,
+      100
+    ],
+    "isLeaf": false,
+    "children": [
+      {
+        "keys": [
+          20,
+          35
+        ],
+        "isLeaf": false,
+        "children": [
+          {
+            "keys": [
+              5,
+              10,
+              15
+            ],
+            "isLeaf": true,
+            "children": []
+          },
+          {
+            "keys": [
+              22,
+              28
+            ],
+            "isLeaf": true,
+            "children": []
+          },
+          {
+            "keys": [
+              40,
+              45
+            ],
+            "isLeaf": true,
+            "children": []
+          }
+        ]
+      },
+      {
+        "keys": [
+          70,
+          85
+        ],
+        "isLeaf": false,
+        "children": [
+          {
+            "keys": [
+              60,
+              65
+            ],
+            "isLeaf": true,
+            "children": []
+          },
+          {
+            "keys": [
+              75,
+              80
+            ],
+            "isLeaf": true,
+            "children": []
+          },
+          {
+            "keys": [
+              90,
+              95
+            ],
+            "isLeaf": true,
+            "children": []
+          }
+        ]
+      },
+      {
+        "keys": [
+          120,
+          150,
+          180
+        ],
+        "isLeaf": false,
+        "children": [
+          {
+            "keys": [
+              110,
+              115
+            ],
+            "isLeaf": true,
+            "children": []
+          },
+          {
+            "keys": [
+              130,
+              140
+            ],
+            "isLeaf": true,
+            "children": []
+          },
+          {
+            "keys": [
+              160,
+              170
+            ],
+            "isLeaf": true,
+            "children": []
+          },
+          {
+            "keys": [
+              190,
+              200
+            ],
+            "isLeaf": true,
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}

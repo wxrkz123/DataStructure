@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>现代哈希表浏览器 - 拉链法冲突解决</title>
+
+    <!-- Dependencies -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@formkit/auto-animate@0.8.2/index.global.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+    <script src="https://unpkg.com/@popperjs/core@2"></script>
+    <script src="https://unpkg.com/tippy.js@6"></script>
+
+    <style>
+        body { background-color: #f8fafc; }
+        .bucket { transition: background-color 0.3s; min-height: 80px; }
+        .node-element { transition: all 0.5s ease-in-out; }
+        
+        .highlight-bucket { background-color: #fefce8 !important; }
+        .highlight-found { border-color: #22c55e !important; transform: scale(1.1); box-shadow: 0 0 15px rgba(34, 197, 94, 0.5); }
+        .highlight-add { opacity: 0; transform: translateY(-20px); }
+        .highlight-remove { opacity: 0; transform: scale(0.8); }
+    </style>
+</head>
+<body>
+
+<div id="app" class="max-w-6xl mx-auto px-4 py-8">
+    
+    <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-slate-800">现代哈希表浏览器</h1>
+        <p class="text-slate-500 mt-2">探索 O(1) 平均时间复杂度的奥秘：哈希函数与冲突解决</p>
+    </div>
+
+    <!-- Controls Panel -->
+    <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+            <div class="md:col-span-2">
+                <label class="font-semibold text-slate-600">键 (Key)</label>
+                <input type="text" v-model="inputs.key" placeholder="例如: name" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div class="md:col-span-2">
+                 <label class="font-semibold text-slate-600">值 (Value)</label>
+                <input type="text" v-model="inputs.value" placeholder="例如: Alice" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <button @click="set" :disabled="isBusy" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300 h-11">插入 / 更新</button>
+            <div class="md:col-span-2">
+                <label class="font-semibold text-slate-600">要操作的键</label>
+                <input type="text" v-model="inputs.opKey" placeholder="输入要查找或删除的键" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-orange-500">
+            </div>
+            <button @click="get" :disabled="isBusy" class="w-full bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300 h-11">查找 (Get)</button>
+            <button @click="remove" :disabled="isBusy" class="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300 h-11">删除 (Remove)</button>
+            <button @click="resetTable" :disabled="isBusy" class="w-full bg-slate-600 hover:bg-slate-700 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300 h-11">重置</button>
+        </div>
+    </div>
+
+
+    <!-- Visualization -->
+    <div class="bg-white p-6 rounded-xl shadow-lg">
+        <div class="text-center mb-4 p-4 bg-slate-50 rounded-lg">
+            <p class="font-mono text-lg">
+                <span class="text-slate-500">Hash(</span><span class="text-orange-600 font-bold">{{ hashInput }}</span><span class="text-slate-500">) % {{ capacity }} = </span>
+                <span class="text-blue-600 font-bold">{{ hashOutput }}</span>
+            </p>
+            <p class="text-sm text-slate-400 mt-1">演示用哈希函数：(字符串各字符ASCII码之和) % 容量</p>
+        </div>
+
+        <div class="grid grid-cols-5 gap-2">
+             <div v-for="(bucket, index) in table" :key="index" 
+                  class="bucket relative bg-slate-100 rounded-lg border-2 border-slate-200 p-2 space-y-2"
+                  :class="{'highlight-bucket': index === hashOutput}">
+                <!-- Bucket Index -->
+                <div class="absolute -top-3 -left-2 bg-slate-600 text-white text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full">{{ index }}</div>
+                
+                <!-- Chained Nodes -->
+                <div v-auto-animate="{duration: 300}">
+                    <div v-for="node in bucket" :key="node.key"
+                         class="node-element bg-white border-2 border-slate-300 p-2 rounded-md shadow-sm flex flex-col"
+                         :class="{'highlight-found': node.highlight === 'found', 'highlight-add': node.highlight === 'add', 'highlight-remove': node.highlight === 'remove'}"
+                         :data-tippy-content="`Key: ${node.key}<br>Value: ${node.value}`">
+                        <span class="font-mono font-bold text-indigo-700 truncate">{{ node.key }}</span>
+                        <span class="text-slate-500 truncate text-sm">-> {{ node.value }}</span>
+                    </div>
+                </div>
+             </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, reactive, computed, onMounted, nextTick, watch } = Vue;
+
+    createApp({
+        setup() {
+            // --- State ---
+            const capacity = ref(10);
+            const table = ref([]);
+            const isBusy = ref(false);
+            const inputs = reactive({ key: 'name', value: 'Alice', opKey: 'name' });
+            
+            // Hashing display state
+            const hashInput = ref('');
+            const hashOutput = ref(null);
+
+            // --- Core Logic ---
+            const hash = (key) => {
+                let total = 0;
+                for (let i = 0; i < key.length; i++) {
+                    total += key.charCodeAt(i);
+                }
+                return total % capacity.value;
+            };
+
+            const updateHashDisplay = (key) => {
+                hashInput.value = key;
+                hashOutput.value = key ? hash(key) : null;
+            };
+
+            const resetTable = () => {
+                table.value = Array.from({ length: capacity.value }, () => []);
+                set('name', 'Alice', true);
+                set('age', 30, true);
+                set('city', 'New York', true);
+                set('mane', 'Bob', true); // Collision with 'name'
+                notyf.success('哈希表已重置。');
+            };
+
+            // --- Operations ---
+            const set = async (key, value, isSilent = false) => {
+                if (!key || isBusy.value) {
+                    if(!isSilent) notyf.error('Key 不能为空！');
+                    return;
+                }
+                isBusy.value = true;
+                if(!isSilent) notyf.open({ type: 'info', message: `准备插入/更新键: “${key}”` });
+
+                updateHashDisplay(key);
+                await sleep(1000);
+                
+                const index = hash(key);
+                const bucket = table.value[index];
+                const existingNode = bucket.find(node => node.key === key);
+
+                if (existingNode) { // Update
+                    if(!isSilent) notyf.success(`键“${key}”已存在，更新其值。`);
+                    existingNode.value = value;
+                    existingNode.highlight = 'found';
+                    await sleep(1000);
+                    existingNode.highlight = null;
+                } else { // Insert
+                    if(!isSilent) notyf.success(`在索引 ${index} 处发生哈希${bucket.length > 0 ? '冲突' : ''}，添加新节点。`);
+                    const newNode = { key, value, highlight: 'add' };
+                    bucket.push(newNode);
+                    await nextTick();
+                    await sleep(100);
+                    newNode.highlight = null;
+                }
+                
+                await sleep(500);
+                hashInput.value = '';
+                hashOutput.value = null;
+                isBusy.value = false;
+            };
+
+            const get = async () => {
+                const key = inputs.opKey;
+                if (!key || isBusy.value) { notyf.error('Key 不能为空！'); return; }
+                isBusy.value = true;
+                notyf.open({ type: 'info', message: `正在查找键: “${key}”` });
+
+                updateHashDisplay(key);
+                await sleep(1000);
+
+                const index = hash(key);
+                const bucket = table.value[index];
+                const node = bucket.find(n => n.key === key);
+
+                if (node) {
+                    notyf.success(`在索引 ${index} 的链表中找到！值为: “${node.value}”`);
+                    node.highlight = 'found';
+                    await sleep(2000);
+                    node.highlight = null;
+                } else {
+                    notyf.error(`在索引 ${index} 中未找到键 “${key}”`);
+                }
+
+                await sleep(500);
+                hashInput.value = '';
+                hashOutput.value = null;
+                isBusy.value = false;
+            };
+            
+            const remove = async () => {
+                const key = inputs.opKey;
+                if (!key || isBusy.value) { notyf.error('Key 不能为空！'); return; }
+                isBusy.value = true;
+                notyf.open({ type: 'info', message: `准备删除键: “${key}”` });
+
+                updateHashDisplay(key);
+                await sleep(1000);
+                
+                const index = hash(key);
+                const bucket = table.value[index];
+                const nodeIndex = bucket.findIndex(n => n.key === key);
+
+                if (nodeIndex > -1) {
+                    const nodeToRemove = bucket[nodeIndex];
+                    nodeToRemove.highlight = 'remove';
+                    await sleep(500);
+                    bucket.splice(nodeIndex, 1);
+                    notyf.success(`已从索引 ${index} 处删除键“${key}”`);
+                } else {
+                    notyf.error(`在索引 ${index} 中未找到键 “${key}”`);
+                }
+                
+                await sleep(500);
+                hashInput.value = '';
+                hashOutput.value = null;
+                isBusy.value = false;
+            };
+
+            // --- Tools & Lifecycle ---
+            const notyf = new Notyf({ duration: 4000, position: { x: 'right', y: 'top' }, dismissible: true, types: [ { type: 'info', backgroundColor: '#3b82f6', icon: false }, { type: 'success', backgroundColor: '#22c55e' }, { type: 'error', backgroundColor: '#ef4444' }] });
+            const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+            const initTooltips = () => { tippy('[data-tippy-content]', { arrow: true, animation: 'fade', theme: 'light-border', allowHTML: true }); };
+
+            onMounted(resetTable);
+            watch(table, () => nextTick(initTooltips), { deep: true, immediate: true });
+
+            return {
+                capacity, table, isBusy, inputs, hashInput, hashOutput,
+                resetTable, set: () => set(inputs.key, inputs.value), get, remove
+            };
+        }
+    }).mount('#app');
+</script>
+
+</body>
+</html>

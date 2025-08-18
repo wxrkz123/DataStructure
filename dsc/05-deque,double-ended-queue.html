@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>现代双端队列 (Deque) 浏览器 - 教学版</title>
+
+    <!-- Dependencies -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@formkit/auto-animate@0.8.2/index.global.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+    <script src="https://unpkg.com/@popperjs/core@2"></script>
+    <script src="https://unpkg.com/tippy.js@6"></script>
+
+    <style>
+        body { background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+        .notyf__toast { border-radius: 0.5rem; }
+        .node-element { transition: all 0.5s ease-in-out; }
+        
+        .highlight-head { border-color: #3b82f6 !important; }
+        .highlight-tail { border-color: #16a34a !important; }
+
+        .highlight-add-front { transform: scale(1.1) translateX(-10px); background-color: #eff6ff; border-color: #3b82f6; }
+        .highlight-add-rear { transform: scale(1.1) translateX(10px); background-color: #f0fdf4; border-color: #22c55e; }
+        
+        .highlight-remove-front { opacity: 0; transform: scale(0.8) translateX(-20px); }
+        .highlight-remove-rear { opacity: 0; transform: scale(0.8) translateX(20px); }
+    </style>
+</head>
+<body>
+
+<div id="app" class="max-w-6xl mx-auto px-4 py-8">
+    
+    <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-slate-800">现代双端队列 (Deque) 浏览器</h1>
+        <p class="text-slate-500 mt-2">栈与队列的终极结合体，两端皆可操作</p>
+    </div>
+
+    <!-- Controls Panel -->
+    <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+            <!-- Operations -->
+            <div class="space-y-4">
+                <h3 class="font-semibold text-lg text-slate-700 border-b pb-2">操作</h3>
+                <div class="flex gap-2">
+                    <input type="text" v-model="inputs.value" placeholder="元素值" class="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button @click="addFront" :disabled="isBusy" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300">头部添加</button>
+                    <button @click="addRear" :disabled="isBusy" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300">尾部追加</button>
+                    <button @click="removeFront" :disabled="isBusy || deque.length === 0" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300">头部移除</button>
+                    <button @click="removeRear" :disabled="isBusy || deque.length === 0" class="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300">尾部移除</button>
+                </div>
+            </div>
+            <!-- Management -->
+            <div class="space-y-4">
+                 <h3 class="font-semibold text-lg text-slate-700 border-b pb-2">管理</h3>
+                 <button @click="resetDeque" :disabled="isBusy" class="w-full bg-slate-600 hover:bg-slate-700 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300">重置队列</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Visualization -->
+    <div class="bg-white p-6 rounded-xl shadow-lg">
+        <!-- Header Info -->
+        <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-200">
+             <div class="text-center">
+                <div class="font-semibold text-blue-600">头 (Head)</div>
+                <div class="font-mono text-lg font-bold">{{ head ? head.value : 'N/A' }}</div>
+            </div>
+             <div class="text-center">
+                 <div class="font-bold text-slate-700 text-lg">队列状态</div>
+                 <div class="text-slate-500">大小: <span class="font-mono">{{ deque.length }}</span></div>
+            </div>
+            <div class="text-center">
+                <div class="font-semibold text-green-600">尾 (Tail)</div>
+                <div class="font-mono text-lg font-bold">{{ tail ? tail.value : 'N/A' }}</div>
+            </div>
+        </div>
+        
+        <!-- Deque Elements -->
+        <div v-auto-animate="{ duration: 500 }" class="min-h-[100px] bg-slate-50 p-4 rounded-lg flex items-center gap-4 overflow-x-auto">
+            <div v-if="deque.length === 0" class="text-center text-slate-400 py-8 w-full">队列为空。</div>
+            
+            <div v-for="(item, index) in deque" :key="item.id" 
+                 class="node-element bg-white border-4 border-slate-200 p-4 rounded-lg flex items-center justify-center shadow-sm w-24 h-24 shrink-0"
+                 :class="{ 
+                     'highlight-head': index === 0, 
+                     'highlight-tail': index === deque.length - 1,
+                     'highlight-add-front': item.highlight === 'add-front',
+                     'highlight-add-rear': item.highlight === 'add-rear',
+                     'highlight-remove-front': item.highlight === 'remove-front',
+                     'highlight-remove-rear': item.highlight === 'remove-rear'
+                 }"
+                 :data-tippy-content="`值: ${item.value}<br>索引: ${index}`">
+                
+                <div class="font-mono text-2xl font-semibold text-slate-800">
+                    {{ item.value }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, reactive, computed, onMounted, nextTick, watch } = Vue;
+
+    createApp({
+        setup() {
+            // --- State ---
+            const deque = ref([]);
+            const isBusy = ref(false);
+            let idCounter = 0;
+            const inputs = reactive({ value: 'D' });
+
+            // --- Computed Properties ---
+            const head = computed(() => deque.value.length > 0 ? deque.value[0] : null);
+            const tail = computed(() => deque.value.length > 0 ? deque.value[deque.value.length - 1] : null);
+
+            // --- Tools ---
+            const notyf = new Notyf({ duration: 3000, position: { x: 'right', y: 'top' }, dismissible: true, types: [ { type: 'info', backgroundColor: '#3b82f6', icon: false }, { type: 'success', backgroundColor: '#22c55e' }, { type: 'error', backgroundColor: '#ef4444' }] });
+            const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+            const initTooltips = () => { tippy('[data-tippy-content]', { arrow: true, animation: 'fade', theme: 'light-border', allowHTML: true }); };
+
+            // --- Core Operations ---
+            const resetDeque = async () => {
+                isBusy.value = true;
+                deque.value = [];
+                idCounter = 0;
+                ['B', 'C'].forEach(val => {
+                    deque.value.push({ value: val, id: idCounter++, highlight: null });
+                });
+                await nextTick();
+                initTooltips();
+                notyf.success('双端队列已重置。');
+                isBusy.value = false;
+            };
+
+            const addFront = async () => {
+                if (!inputs.value || isBusy.value) return;
+                isBusy.value = true;
+                const newItem = { value: inputs.value, id: idCounter++, highlight: 'add-front' };
+                notyf.open({ type: 'info', message: `从头部添加元素 “${newItem.value}”...` });
+                deque.value.unshift(newItem);
+                await sleep(1000);
+                newItem.highlight = null;
+                inputs.value = '';
+                isBusy.value = false;
+            };
+
+            const addRear = async () => {
+                if (!inputs.value || isBusy.value) return;
+                isBusy.value = true;
+                const newItem = { value: inputs.value, id: idCounter++, highlight: 'add-rear' };
+                notyf.open({ type: 'info', message: `从尾部追加元素 “${newItem.value}”...` });
+                deque.value.push(newItem);
+                await sleep(1000);
+                newItem.highlight = null;
+                inputs.value = '';
+                isBusy.value = false;
+            };
+
+            const removeFront = async () => {
+                if (deque.value.length === 0 || isBusy.value) return;
+                isBusy.value = true;
+                const itemToRemove = deque.value[0];
+                notyf.open({ type: 'info', message: `从头部移除元素 “${itemToRemove.value}”...` });
+                itemToRemove.highlight = 'remove-front';
+                await sleep(500);
+                deque.value.shift();
+                isBusy.value = false;
+            };
+
+            const removeRear = async () => {
+                if (deque.value.length === 0 || isBusy.value) return;
+                isBusy.value = true;
+                const itemToRemove = deque.value[deque.value.length - 1];
+                notyf.open({ type: 'info', message: `从尾部移除元素 “${itemToRemove.value}”...` });
+                itemToRemove.highlight = 'remove-rear';
+                await sleep(500);
+                deque.value.pop();
+                isBusy.value = false;
+            };
+            
+            // --- Lifecycle ---
+            onMounted(resetDeque);
+            watch(deque, () => nextTick(initTooltips), { deep: true, immediate: true });
+
+            return {
+                deque, isBusy, inputs, head, tail,
+                resetDeque, addFront, addRear, removeFront, removeRear
+            };
+        }
+    }).mount('#app');
+</script>
+
+</body>
+</html>

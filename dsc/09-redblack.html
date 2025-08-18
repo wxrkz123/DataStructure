@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>红黑树：五条神圣法则 - 可视化教学</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        .code-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+        }
+        
+        .rule-card {
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .rule-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.1), transparent);
+            transition: left 0.5s ease;
+        }
+        
+        .rule-card.active::before {
+            left: 100%;
+        }
+        
+        .violation-pulse {
+            animation: pulse-red 1.5s infinite;
+        }
+        
+        @keyframes pulse-red {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            50% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+        }
+        
+        .path-highlight {
+            animation: path-glow 1s ease-out;
+        }
+        
+        @keyframes path-glow {
+            0% { opacity: 0; transform: scale(0.95); }
+            50% { opacity: 1; transform: scale(1.05); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        
+        .floating-label {
+            animation: float 2s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+        
+        .modern-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .soft-shadow {
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+        
+        .interactive-btn {
+            transition: all 0.2s ease;
+        }
+        
+        .interactive-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+        
+        .interactive-btn:active {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 min-h-screen">
+    <div id="app">
+        <!-- 顶部标题栏 -->
+        <header class="glass-card sticky top-0 z-50 px-8 py-6 mb-8">
+            <div class="max-w-7xl mx-auto">
+                <h1 class="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                    解密红黑树：五条神圣法则
+                </h1>
+                <p class="text-gray-600 mt-2">Decoding Red-Black Tree: The 5 Sacred Rules</p>
+            </div>
+        </header>
+
+        <div class="max-w-7xl mx-auto px-8 pb-12">
+            <!-- 控制面板 -->
+            <div class="glass-card rounded-2xl p-6 mb-8">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex items-center gap-4">
+                        <button 
+                            @click="startDemo" 
+                            class="interactive-btn bg-gradient-to-r from-purple-500 to-blue-500 text-white px-6 py-3 rounded-lg font-medium hover:from-purple-600 hover:to-blue-600"
+                            :disabled="isAnimating">
+                            <i class="fas fa-play mr-2"></i>
+                            {{ demoStarted ? '重新演示' : '开始演示' }}
+                        </button>
+                        
+                        <button 
+                            @click="insertNextNode" 
+                            class="interactive-btn bg-white border-2 border-purple-500 text-purple-600 px-6 py-3 rounded-lg font-medium hover:bg-purple-50"
+                            :disabled="!demoStarted || currentNodeIndex >= insertSequence.length || isAnimating">
+                            <i class="fas fa-plus-circle mr-2"></i>
+                            插入下一个节点
+                        </button>
+                        
+                        <button 
+                            @click="toggleNilNodes" 
+                            class="interactive-btn bg-white border-2 border-gray-400 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-50">
+                            <i class="fas fa-eye mr-2"></i>
+                            {{ showNilNodes ? '隐藏' : '显示' }} NIL 节点
+                        </button>
+                    </div>
+                    
+                    <div class="flex items-center gap-4">
+                        <div class="text-sm text-gray-600">
+                            插入序列：
+                            <span class="code-font font-semibold text-purple-600">
+                                {{ insertSequence.join(', ') }}
+                            </span>
+                        </div>
+                        <div class="text-sm text-gray-600">
+                            当前进度：
+                            <span class="font-semibold text-blue-600">
+                                {{ currentNodeIndex }} / {{ insertSequence.length }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 主要内容区域 -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- 左侧：规则列表 -->
+                <div class="lg:col-span-1">
+                    <div class="space-y-4">
+                        <h2 class="text-2xl font-semibold text-gray-800 mb-6">
+                            <i class="fas fa-scroll mr-2 text-purple-500"></i>
+                            五条神圣法则
+                        </h2>
+                        
+                        <!-- 规则卡片 -->
+                        <div v-for="(rule, index) in rules" :key="index"
+                             :class="['rule-card glass-card rounded-xl p-5 cursor-pointer', 
+                                      { 'active': activeRule === index }]"
+                             @click="highlightRule(index)">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1">
+                                    <h3 class="font-semibold text-gray-800 mb-2">
+                                        法则{{ index + 1 }}：{{ rule.titleCn }}
+                                    </h3>
+                                    <p class="text-sm text-gray-600 mb-2">{{ rule.titleEn }}</p>
+                                    <p class="text-sm text-gray-700 leading-relaxed">{{ rule.description }}</p>
+                                </div>
+                                <div class="ml-4 mt-1">
+                                    <i v-if="rule.status === 'satisfied'" 
+                                       class="fas fa-check-circle text-2xl text-green-500 floating-label"></i>
+                                    <i v-else-if="rule.status === 'violated'" 
+                                       class="fas fa-times-circle text-2xl text-red-500 violation-pulse"></i>
+                                    <i v-else 
+                                       class="fas fa-question-circle text-2xl text-gray-300"></i>
+                                </div>
+                            </div>
+                            
+                            <!-- 规则详情（展开时显示） -->
+                            <transition name="fade">
+                                <div v-if="activeRule === index" class="mt-4 pt-4 border-t border-gray-200">
+                                    <p class="text-sm text-gray-600 italic">{{ rule.detail }}</p>
+                                </div>
+                            </transition>
+                        </div>
+                    </div>
+                    
+                    <!-- 黑高计算器 -->
+                    <div v-if="showBlackHeightCalculator" class="glass-card rounded-xl p-5 mt-6">
+                        <h3 class="font-semibold text-gray-800 mb-4">
+                            <i class="fas fa-calculator mr-2 text-blue-500"></i>
+                            黑高计算
+                        </h3>
+                        <div class="space-y-3">
+                            <div v-for="(path, index) in blackHeightPaths" :key="index"
+                                 class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <span class="text-sm text-gray-700">路径 {{ index + 1 }}</span>
+                                <span class="code-font text-sm font-semibold text-blue-600">
+                                    黑高: {{ path.blackHeight }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧：树可视化 -->
+                <div class="lg:col-span-2">
+                    <div class="glass-card rounded-2xl p-6">
+                        <h2 class="text-2xl font-semibold text-gray-800 mb-6">
+                            <i class="fas fa-tree mr-2 text-green-500"></i>
+                            红黑树可视化
+                        </h2>
+                        
+                        <!-- ECharts 容器 -->
+                        <div ref="treeChart" class="w-full h-[600px]"></div>
+                        
+                        <!-- 图例 -->
+                        <div class="flex items-center justify-center gap-6 mt-6 pt-6 border-t border-gray-200">
+                            <div class="flex items-center gap-2">
+                                <div class="w-6 h-6 rounded-full bg-red-500"></div>
+                                <span class="text-sm text-gray-700">红色节点</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="w-6 h-6 rounded-full bg-gray-700"></div>
+                                <span class="text-sm text-gray-700">黑色节点</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="w-4 h-4 bg-gray-900"></div>
+                                <span class="text-sm text-gray-700">NIL节点</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 教学提示框 -->
+            <transition name="slide-up">
+                <div v-if="currentMessage" 
+                     class="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-40">
+                    <div class="glass-card rounded-xl px-8 py-6 max-w-2xl soft-shadow">
+                        <div class="flex items-start gap-4">
+                            <i :class="[currentMessage.icon, 'text-2xl mt-1', currentMessage.iconColor]"></i>
+                            <div>
+                                <h4 class="font-semibold text-gray-800 mb-2">{{ currentMessage.title }}</h4>
+                                <p class="text-gray-700 leading-relaxed">{{ currentMessage.content }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </transition>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    // 演示状态
+                    demoStarted: false,
+                    isAnimating: false,
+                    activeRule: null,
+                    currentMessage: null,
+                    showNilNodes: false,
+                    showBlackHeightCalculator: false,
+                    
+                    // 插入序列
+                    insertSequence: [11, 2, 14, 15, 1, 7, 5, 8],
+                    currentNodeIndex: 0,
+                    
+                    // 树数据
+                    treeData: null,
+                    myChart: null,
+                    
+                    // 规则定义
+                    rules: [
+                        {
+                            titleCn: '节点颜色',
+                            titleEn: 'Node Color',
+                            description: '每个节点必须是红色或黑色',
+                            detail: '这是最基本的规则。红黑树中不存在其他颜色的节点，这为后续规则奠定了基础。',
+                            status: 'unknown'
+                        },
+                        {
+                            titleCn: '根节点黑色',
+                            titleEn: 'Black Root',
+                            description: '根节点永远是黑色的',
+                            detail: '根节点作为树的起点，保持黑色能够简化许多操作，并为黑高计算提供稳定的起点。',
+                            status: 'unknown'
+                        },
+                        {
+                            titleCn: '叶子节点黑色',
+                            titleEn: 'Black Leaves (NIL)',
+                            description: '所有叶子节点（NIL）都是黑色的',
+                            detail: '注意：这里的"叶子"指的是NIL哨兵节点，而不是没有子节点的普通节点！',
+                            status: 'unknown'
+                        },
+                        {
+                            titleCn: '红色限制',
+                            titleEn: 'No Double Reds',
+                            description: '红色节点的子节点必须是黑色的',
+                            detail: '也就是说，不允许出现连续的红色节点。这个规则限制了最长路径的长度。',
+                            status: 'unknown'
+                        },
+                        {
+                            titleCn: '黑高相等',
+                            titleEn: 'Equal Black Height',
+                            description: '任一节点到其所有叶子的路径包含相同数量的黑色节点',
+                            detail: '这是保证树平衡的核心规则。通过限制黑高，确保最长路径不会超过最短路径的两倍。',
+                            status: 'unknown'
+                        }
+                    ],
+                    
+                    // 黑高路径
+                    blackHeightPaths: []
+                };
+            },
+            
+            mounted() {
+                this.initChart();
+                window.addEventListener('resize', this.handleResize);
+            },
+            
+            beforeUnmount() {
+                window.removeEventListener('resize', this.handleResize);
+                if (this.myChart) {
+                    this.myChart.dispose();
+                }
+            },
+            
+            methods: {
+                initChart() {
+                    this.myChart = echarts.init(this.$refs.treeChart);
+                    this.myChart.setOption({
+                        tooltip: {
+                            trigger: 'item',
+                            formatter: (params) => {
+                                const data = params.data;
+                                if (data.isNil) {
+                                    return 'NIL (空节点)';
+                                }
+                                return `节点值: ${data.name}<br/>颜色: ${data.color === 'red' ? '红色' : '黑色'}`;
+                            }
+                        },
+                        series: [{
+                            type: 'tree',
+                            data: [],
+                            top: '10%',
+                            bottom: '10%',
+                            layout: 'orthogonal',
+                            orient: 'TB',
+                            symbol: 'circle',
+                            symbolSize: 50,
+                            label: {
+                                position: 'inside',
+                                verticalAlign: 'middle',
+                                align: 'center',
+                                fontSize: 16,
+                                fontWeight: 'bold',
+                                color: '#fff'
+                            },
+                            /*leaves: {
+                                label: {
+                                    position: 'bottom',
+                                    verticalAlign: 'middle',
+                                    align: 'center'
+                                }
+                            },*/
+                            emphasis: {
+                                focus: 'descendant'
+                            },
+                            expandAndCollapse: false,
+                            animationDuration: 550,
+                            animationDurationUpdate: 750
+                        }]
+                    });
+                },
+                
+                startDemo() {
+                    this.demoStarted = true;
+                    this.currentNodeIndex = 0;
+                    this.treeData = null;
+                    this.resetRules();
+                    this.updateChart();
+                    this.showMessage({
+                        title: '开始演示',
+                        content: '让我们从插入第一个节点开始，逐步理解红黑树的五条神圣法则。',
+                        icon: 'fas fa-rocket',
+                        iconColor: 'text-purple-500'
+                    });
+                },
+                
+                async insertNextNode() {
+                    if (this.currentNodeIndex >= this.insertSequence.length || this.isAnimating) return;
+                    
+                    this.isAnimating = true;
+                    const value = this.insertSequence[this.currentNodeIndex];
+                    
+                    // 插入节点
+                    if (!this.treeData) {
+                        // 第一个节点
+                        this.treeData = this.createNode(value, 'red');
+                        this.showMessage({
+                            title: '插入第一个节点',
+                            content: `节点 ${value} 作为第一个节点被插入。按照规则，新节点初始为红色。`,
+                            icon: 'fas fa-plus',
+                            iconColor: 'text-green-500'
+                        });
+                    } else {
+                        // 后续节点
+                        this.insertNode(this.treeData, value);
+                        this.showMessage({
+                            title: '插入新节点',
+                            content: `节点 ${value} 被插入到树中。新节点初始为红色。`,
+                            icon: 'fas fa-plus',
+                            iconColor: 'text-green-500'
+                        });
+                    }
+                    
+                    this.currentNodeIndex++;
+                    this.updateChart();
+                    
+                    // 检查规则
+                    await this.delay(1000);
+                    await this.checkAllRules();
+                    
+                    this.isAnimating = false;
+                },
+                
+                createNode(value, color) {
+                    const node = {
+                        name: value.toString(),
+                        value: value,
+                        color: color,
+                        itemStyle: {
+                            color: color === 'red' ? '#ef4444' : '#374151'
+                        },
+                        children: []
+                    };
+                    
+                    if (this.showNilNodes) {
+                        node.children.push(this.createNilNode(), this.createNilNode());
+                    }
+                    
+                    return node;
+                },
+                
+                createNilNode() {
+                    return {
+                        name: 'NIL',
+                        isNil: true,
+                        symbol: 'rect',
+                        symbolSize: [30, 20],
+                        itemStyle: {
+                            color: '#1f2937'
+                        },
+                        label: {
+                            fontSize: 10,
+                            color: '#fff'
+                        },
+                        lineStyle: {
+                            type: 'dashed',
+                            opacity: 0.5
+                        }
+                    };
+                },
+                
+                insertNode(root, value) {
+                    // 简化的BST插入（不包含平衡操作）
+                    const insert = (node, val) => {
+                        if (val < node.value) {
+                            if (!node.children[0] || node.children[0].isNil) {
+                                if (this.showNilNodes && node.children[0]?.isNil) {
+                                    node.children[0] = this.createNode(val, 'red');
+                                } else {
+                                    node.children.unshift(this.createNode(val, 'red'));
+                                }
+                            } else {
+                                insert(node.children[0], val);
+                            }
+                        } else {
+                            const rightIndex = node.children.length > 1 ? 1 : 0;
+                            if (!node.children[rightIndex] || node.children[rightIndex].isNil) {
+                                if (this.showNilNodes && node.children[rightIndex]?.isNil) {
+                                    node.children[rightIndex] = this.createNode(val, 'red');
+                                } else {
+                                    if (node.children.length === 0) {
+                                        node.children.push(this.createNilNode());
+                                    }
+                                    node.children.push(this.createNode(val, 'red'));
+                                }
+                            } else {
+                                insert(node.children[rightIndex], val);
+                            }
+                        }
+                    };
+                    
+                    insert(root, value);
+                },
+                
+                async checkAllRules() {
+                    // 检查规则1：节点颜色
+                    this.rules[0].status = 'satisfied';
+                    this.activeRule = 0;
+                    await this.delay(500);
+                    
+                    // 检查规则2：根节点黑色
+                    if (this.treeData && this.treeData.color === 'red') {
+                        this.rules[1].status = 'violated';
+                        this.activeRule = 1;
+                        this.showMessage({
+                            title: '违反法则二！',
+                            content: '根节点必须是黑色的，但当前是红色。正在修复...',
+                            icon: 'fas fa-exclamation-triangle',
+                            iconColor: 'text-red-500'
+                        });
+                        await this.delay(1500);
+                        
+                        // 修复：将根节点变黑
+                        this.treeData.color = 'black';
+                        this.treeData.itemStyle.color = '#374151';
+                        this.updateChart();
+                        this.rules[1].status = 'satisfied';
+                        
+                        this.showMessage({
+                            title: '修复完成',
+                            content: '根节点已变为黑色，法则二得到满足。',
+                            icon: 'fas fa-check',
+                            iconColor: 'text-green-500'
+                        });
+                    } else {
+                        this.rules[1].status = 'satisfied';
+                        this.activeRule = 1;
+                    }
+                    await this.delay(500);
+                    
+                    // 检查规则3：叶子节点黑色（NIL）
+                    this.rules[2].status = 'satisfied';
+                    this.activeRule = 2;
+                    if (!this.showNilNodes && this.currentNodeIndex === 2) {
+                        this.showMessage({
+                            title: '关于叶子节点',
+                            content: '红黑树的"叶子节点"特指NIL节点，不是普通的无子节点。点击"显示NIL节点"查看。',
+                            icon: 'fas fa-info-circle',
+                            iconColor: 'text-blue-500'
+                        });
+                    }
+                    await this.delay(500);
+                    
+                    // 检查规则4：红色限制
+                    const hasDoubleRed = this.checkDoubleRed(this.treeData);
+                    this.rules[3].status = hasDoubleRed ? 'violated' : 'satisfied';
+                    this.activeRule = 3;
+                    
+                    if (hasDoubleRed) {
+                        this.highlightDoubleRed();
+                        this.showMessage({
+                            title: '违反法则四！',
+                            content: '出现了连续的红色节点！这需要通过旋转和变色来修复。',
+                            icon: 'fas fa-exclamation-triangle',
+                            iconColor: 'text-red-500'
+                        });
+                    }
+                    await this.delay(500);
+                    
+                    // 检查规则5：黑高相等
+                    if (this.currentNodeIndex >= 3) {
+                        this.checkBlackHeight();
+                        this.activeRule = 4;
+                    }
+                },
+                
+                checkDoubleRed(node, parentColor = 'black') {
+                    if (!node || node.isNil) return false;
+                    
+                    if (parentColor === 'red' && node.color === 'red') {
+                        return true;
+                    }
+                    
+                    return node.children.some(child => this.checkDoubleRed(child, node.color));
+                },
+                
+                highlightDoubleRed() {
+                    // 在实际实现中，这里会高亮显示违规的节点
+                    // 由于ECharts的限制，这里仅作为示例
+                },
+                
+                checkBlackHeight() {
+                    this.showBlackHeightCalculator = true;
+                    this.blackHeightPaths = [];
+                    
+                    // 计算所有路径的黑高
+                    const calculatePaths = (node, blackCount = 0, path = []) => {
+                        if (!node) return;
+                        
+                        const currentBlackCount = blackCount + (node.color === 'black' || node.isNil ? 1 : 0);
+                        const currentPath = [...path, node.name];
+                        
+                        if (node.isNil || (node.children.length === 0)) {
+                            this.blackHeightPaths.push({
+                                path: currentPath,
+                                blackHeight: currentBlackCount
+                            });
+                            return;
+                        }
+                        
+                        node.children.forEach(child => {
+                            calculatePaths(child, currentBlackCount, currentPath);
+                        });
+                    };
+                    
+                    calculatePaths(this.treeData);
+                    
+                    // 检查是否所有路径黑高相等
+                    const allEqual = this.blackHeightPaths.every(path => 
+                        path.blackHeight === this.blackHeightPaths[0].blackHeight
+                    );
+                    
+                    this.rules[4].status = allEqual ? 'satisfied' : 'violated';
+                    
+                    if (allEqual && this.blackHeightPaths.length > 0) {
+                        this.showMessage({
+                            title: '黑高验证',
+                            content: `所有路径的黑高都是 ${this.blackHeightPaths[0].blackHeight}！这保证了树的平衡性。`,
+                            icon: 'fas fa-balance-scale',
+                            iconColor: 'text-green-500'
+                        });
+                    }
+                },
+                
+                toggleNilNodes() {
+                    this.showNilNodes = !this.showNilNodes;
+                    if (this.treeData) {
+                        this.updateNilNodes(this.treeData);
+                        this.updateChart();
+                    }
+                },
+                
+                updateNilNodes(node) {
+                    if (!node || node.isNil) return;
+                    
+                    if (this.showNilNodes) {
+                        // 添加NIL节点
+                        const hasLeftChild = node.children[0] && !node.children[0].isNil;
+                        const hasRightChild = node.children[1] && !node.children[1].isNil;
+                        
+                        if (!hasLeftChild) {
+                            if (node.children[0]?.isNil) {
+                                // 已有NIL，保持
+                            } else {
+                                node.children.unshift(this.createNilNode());
+                            }
+                        }
+                        
+                        if (!hasRightChild) {
+                            if (node.children[1]?.isNil) {
+                                // 已有NIL，保持
+                            } else {
+                                if (node.children.length < 2) {
+                                    node.children.push(this.createNilNode());
+                                }
+                            }
+                        }
+                    } else {
+                        // 移除NIL节点
+                        node.children = node.children.filter(child => !child.isNil);
+                    }
+                    
+                    // 递归处理子节点
+                    node.children.forEach(child => this.updateNilNodes(child));
+                },
+                
+                updateChart() {
+                    if (this.myChart && this.treeData) {
+                        this.myChart.setOption({
+                            series: [{
+                                data: [this.treeData]
+                            }]
+                        });
+                    } else if (this.myChart) {
+                        this.myChart.setOption({
+                            series: [{
+                                data: []
+                            }]
+                        });
+                    }
+                },
+                
+                highlightRule(index) {
+                    this.activeRule = this.activeRule === index ? null : index;
+                },
+                
+                resetRules() {
+                    this.rules.forEach(rule => rule.status = 'unknown');
+                    this.blackHeightPaths = [];
+                    this.showBlackHeightCalculator = false;
+                },
+                
+                showMessage(message) {
+                    this.currentMessage = message;
+                    setTimeout(() => {
+                        if (this.currentMessage === message) {
+                            this.currentMessage = null;
+                        }
+                    }, 5000);
+                },
+                
+                handleResize() {
+                    if (this.myChart) {
+                        this.myChart.resize();
+                    }
+                },
+                
+                delay(ms) {
+                    return new Promise(resolve => setTimeout(resolve, ms));
+                }
+            }
+        }).mount('#app');
+    </script>
+
+    <style>
+        .fade-enter-active, .fade-leave-active {
+            transition: opacity 0.3s;
+        }
+        .fade-enter-from, .fade-leave-to {
+            opacity: 0;
+        }
+        
+        .slide-up-enter-active, .slide-up-leave-active {
+            transition: all 0.3s ease-out;
+        }
+        .slide-up-enter-from {
+            transform: translate(-50%, 20px);
+            opacity: 0;
+        }
+        .slide-up-leave-to {
+            transform: translate(-50%, -20px);
+            opacity: 0;
+        }
+    </style>
+</body>
+</html>

@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>树形数据结构可视化系统 - 专业版</title>
+    
+    <!-- ========== 依赖库说明 ========== -->
+    <!-- Vue 3.4.x: 渐进式JavaScript框架，用于构建响应式用户界面 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    
+    <!-- ECharts 5.5.0: Apache开源的数据可视化库，用于树形图渲染 -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    
+    <!-- Tailwind CSS 3.x: 实用优先的CSS框架，提供原子化CSS类 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome 6.5.2: 图标字体库，提供丰富的矢量图标 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <!-- Animate.css 4.1.1: CSS动画库，提供预设动画效果 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    
+    <style>
+        /* ========== 全局样式 ========== */
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --success-gradient: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+            --warning-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            --info-gradient: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        }
+
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        /* ========== 卡片样式优化 ========== */
+        .card {
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        }
+
+        .card-chart-container {
+            height: 300px;
+            padding: 20px;
+            background: linear-gradient(135deg, #f6f8fb 0%, #e9ecef 100%);
+            position: relative;
+        }
+
+        /* 树类型标识徽章 */
+        .tree-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            color: white;
+            z-index: 10;
+        }
+
+        /* ========== 表格美化 ========== */
+        .comparison-table {
+            background: white;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .comparison-table thead {
+            background: var(--primary-gradient);
+            color: white;
+        }
+
+        .comparison-table tbody tr {
+            transition: all 0.2s;
+        }
+
+        .comparison-table tbody tr:hover {
+            background: #f8f9ff;
+            transform: scale(1.01);
+        }
+
+        /* ========== 动画效果 ========== */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .float-animation {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        /* ========== 提示框样式 ========== */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 8px 12px;
+            position: absolute;
+            z-index: 1000;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            white-space: nowrap;
+            font-size: 14px;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* ========== 响应式优化 ========== */
+        @media (max-width: 768px) {
+            .card-chart-container {
+                height: 250px;
+            }
+        }
+
+        /* 加载动画 */
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app" class="container mx-auto p-4 md:p-8 lg:p-12">
+        <!-- ========== 页面头部 ========== -->
+        <header class="text-center mb-12 animate__animated animate__fadeInDown">
+            <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">
+                树形数据结构可视化系统
+            </h1>
+            <p class="mt-4 text-lg md:text-xl text-gray-600">
+                <i class="fas fa-chart-line mr-2"></i>
+                数据结构教学工具
+            </p>
+            <div class="mt-6 flex justify-center gap-4 flex-wrap">
+                <span class="px-4 py-2 bg-purple-100 text-purple-700 rounded-full text-sm font-semibold">
+                    <i class="fas fa-code mr-1"></i> 算法可视化
+                </span>
+                <span class="px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
+                    <i class="fas fa-tree mr-1"></i> 7种核心树结构
+                </span>
+                <span class="px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
+                    <i class="fas fa-sync mr-1"></i> 实时渲染
+                </span>
+            </div>
+        </header>
+
+        <!-- ========== 树形结构卡片网格 ========== -->
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-12">
+            <tree-card 
+                v-for="(tree, index) in treeTypes" 
+                :key="tree.id" 
+                :tree-data="tree"
+                :index="index"
+                :class="tree.isWide ? 'xl:col-span-3' : ''"
+            ></tree-card>
+        </div>
+
+        <!-- ========== 核心概念对比表 ========== -->
+        <section class="mb-12 animate__animated animate__fadeInUp">
+            <h2 class="text-3xl font-bold text-center mb-8 text-gray-800">
+                <i class="fas fa-table mr-2"></i> 核心特性对比分析
+            </h2>
+            <div class="comparison-table overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr>
+                            <th class="p-4 text-left">树类型</th>
+                            <th class="p-4 text-left">结构特征</th>
+                            <th class="p-4 text-left">时间复杂度</th>
+                            <th class="p-4 text-center">平衡性</th>
+                            <th class="p-4 text-left">典型应用</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        <tr v-for="comp in comparisonData" :key="comp.name">
+                            <td class="p-4">
+                                <span class="font-bold" :class="comp.color">{{ comp.name }}</span>
+                            </td>
+                            <td class="p-4 text-sm">{{ comp.structure }}</td>
+                            <td class="p-4">
+                                <code class="bg-gray-100 px-2 py-1 rounded text-xs">{{ comp.complexity }}</code>
+                            </td>
+                            <td class="p-4 text-center">
+                                <span v-if="comp.balanced === 'yes'" class="text-green-500">
+                                    <i class="fas fa-check-circle text-xl"></i>
+                                </span>
+                                <span v-else-if="comp.balanced === 'no'" class="text-red-500">
+                                    <i class="fas fa-times-circle text-xl"></i>
+                                </span>
+                                <span v-else class="text-yellow-500 tooltip">
+                                    <i class="fas fa-info-circle text-xl"></i>
+                                    <span class="tooltiptext">{{ comp.balanced }}</span>
+                                </span>
+                            </td>
+                            <td class="p-4 text-sm">{{ comp.usage }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ========== 算法复杂度说明 ========== -->
+        <section class="bg-white rounded-xl p-8 shadow-lg animate__animated animate__fadeInUp">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800">
+                <i class="fas fa-graduation-cap mr-2"></i> 核心概念解析
+            </h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="bg-gradient-to-br from-purple-50 to-pink-50 p-6 rounded-lg">
+                    <h3 class="font-bold text-lg mb-3 text-purple-700">
+                        <i class="fas fa-balance-scale mr-2"></i> 平衡性原理
+                    </h3>
+                    <p class="text-gray-700 text-sm leading-relaxed">
+                        平衡树通过维护特定的高度约束，确保树的深度保持在 O(log n) 级别。
+                        AVL树要求严格平衡（高度差≤1），而红黑树采用宽松平衡（黑高度相等），
+                        这种差异导致了它们在插入/删除操作上的性能差异。
+                    </p>
+                </div>
+                <div class="bg-gradient-to-br from-blue-50 to-cyan-50 p-6 rounded-lg">
+                    <h3 class="font-bold text-lg mb-3 text-blue-700">
+                        <i class="fas fa-sort-amount-down mr-2"></i> 堆序性质
+                    </h3>
+                    <p class="text-gray-700 text-sm leading-relaxed">
+                        堆是一种特殊的完全二叉树，满足堆序性质：父节点的值总是大于（最大堆）
+                        或小于（最小堆）其子节点。这种局部有序性使得获取最值为 O(1)，
+                        而调整操作仅需 O(log n) 时间。
+                    </p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- ========== Vue 3 应用逻辑 ========== -->
+    <script>
+        const { createApp, ref, onMounted, computed } = Vue;
+
+        // ========== 树形卡片组件 ==========
+        const TreeCard = {
+            props: ['treeData', 'index'],
+            template: `
+                <div class="card animate__animated animate__fadeInUp" 
+                     :style="{ animationDelay: index * 0.1 + 's' }">
+                    <div class="card-chart-container" ref="chartContainer">
+                        <div :class="['tree-badge', badgeClass]">
+                            {{ treeData.category }}
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <h3 class="text-2xl font-bold mb-4" :class="treeData.titleColor">
+                            <i :class="treeData.icon + ' mr-2'"></i>
+                            {{ treeData.title }}
+                        </h3>
+                        
+                        <div class="mb-4">
+                            <h4 class="font-semibold text-gray-700 mb-2">
+                                <i class="fas fa-check-square mr-1"></i> 核心规则
+                            </h4>
+                            <ul class="space-y-2">
+                                <li v-for="(rule, idx) in treeData.rules" 
+                                    :key="idx" 
+                                    class="flex items-start text-sm text-gray-600">
+                                    <span class="text-purple-500 mr-2 mt-1">•</span>
+                                    <span v-html="rule"></span>
+                                </li>
+                            </ul>
+                        </div>
+                        
+                        <div class="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-4">
+                            <h4 class="font-semibold text-gray-700 mb-2">
+                                <i class="fas fa-lightbulb mr-1"></i> 应用场景
+                            </h4>
+                            <p class="text-sm text-gray-600" v-html="treeData.purpose"></p>
+                        </div>
+
+                        <div v-if="treeData.complexity" class="mt-4 flex items-center justify-between">
+                            <span class="text-xs text-gray-500">时间复杂度</span>
+                            <code class="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-semibold">
+                                {{ treeData.complexity }}
+                            </code>
+                        </div>
+                    </div>
+                </div>
+            `,
+            computed: {
+                badgeClass() {
+                    const categoryColors = {
+                        '基础结构': 'bg-blue-500',
+                        '搜索树': 'bg-green-500',
+                        '平衡树': 'bg-purple-500',
+                        '特殊结构': 'bg-orange-500'
+                    };
+                    return categoryColors[this.treeData.category] || 'bg-gray-500';
+                }
+            },
+            setup(props) {
+                const chartContainer = ref(null);
+                
+                onMounted(() => {
+                    if (chartContainer.value) {
+                        const chart = echarts.init(chartContainer.value);
+                        
+                        // 监听窗口大小变化
+                        const resizeHandler = () => chart.resize();
+                        window.addEventListener('resize', resizeHandler);
+                        
+                        // 设置图表配置
+                        chart.setOption(props.treeData.echartsOption);
+                        
+                        // 添加加载动画
+                        chart.showLoading();
+                        setTimeout(() => {
+                            chart.hideLoading();
+                        }, 500);
+                    }
+                });
+                
+                return { chartContainer };
+            }
+        };
+
+        // ========== 主应用 ==========
+        createApp({
+            components: {
+                'tree-card': TreeCard
+            },
+            setup() {
+                // ========== ECharts 基础配置（竖向布局） ==========
+                const createTreeOption = (data, customConfig = {}) => {
+                    return {
+                        tooltip: {
+                            trigger: 'item',
+                            triggerOn: 'mousemove',
+                            formatter: (params) => {
+                                return `节点值: ${params.name}`;
+                            }
+                        },
+                        series: [{
+                            type: 'tree',
+                            data: [data],
+                            
+                            // 竖向布局配置（从上到下）
+                            orient: 'vertical',
+                            layout: 'orthogonal',
+                            
+                            // 节点样式
+                            symbolSize: 40,
+                            symbol: 'circle',
+                            
+                            // 标签配置
+                            label: {
+                                position: 'inside',
+                                verticalAlign: 'middle',
+                                align: 'center',
+                                fontSize: 14,
+                                fontWeight: 'bold',
+                                color: '#fff'
+                            },
+                            
+                            // 节点默认样式
+                            itemStyle: {
+                                color: '#667eea',
+                                borderColor: '#fff',
+                                borderWidth: 2,
+                                shadowColor: 'rgba(0, 0, 0, 0.2)',
+                                shadowBlur: 10
+                            },
+                            
+                            // 连线样式
+                            lineStyle: {
+                                color: '#94a3b8',
+                                width: 2,
+                                curveness: 0
+                            },
+                            
+                            // 叶子节点样式
+                            leaves: {
+                                label: {
+                                    position: 'inside'
+                                },
+                                itemStyle: {
+                                    color: '#10b981'
+                                }
+                            },
+                            
+                            // 展开配置
+                            expandAndCollapse: false,
+                            initialTreeDepth: -1,
+                            
+                            // 动画配置
+                            animationDuration: 1000,
+                            animationEasing: 'cubicInOut',
+                            
+                            ...customConfig
+                        }]
+                    };
+                };
+
+                // ========== 树形数据定义 ==========
+                const treeTypes = ref([
+                    {
+                        id: 'complete-bt',
+                        title: '完全二叉树 (Complete Binary Tree)',
+                        titleColor: 'text-blue-600',
+                        icon: 'fas fa-sitemap',
+                        category: '基础结构',
+                        complexity: 'O(log n)',
+                        rules: [
+                            '所有层级都<b>完全填满</b>，除了最后一层',
+                            '最后一层的节点<b>从左到右连续排列</b>，不能有间隙',
+                            '高度为 h 的完全二叉树，节点数范围：[2^h, 2^(h+1) - 1]',
+                            '可用<b>数组高效存储</b>：节点 i 的左子为 2i+1，右子为 2i+2'
+                        ],
+                        purpose: '<b>堆的基础结构</b>。由于其规整性，可以用数组紧凑存储，避免指针开销。广泛应用于<b>优先队列、堆排序</b>等算法。',
+                        echartsOption: createTreeOption({
+                            name: '1',
+                            children: [
+                                {
+                                    name: '2',
+                                    children: [
+                                        { name: '4' },
+                                        { name: '5' }
+                                    ]
+                                },
+                                {
+                                    name: '3',
+                                    children: [
+                                        { name: '6' },
+                                        { name: '7' }
+                                    ]
+                                }
+                            ]
+                        })
+                    },
+                    {
+                        id: 'full-bt',
+                        title: '满二叉树 (Full Binary Tree)',
+                        titleColor: 'text-blue-600',
+                        icon: 'fas fa-tree',
+                        category: '基础结构',
+                        complexity: 'O(log n)',
+                        rules: [
+                            '每个节点要么是<b>叶子节点</b>（0个子节点）',
+                            '要么<b>恰好有2个子节点</b>（不存在只有1个子节点的情况）',
+                            '所有叶子节点不一定在同一层',
+                            '<b>注意</b>：满二叉树不一定是完全二叉树'
+                        ],
+                        purpose: '理论研究中的理想结构。在<b>哈夫曼编码树、表达式树</b>等场景中应用。决策树算法中也常见此结构。',
+                        echartsOption: createTreeOption({
+                            name: 'A',
+                            children: [
+                                {
+                                    name: 'B',
+                                    children: [
+                                        { name: 'D' },
+                                        { name: 'E' }
+                                    ]
+                                },
+                                {
+                                    name: 'C'
+                                }
+                            ]
+                        })
+                    },
+                    {
+                        id: 'bst',
+                        title: '二叉搜索树 (BST)',
+                        titleColor: 'text-emerald-600',
+                        icon: 'fas fa-search',
+                        category: '搜索树',
+                        complexity: '平均 O(log n), 最坏 O(n)',
+                        rules: [
+                            '左子树所有节点值 <b>&lt; 根节点值</b>',
+                            '右子树所有节点值 <b>&gt; 根节点值</b>',
+                            '左右子树也是二叉搜索树（递归定义）',
+                            '<b>中序遍历</b>得到升序序列'
+                        ],
+                        purpose: '实现<b>动态查找表</b>的基础结构。支持高效的查找、插入、删除操作。是<b>TreeMap、TreeSet</b>等数据结构的基础。',
+                        echartsOption: createTreeOption({
+                            name: '50',
+                            itemStyle: { color: '#10b981' },
+                            children: [
+                                {
+                                    name: '30',
+                                    itemStyle: { color: '#3b82f6' },
+                                    children: [
+                                        { name: '20', itemStyle: { color: '#6366f1' } },
+                                        { name: '40', itemStyle: { color: '#6366f1' } }
+                                    ]
+                                },
+                                {
+                                    name: '70',
+                                    itemStyle: { color: '#3b82f6' },
+                                    children: [
+                                        { name: '60', itemStyle: { color: '#6366f1' } },
+                                        { name: '80', itemStyle: { color: '#6366f1' } }
+                                    ]
+                                }
+                            ]
+                        })
+                    },
+                    {
+                        id: 'avl',
+                        title: 'AVL 树',
+                        titleColor: 'text-indigo-600',
+                        icon: 'fas fa-balance-scale-left',
+                        category: '平衡树',
+                        complexity: '所有操作 O(log n)',
+                        rules: [
+                            '首先是一棵<b>二叉搜索树</b>',
+                            '任意节点的<b>平衡因子</b> ∈ {-1, 0, 1}',
+                            '平衡因子 = 左子树高度 - 右子树高度',
+                            '通过<b>旋转操作</b>（LL, RR, LR, RL）维持平衡'
+                        ],
+                        purpose: '<b>严格平衡</b>的BST。查找性能最优，适用于<b>读多写少</b>的场景。数据库索引、文件系统等需要稳定性能的场合。',
+                        echartsOption: createTreeOption({
+                            name: '50',
+                            itemStyle: { color: '#8b5cf6' },
+                            children: [
+                                {
+                                    name: '25',
+                                    itemStyle: { color: '#a78bfa' },
+                                    children: [
+                                        { name: '10', itemStyle: { color: '#c4b5fd' } },
+                                        { name: '35', itemStyle: { color: '#c4b5fd' } }
+                                    ]
+                                },
+                                {
+                                    name: '75',
+                                    itemStyle: { color: '#a78bfa' },
+                                    children: [
+                                        { name: '65', itemStyle: { color: '#c4b5fd' } },
+                                        { name: '90', itemStyle: { color: '#c4b5fd' } }
+                                    ]
+                                }
+                            ]
+                        })
+                    },
+                    {
+                        id: 'rbt',
+                        title: '红黑树 (Red-Black Tree)',
+                        titleColor: 'text-red-600',
+                        icon: 'fas fa-palette',
+                        category: '平衡树',
+                        complexity: '所有操作 O(log n)',
+                        rules: [
+                            '节点是<b>红色</b>或<b>黑色</b>',
+                            '根节点是<b>黑色</b>',
+                            '叶子节点（NIL）是<b>黑色</b>',
+                            '<b>红色节点</b>的子节点必须是黑色（无连续红节点）',
+                            '从根到叶子的所有路径包含<b>相同数量的黑色节点</b>'
+                        ],
+                        purpose: '<b>工程实践首选</b>的平衡树。相比AVL树，插入删除时旋转次数更少。<b>Java TreeMap、C++ STL map</b>的底层实现。',
+                        echartsOption: createTreeOption({
+                            name: '30',
+                            itemStyle: { color: '#1f2937' },
+                            children: [
+                                {
+                                    name: '20',
+                                    itemStyle: { color: '#ef4444' },
+                                    children: [
+                                        { name: '10', itemStyle: { color: '#1f2937' } },
+                                        { name: '25', itemStyle: { color: '#1f2937' } }
+                                    ]
+                                },
+                                {
+                                    name: '40',
+                                    itemStyle: { color: '#1f2937' },
+                                    children: [
+                                        { name: '35', itemStyle: { color: '#ef4444' } },
+                                        { name: '50', itemStyle: { color: '#ef4444' } }
+                                    ]
+                                }
+                            ]
+                        })
+                    },
+                    {
+                        id: 'heap',
+                        title: '最大堆 (Max Heap)',
+                        titleColor: 'text-orange-600',
+                        icon: 'fas fa-sort-amount-down',
+                        category: '特殊结构',
+                        complexity: '获取最大值 O(1), 插入/删除 O(log n)',
+                        rules: [
+                            '是一棵<b>完全二叉树</b>',
+                            '父节点值 <b>≥</b> 所有子节点值（最大堆）',
+                            '不保证左右子节点之间的大小关系',
+                            '常用数组存储：节点i的父节点为⌊(i-1)/2⌋'
+                        ],
+                        purpose: '实现<b>优先队列</b>的最佳选择。应用于<b>堆排序、Top-K问题、任务调度</b>等。操作系统进程调度、Dijkstra算法等。',
+                        echartsOption: createTreeOption({
+                            name: '100',
+                            itemStyle: { color: '#f97316' },
+                            children: [
+                                {
+                                    name: '90',
+                                    itemStyle: { color: '#fb923c' },
+                                    children: [
+                                        { name: '70', itemStyle: { color: '#fdba74' } },
+                                        { name: '60', itemStyle: { color: '#fdba74' } }
+                                    ]
+                                },
+                                {
+                                    name: '80',
+                                    itemStyle: { color: '#fb923c' },
+                                    children: [
+                                        { name: '50', itemStyle: { color: '#fdba74' } },
+                                        { name: '40', itemStyle: { color: '#fdba74' } }
+                                    ]
+                                }
+                            ]
+                        })
+                    },
+                    {
+                        id: 'btree',
+                        title: 'B-树 (B-Tree)',
+                        titleColor: 'text-rose-600',
+                        icon: 'fas fa-database',
+                        category: '特殊结构',
+                        complexity: 'O(log_m n)',
+                        isWide: true,
+                        rules: [
+                            '<b>多路平衡搜索树</b>，节点可有多个子节点',
+                            '每个节点包含多个<b>有序关键字</b>',
+                            '所有叶子节点在<b>同一层</b>',
+                            'm阶B树：每个节点最多m个子节点，最多m-1个关键字',
+                            '根节点至少2个子节点，其他节点至少⌈m/2⌉个子节点'
+                        ],
+                        purpose: '<b>磁盘存储优化</b>的核心数据结构。通过减少树的高度，最小化磁盘I/O。<b>数据库索引（MySQL InnoDB）、文件系统（NTFS、ext4）</b>的基础。',
+                        echartsOption: createTreeOption({
+                            name: '30 | 70',
+                            symbol: 'roundRect',
+                            symbolSize: [80, 40],
+                            itemStyle: { color: '#e11d48' },
+                            children: [
+                                {
+                                    name: '10 | 20',
+                                    symbol: 'roundRect',
+                                    symbolSize: [70, 35],
+                                    itemStyle: { color: '#f43f5e' }
+                                },
+                                {
+                                    name: '40 | 50',
+                                    symbol: 'roundRect',
+                                    symbolSize: [70, 35],
+                                    itemStyle: { color: '#f43f5e' }
+                                },
+                                {
+                                    name: '80 | 90',
+                                    symbol: 'roundRect',
+                                    symbolSize: [70, 35],
+                                    itemStyle: { color: '#f43f5e' }
+                                }
+                            ]
+                        })
+                    }
+                ]);
+
+                // ========== 对比数据 ==========
+                const comparisonData = ref([
+                    {
+                        name: '完全二叉树',
+                        color: 'text-blue-600',
+                        structure: '层序填充，最后一层左对齐',
+                        complexity: 'O(log n)',
+                        balanced: '结构平衡',
+                        usage: '堆的基础，数组存储'
+                    },
+                    {
+                        name: '满二叉树',
+                        color: 'text-blue-600',
+                        structure: '节点度为0或2',
+                        complexity: 'O(log n)',
+                        balanced: '不一定',
+                        usage: '哈夫曼树，表达式树'
+                    },
+                    {
+                        name: 'BST',
+                        color: 'text-emerald-600',
+                        structure: '左<根<右的有序性',
+                        complexity: '平均O(log n), 最坏O(n)',
+                        balanced: 'no',
+                        usage: '动态查找，有序操作'
+                    },
+                    {
+                        name: 'AVL树',
+                        color: 'text-indigo-600',
+                        structure: 'BST + 高度差≤1',
+                        complexity: 'O(log n)',
+                        balanced: 'yes',
+                        usage: '读密集型应用'
+                    },
+                    {
+                        name: '红黑树',
+                        color: 'text-red-600',
+                        structure: 'BST + 颜色规则',
+                        complexity: 'O(log n)',
+                        balanced: 'yes',
+                        usage: 'STL map, TreeMap'
+                    },
+                    {
+                        name: '堆',
+                        color: 'text-orange-600',
+                        structure: '完全二叉树 + 堆序',
+                        complexity: '插入/删除O(log n)',
+                        balanced: '完全二叉树',
+                        usage: '优先队列，Top-K'
+                    },
+                    {
+                        name: 'B-树',
+                        color: 'text-rose-600',
+                        structure: '多路平衡搜索树',
+                        complexity: 'O(log_m n)',
+                        balanced: 'yes',
+                        usage: '数据库索引，文件系统'
+                    }
+                ]);
+
+                return { 
+                    treeTypes, 
+                    comparisonData 
+                };
+            }
+        }).mount('#app');
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>双向链表：终极音乐播放器 v2</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/petite-vue"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; background: #fff; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.3); cursor: pointer; margin-top: -5px; }
+        input[type=range]::-moz-range-thumb { width: 14px; height: 14px; background: #fff; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.3); cursor: pointer; }
+    </style>
+</head>
+
+<body class="bg-slate-100 flex items-center justify-center min-h-screen p-4">
+
+<main id="app" v-scope @vue:mounted="init()" class="w-full max-w-5xl mx-auto space-y-8">
+
+    <!-- ============================================= -->
+    <!--         上方：紧凑型播放器模块                -->
+    <!-- ============================================= -->
+    <div class="bg-white/60 backdrop-blur-xl border border-white/30 rounded-3xl shadow-2xl shadow-slate-300/60 p-6 flex items-center gap-6">
+        <!-- 专辑封面 -->
+        <img :src="currentNode.value.albumArtUrl" alt="Album Art" class="w-24 h-24 rounded-2xl shadow-lg flex-shrink-0">
+
+        <div class="flex-grow flex flex-col justify-center gap-2">
+            <!-- 歌曲信息 -->
+            <div>
+                <h2 class="text-xl font-bold text-slate-800">{{ currentNode.value.title }}</h2>
+                <p class="text-slate-500">{{ currentNode.value.artist }}</p>
+            </div>
+             <!-- 进度条与时间 -->
+            <div class="space-y-1">
+                <input type="range" min="0" :max="currentNode.value.duration" :value="currentTime" @input="seekTime($event.target.value)" class="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                <div class="flex justify-between text-xs font-mono text-slate-500">
+                    <span>{{ formatTime(currentTime) }}</span>
+                    <span>{{ formatTime(currentNode.value.duration) }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <!-- 播放控制 -->
+            <button @click="playPrev()" class="text-slate-600 hover:text-slate-900 transition text-2xl"><i class="fas fa-backward-step"></i></button>
+            <button @click="togglePlay()" class="w-16 h-16 bg-blue-500 text-white rounded-full flex items-center justify-center text-2xl shadow-lg hover:bg-blue-600 transition-transform hover:scale-105 active:scale-95">
+                <i :class="isPlaying ? 'fas fa-pause' : 'fas fa-play'"></i>
+            </button>
+            <button @click="playNext()" class="text-slate-600 hover:text-slate-900 transition text-2xl"><i class="fas fa-forward-step"></i></button>
+        </div>
+    </div>
+
+
+    <!-- ============================================= -->
+    <!--         下方：播放列表与教学模块               -->
+    <!-- ============================================= -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- 播放列表 -->
+        <div class="bg-white/50 backdrop-blur-xl border border-white/30 rounded-3xl shadow-2xl shadow-slate-300/60 p-6 flex flex-col">
+             <h3 class="text-xl font-bold text-slate-800 pb-4 flex-shrink-0">播放队列</h3>
+            <div class="flex-grow space-y-3 overflow-y-auto pr-2 min-h-[300px]">
+                <div v-for="node in reactivePlaylist" :key="node.id" class="flex items-center p-3 rounded-lg transition-all duration-300" :class="{ 'bg-blue-500 text-white shadow-md': node === currentNode }">
+                    <img :src="node.value.albumArtUrl" class="w-12 h-12 rounded-md mr-4">
+                    <div class="flex-grow">
+                        <p class="font-bold">{{ node.value.title }}</p>
+                        <p class="text-sm opacity-70">{{ node.value.artist }}</p>
+                    </div>
+                </div>
+            </div>
+             <!-- 添加/删除操作 -->
+            <div class="pt-6 border-t border-slate-200/80 mt-4 space-y-3 flex-shrink-0">
+                 <input type="text" v-model="newSongName" placeholder="新歌名,艺术家" class="w-full bg-slate-100/70 border border-slate-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                 <div class="grid grid-cols-2 gap-3">
+                      <button @click="insertAfterCurrent()" class="w-full bg-slate-200 hover:bg-slate-300 transition text-sm font-bold text-slate-700 py-2 rounded-full">在当前后插入</button>
+                      <button @click="deleteCurrent()" class="w-full bg-red-500 hover:bg-red-600 transition text-sm font-bold text-white py-2 rounded-full">删除当前</button>
+                 </div>
+            </div>
+        </div>
+
+        <!-- 教学模块 -->
+        <div class="bg-[#263238] text-slate-200 rounded-3xl p-6 shadow-2xl shadow-slate-400/60">
+            <h3 class="text-lg font-bold text-white mb-4 flex items-center"><i class="fas fa-diagram-project mr-3 text-cyan-400"></i>双向链表 · 操作解析</h3>
+            <div class="bg-black/20 p-4 rounded-lg min-h-[420px]">
+                <p class="text-cyan-400 font-bold font-mono text-md">{{ infoText.title }}</p>
+                <p class="text-sm text-slate-300 mt-2">{{ infoText.description }}</p>
+                
+                <div v-if="infoText.pointers.length > 0" class="mt-3 space-y-1 text-xs font-mono">
+                    <p v-for="p in infoText.pointers" class="bg-black/20 p-2 rounded-md" v-html="p"></p>
+                </div>
+                
+                <div v-if="infoText.complexity" class="mt-4 pt-3 border-t border-slate-600">
+                     <p class="text-xs font-bold text-slate-400">性能分析</p>
+                     <p class="text-sm text-slate-300" v-html="infoText.complexity"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+
+<script>
+    // --- 1. 数据结构定义 (纯JS) ---
+    let nodeIdCounter = 0;
+    class Node {
+        constructor(value) { this.id = nodeIdCounter++; this.value = value; this.next = null; this.prev = null; }
+    }
+    class DoublyLinkedList {
+        constructor() { this.head = null; this.tail = null; this.size = 0; }
+        append(value) { const newNode = new Node(value); if (!this.head) { this.head = this.tail = newNode; } else { this.tail.next = newNode; newNode.prev = this.tail; this.tail = newNode; } this.size++; }
+        insertAfter(node, value) { if (!node) return; const newNode = new Node(value); newNode.next = node.next; newNode.prev = node; if (node.next) { node.next.prev = newNode; } else { this.tail = newNode; } node.next = newNode; this.size++; }
+        delete(node) { if (!node) return; if (node.prev) { node.prev.next = node.next; } else { this.head = node.next; } if (node.next) { node.next.prev = node.prev; } else { this.tail = node.prev; } this.size--; }
+        toArray() { const arr = []; let current = this.head; while (current) { arr.push(current); current = current.next; } return arr; }
+    }
+
+    // --- 2. Petite-Vue 应用实例 ---
+    PetiteVue.createApp({
+        // --- 数据模型 ---
+        playlist: new DoublyLinkedList(),
+        currentNode: { value: { title: '加载中...', artist: '', duration: 0, albumArtUrl: 'https://picsum.photos/400' } }, // 初始占位符
+        reactivePlaylist: [], newSongName: '', isPlaying: false, currentTime: 0, progressInterval: null,
+        infoText: { title: '欢迎!', description: '请开始操作以查看链表的可视化解析。', pointers: [], complexity: '' },
+        albumArtPool: [
+            'https://picsum.photos/id/1011/400/400',
+            'https://picsum.photos/id/1012/400/400',
+            'https://picsum.photos/id/1015/400/400',
+            'https://picsum.photos/id/1025/400/400',
+            'https://picsum.photos/id/103/400/400'
+        ],
+        newArtIndex: 0,
+
+        // --- 初始化 ---
+        init() {
+            if (this.progressInterval) clearInterval(this.progressInterval);
+            nodeIdCounter = 0;
+            this.playlist = new DoublyLinkedList();
+            this.isPlaying = false;
+            this.currentTime = 0;
+            const initialSongs = [
+                { title: 'As It Was', artist: 'Harry Styles', duration: 167, albumArtUrl: 'https://picsum.photos/id/237/400/400' },
+                { title: 'Levitating', artist: 'Dua Lipa', duration: 203, albumArtUrl: 'https://picsum.photos/id/24/400/400' },
+                { title: 'good 4 u', artist: 'Olivia Rodrigo', duration: 178, albumArtUrl: 'https://picsum.photos/id/48/400/400' },
+                { title: 'Blinding Lights', artist: 'The Weeknd', duration: 200, albumArtUrl: 'https://picsum.photos/id/40/400/400' },
+            ];
+            initialSongs.forEach(song => this.playlist.append(song));
+            this.currentNode = this.playlist.head;
+            this.updateReactivePlaylist();
+            this.updateInfoPanel('init');
+        },
+
+        // --- 核心方法 ---
+        updateReactivePlaylist() { this.reactivePlaylist = this.playlist.toArray(); },
+        playNext() { if (this.currentNode && this.currentNode.next) { this.updateInfoPanel('playNext', { from: this.currentNode, to: this.currentNode.next }); this.currentNode = this.currentNode.next; this.resetPlayback(); } },
+        playPrev() { if (this.currentNode && this.currentNode.prev) { this.updateInfoPanel('playPrev', { from: this.currentNode, to: this.currentNode.prev }); this.currentNode = this.currentNode.prev; this.resetPlayback(); } },
+        insertAfterCurrent() {
+            if (!this.currentNode || !this.newSongName.trim()) return;
+            const [title, artist] = this.newSongName.split(',').map(s => s.trim());
+            if(!title) return;
+            const newArtUrl = this.albumArtPool[this.newArtIndex % this.albumArtPool.length];
+            this.newArtIndex++;
+            const newNodeValue = { title, artist: artist || '未知艺术家', duration: 180, albumArtUrl: newArtUrl };
+            this.updateInfoPanel('insert', { target: this.currentNode, newNodeValue });
+            this.playlist.insertAfter(this.currentNode, newNodeValue);
+            this.updateReactivePlaylist();
+            this.newSongName = '';
+        },
+        deleteCurrent() {
+            if (!this.currentNode || this.playlist.size <= 1) { this.updateInfoPanel('error', {message: '列表至少需要一首歌。'}); return; }
+            const deletedNode = this.currentNode;
+            let subsequentNode = deletedNode.next || deletedNode.prev;
+            this.updateInfoPanel('delete', { deletedNode });
+            this.playlist.delete(deletedNode);
+            this.currentNode = subsequentNode;
+            this.updateReactivePlaylist();
+            this.resetPlayback();
+        },
+
+        // --- 播放器辅助方法 ---
+        togglePlay() {
+            this.isPlaying = !this.isPlaying;
+            if (this.isPlaying) {
+                this.progressInterval = setInterval(() => {
+                    if (this.currentTime < this.currentNode.value.duration) { this.currentTime++; } 
+                    else { this.isPlaying = false; clearInterval(this.progressInterval); this.playNext(); }
+                }, 1000);
+            } else { clearInterval(this.progressInterval); }
+        },
+        resetPlayback() {
+            this.currentTime = 0;
+            if(this.progressInterval) clearInterval(this.progressInterval);
+            if (this.isPlaying) { this.togglePlay(); this.togglePlay(); }
+        },
+        seekTime(time) { this.currentTime = parseInt(time, 10); },
+        formatTime(s) { const min = Math.floor(s / 60); const sec = s % 60; return `${min}:${sec < 10 ? '0' : ''}${sec}`; },
+        
+        // --- 超级教学模块 ---
+        updateInfoPanel(action, details = {}) {
+            const name = (node) => `节点('${node.value.title.slice(0,10)}...')`;
+            const code = (str) => `<code>${str}</code>`;
+            switch (action) {
+                case 'init': this.infoText = { title: '初始化链表', description: '播放列表已构建为一个双向链表。每个节点都有 prev 和 next 两个指针，分别指向它的前驱和后继。', pointers: [], complexity: '' }; break;
+                case 'playNext': this.infoText = { title: '操作: 访问下一个节点', description: `通过当前${name(details.from)}的 .next 指针，我们直接找到了下一个节点。`, pointers: [code(`${name(details.from)}.next    ->    ${name(details.to)}`)], complexity: `<b>O(1) - 恒定时间</b>。与数组需要通过索引访问不同，链表通过指针直接跳转，无论列表多长，速度都一样快。` }; break;
+                case 'playPrev': this.infoText = { title: '操作: 访问上一个节点', description: `通过当前${name(details.from)}的 .prev 指针，我们直接找到了上一个节点。`, pointers: [code(`${name(details.from)}.prev    ->    ${name(details.to)}`)], complexity: `<b>O(1) - 恒定时间</b>。这是双向链表的核心优势，单向链表若要完成此操作，则需要从头遍历，复杂度为 O(n)。` }; break;
+                case 'insert':
+                    const oldNext = details.target.next;
+                    this.infoText = { title: '操作: 插入新节点', description: `在 ${name(details.target)} 后插入了新节点 '${details.newNodeValue.title}'。`, pointers: [`1. 新节点的.prev指向 ${code(name(details.target))}`,`2. 新节点的.next指向 ${code(oldNext ? name(oldNext) : 'NULL')}`,`3. ${code(name(details.target))} 的.next指向新节点`, oldNext ? `4. ${code(name(oldNext))} 的.prev指向新节点` : `4. (原尾节点) 更新tail为新节点`], complexity: `<b>O(1) - 恒定时间</b>。我们只修改了相邻节点的指针，无需移动任何其他元素。相比之下，在数组中间插入元素需要将后续所有元素后移一位，复杂度为 O(n)，效率低下。` }; break;
+                case 'delete':
+                    const prev = details.deletedNode.prev;
+                    const next = details.deletedNode.next;
+                    this.infoText = { title: '操作: 删除节点', description: `删除了 ${name(details.deletedNode)}。`, pointers: [`1. ${code(prev ? name(prev) : 'head')} 的.next指向 ${code(next ? name(next) : 'NULL')}`, `2. ${code(next ? name(next) : 'tail')} 的.prev指向 ${code(prev ? name(prev) : 'NULL')}`], complexity: `<b>O(1) - 恒定时间</b>。与插入类似，删除也只需“重新布线”相邻的指针。而从数组中删除元素，同样可能需要移动大量元素来填补空位，复杂度为 O(n)。` }; break;
+                case 'error': this.infoText = { title: '操作不允许', description: details.message, pointers: [], complexity: ''}; break;
+            }
+        }
+    }).mount('#app');
+</script>
+
+</body>
+</html>

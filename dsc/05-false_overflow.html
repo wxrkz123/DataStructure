@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>顺序队列（缺陷演示版）- 假溢出教学</title>
+
+    <!-- Dependencies -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@formkit/auto-animate@0.8.2/index.global.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+    <script src="https://unpkg.com/@popperjs/core@2"></script>
+    <script src="https://unpkg.com/tippy.js@6"></script>
+
+    <style>
+        body { background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+        .notyf__toast { border-radius: 0.5rem; }
+        .slot-element { transition: all 0.4s ease-in-out; }
+        
+        .highlight-front-slot { 
+            border-color: #3b82f6 !important; background-color: #eff6ff !important; 
+        }
+        .highlight-rear-slot { 
+            border-color: #ec4899 !important; background-color: #fdf2f8 !important; border-style: dashed !important;
+        }
+        .highlight-wasted-slot {
+            background-color: #f1f5f9;
+        }
+        .pointer-label { transition: opacity 0.3s ease-in-out; }
+    </style>
+</head>
+<body>
+
+<div id="app" class="max-w-6xl mx-auto px-4 py-8">
+    
+    <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-slate-800">顺序队列（缺陷演示）</h1>
+        <p class="text-slate-500 mt-2">交互式体验顺序队列的“假溢出”问题</p>
+    </div>
+
+    <!-- Controls Panel -->
+    <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+            <div class="space-y-4">
+                <h3 class="font-semibold text-lg text-slate-700 border-b pb-2">操作</h3>
+                <div class="flex gap-2">
+                    <input type="text" v-model="inputs.value" placeholder="入队值" @keyup.enter="enqueue" class="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500 transition">
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button @click="enqueue" :disabled="isBusy || isFull" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300 disabled:cursor-not-allowed">入队 (Enqueue)</button>
+                    <button @click="dequeue" :disabled="isBusy || isEmpty" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300 disabled:cursor-not-allowed">出队 (Dequeue)</button>
+                </div>
+            </div>
+            <div class="space-y-4">
+                 <h3 class="font-semibold text-lg text-slate-700 border-b pb-2">管理</h3>
+                 <div class="flex items-center gap-2">
+                    <label for="capacity" class="text-slate-600 whitespace-nowrap">容量:</label>
+                    <input type="range" v-model.number="inputs.capacity" @change="resetQueue" min="6" max="16" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer" disabled>
+                    <span class="font-mono text-purple-600 w-8 text-center">{{ inputs.capacity }}</span>
+                </div>
+                 <button @click="resetQueue" :disabled="isBusy" class="w-full bg-slate-600 hover:bg-slate-700 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300">重置队列</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Visualization -->
+    <div class="bg-white p-6 rounded-xl shadow-lg">
+        <!-- Header Info -->
+        <div class="grid grid-cols-3 items-center mb-6 pb-4 border-b border-slate-200">
+            <div class="text-left">
+                <div class="font-semibold text-blue-600">队头 (Front)</div>
+                <div>指针: <span class="font-mono text-lg font-bold">{{ front }}</span></div>
+            </div>
+            <div class="text-center">
+                 <div class="font-bold text-slate-700 text-lg">队列状态</div>
+                 <div v-if="isFull" class="font-semibold text-red-500 animate-pulse" data-tippy-content="即使数组前方有空位，但因 rear 指针已达末尾，队列被认为是“满”的。">假溢出！(队满)</div>
+                 <div v-else-if="isEmpty" class="font-semibold text-slate-500">队空</div>
+                 <div v-else class="text-slate-500">大小: <span class="font-mono">{{ size }} / {{ capacity }}</span></div>
+            </div>
+            <div class="text-right">
+                <div class="font-semibold text-pink-600">队尾 (Rear)</div>
+                <div>指针: <span class="font-mono text-lg font-bold">{{ rear }}</span></div>
+            </div>
+        </div>
+        
+        <!-- Queue Array -->
+        <div class="grid" :style="{ gridTemplateColumns: `repeat(${capacity}, minmax(0, 1fr))` }">
+             <div v-for="(slot, index) in visualQueue" :key="index" class="relative h-28">
+                <!-- Pointer Labels -->
+                <div v-if="index === front && !isEmpty" class="pointer-label absolute top-0 left-1/2 -translate-x-1/2 -mt-1 bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded-full z-10">FRONT</div>
+                <div v-if="index === rear && !isFull" class="pointer-label absolute top-0 left-1/2 -translate-x-1/2 -mt-1 bg-pink-500 text-white text-xs font-bold px-2 py-0.5 rounded-full z-10">REAR</div>
+
+                <!-- Slot Element -->
+                <div class="slot-element h-24 m-1 rounded-lg flex items-center justify-center border-2"
+                    :class="getSlotClass(slot, index)">
+                    <span v-if="slot" class="font-mono text-xl font-semibold text-slate-800">
+                        {{ slot.value }}
+                    </span>
+                </div>
+                <!-- Index Label -->
+                <div class="absolute bottom-5.5 left-1/2 -translate-x-1/2 text-xs text-slate-400">{{ index }}</div>
+             </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, reactive, computed, onMounted, nextTick, watch } = Vue;
+
+    createApp({
+        setup() {
+            // --- State ---
+            const queue = ref([]);
+            const capacity = ref(8);
+            const front = ref(0); // 指向队头元素
+            const rear = ref(0);  // 指向队尾的下一个可用位置
+            const isBusy = ref(false);
+            const inputs = reactive({ value: 'A', capacity: 8 });
+
+            // --- Computed Properties ---
+            const size = computed(() => rear.value - front.value);
+            const isEmpty = computed(() => front.value === rear.value);
+            const isFull = computed(() => rear.value === capacity.value); // 这就是“假溢出”的判断条件
+            const visualQueue = computed(() => {
+                const arr = new Array(capacity.value).fill(null);
+                queue.value.forEach((item, i) => { arr[i] = item });
+                return arr;
+            });
+
+            // --- Tools ---
+            const notyf = new Notyf({ duration: 4000, position: { x: 'right', y: 'top' }, dismissible: true, types: [ { type: 'info', backgroundColor: '#3b82f6', icon: false }, { type: 'success', backgroundColor: '#22c55e' }, { type: 'error', backgroundColor: '#ef4444' }] });
+            const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+            const initTooltips = () => { tippy('[data-tippy-content]', { arrow: true, animation: 'fade', theme: 'light-border', allowHTML: true }); };
+
+            // --- Core Operations ---
+            const resetQueue = async () => {
+                isBusy.value = true;
+                inputs.capacity = 8;
+                capacity.value = 8;
+                queue.value = new Array(capacity.value).fill(null);
+                front.value = 0;
+                rear.value = 0;
+                await nextTick();
+                initTooltips();
+                notyf.success(`顺序队列已重置。`);
+                isBusy.value = false;
+            };
+
+            const enqueue = async () => {
+                const value = inputs.value;
+                if (!value || isBusy.value) return;
+                if (isFull.value) {
+                    notyf.error('<b>假溢出!</b><br>队尾指针已达数组末端，无法入队！');
+                    return;
+                }
+
+                isBusy.value = true;
+                
+                notyf.open({ type: 'info', message: `在 rear 指针 (索引 ${rear.value}) 处放入新元素 '${value}'。` });
+                queue.value[rear.value] = { value, highlight: null };
+                await sleep(1500);
+                
+                notyf.success(`'rear' 指针向前移动。`);
+                rear.value++;
+
+                inputs.value = '';
+                isBusy.value = false;
+            };
+
+            const dequeue = async () => {
+                if (isEmpty.value || isBusy.value) { 
+                    notyf.error('队列为空，无法出队！');
+                    return;
+                }
+
+                isBusy.value = true;
+                const dequeuedValue = queue.value[front.value].value;
+                
+                notyf.open({ type: 'info', message: `从 front 指针 (索引 ${front.value}) 处取出元素 '${dequeuedValue}'。` });
+                queue.value[front.value] = null; // 核心：空出位置
+                await sleep(1500);
+                
+                notyf.success(`'front' 指针向前移动，留下的空间被浪费。`);
+                front.value++;
+                
+                isBusy.value = false;
+            };
+            
+            // --- UI Helpers ---
+            const getSlotClass = (slot, index) => {
+                const classes = [];
+                // 检查是否是被浪费的空间
+                if (index < front.value) {
+                    classes.push('highlight-wasted-slot', 'border-slate-300');
+                } else if (!slot) {
+                    classes.push('bg-slate-100', 'border-dashed', 'border-slate-300');
+                } else {
+                    classes.push('bg-slate-200', 'border-slate-300');
+                }
+                
+                if (index === front.value && !isEmpty.value) classes.push('highlight-front-slot');
+                if (index === rear.value && !isFull.value) classes.push('highlight-rear-slot');
+                return classes;
+            };
+
+            // --- Lifecycle ---
+            onMounted(resetQueue);
+            watch(visualQueue, () => nextTick(initTooltips), { deep: true, immediate: true });
+
+            return {
+                capacity, front, rear, size, isBusy, inputs, isEmpty, isFull, visualQueue,
+                resetQueue, enqueue, dequeue,
+                getSlotClass
+            };
+        }
+    }).mount('#app');
+</script>
+
+</body>
+</html>

@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>现代链式栈浏览器 - 指针级高亮教学版</title>
+
+    <!-- Dependencies -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@formkit/auto-animate@0.8.2/index.global.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+    <script src="https://unpkg.com/@popperjs/core@2"></script>
+    <script src="https://unpkg.com/tippy.js@6"></script>
+
+    <style>
+        body { background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+        .notyf__toast { border-radius: 0.5rem; }
+        .notyf__message { font-size: 1rem; }
+        
+        .node-element, .pointer-highlight { transition: all 0.4s ease-in-out; }
+        
+        .highlight-context { 
+            border-color: #f97316 !important; background-color: #fff7ed !important; transform: scale(1.02);
+        }
+        .highlight-result {
+            border-color: #22c55e !important; background-color: #f0fdf4 !important; transform: scale(1.05);
+        }
+        .highlight-delete {
+            border-color: #ef4444 !important; background-color: #fef2f2 !important; opacity: 0.5; transform: scale(0.95);
+        }
+        .highlight-pointer-section {
+            background-color: #fef08a; border-radius: 0.375rem; transform: scale(1.05); box-shadow: 0 0 0 2px #facc15;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app" class="max-w-4xl mx-auto px-4 py-8">
+    
+    <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-slate-800">现代链式栈浏览器</h1>
+        <p class="text-slate-500 mt-2">一个基于链表实现的栈结构交互式演示</p>
+    </div>
+
+    <!-- Controls Panel -->
+    <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="space-y-4">
+                <h3 class="font-semibold text-lg text-slate-700 border-b pb-2">基本操作</h3>
+                <div class="flex gap-2">
+                    <input type="text" v-model="inputs.value" placeholder="入栈值" @keyup.enter="push" class="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button @click="push" :disabled="isBusy" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300 disabled:cursor-not-allowed">入栈 (Push)</button>
+                    <button @click="pop" :disabled="isBusy || !top" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300 disabled:cursor-not-allowed">出栈 (Pop)</button>
+                </div>
+            </div>
+            <div class="space-y-4">
+                 <h3 class="font-semibold text-lg text-slate-700 border-b pb-2">查看 & 管理</h3>
+                 <div class="flex flex-wrap gap-2">
+                    <button @click="peek" :disabled="isBusy || !top" class="flex-1 bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300 disabled:cursor-not-allowed">查看栈顶 (Peek)</button>
+                    <button @click="resetStack" :disabled="isBusy" class="flex-1 bg-slate-600 hover:bg-slate-700 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300">重置栈</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Visualization -->
+    <div class="bg-white p-6 rounded-xl shadow-lg">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-200">
+             <div class="flex items-center gap-2 text-xl font-bold text-slate-700" data-tippy-content="TOP 指针永远指向栈的顶部，所有操作都从这里开始。">
+                <span class="bg-orange-100 text-orange-800 text-sm font-semibold mr-2 px-2.5 py-0.5 rounded-full">TOP</span>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-orange-500"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg>
+                <span class="text-xl font-mono" :class="top ? 'text-orange-600' : 'text-slate-400'">{{ top ? top.value : 'null' }}</span>
+            </div>
+            <div class="text-lg font-semibold text-slate-600">Size: <span class="font-bold text-blue-600">{{ size }}</span></div>
+        </div>
+        
+        <!-- Stack Nodes -->
+        <div v-auto-animate="{ duration: 500 }" class="space-y-4 min-h-[150px] relative">
+            <div v-if="!top" class="text-center text-slate-400 py-8">栈为空。</div>
+
+            <div v-for="node in visualNodes" :key="node.id" 
+                 class="node-element bg-slate-50 border-2 border-slate-200 p-4 rounded-lg flex flex-col items-center shadow-sm"
+                 :class="{ 'highlight-context': node.highlight === 'context', 'highlight-result': node.highlight === 'result', 'highlight-delete': node.highlight === 'delete' }" 
+                 :data-tippy-content="`Node Value: ${node.value}`">
+                
+                <!-- Node Value -->
+                <div class="flex items-center gap-3">
+                    <span class="bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded">VAL</span>
+                    <span class="font-mono text-xl font-semibold text-slate-800">{{ node.value }}</span>
+                </div>
+
+                <!-- Pointer Section -->
+                <div class="w-full mt-3 pt-3 border-t border-dashed flex justify-center pointer-highlight" :class="{'highlight-pointer-section': node.highlight === 'pointer'}">
+                    <div class="flex flex-col items-center text-sm text-slate-500">
+                        <span>NEXT</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 my-1 text-slate-400"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 13.5 12 21m0 0-7.5-7.5M12 21V3" /></svg>
+                        <span class="font-mono text-base" :class="node.next ? 'text-green-700' : 'text-slate-400'">{{ node.next ? node.next.value : 'null' }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, reactive, onMounted, nextTick, watch } = Vue;
+
+    createApp({
+        setup() {
+            // --- State ---
+            const top = ref(null); // 指向栈顶节点
+            const size = ref(0);
+            const isBusy = ref(false);
+            let idCounter = 0;
+            const visualNodes = ref([]);
+            const inputs = reactive({ value: 'C++' });
+
+            // --- Tools ---
+            const notyf = new Notyf({ duration: 4500, position: { x: 'right', y: 'top' }, dismissible: true, types: [ { type: 'info', backgroundColor: '#3b82f6', icon: false }, { type: 'success', backgroundColor: '#22c55e' }, { type: 'error', backgroundColor: '#ef4444' }] });
+            const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+            // --- Core Logic ---
+            const createNode = (value, next = null) => ({
+                id: idCounter++, value, next, highlight: null
+            });
+
+            // 将链式结构转换为数组以供 v-for 渲染
+            const syncVisuals = () => {
+                const nodes = [];
+                let current = top.value;
+                while (current) {
+                    nodes.push(current);
+                    current = current.next;
+                }
+                visualNodes.value = nodes;
+            };
+            
+            const clearAllHighlights = () => {
+                let current = top.value;
+                while(current){
+                    current.highlight = null;
+                    current = current.next;
+                }
+                syncVisuals();
+            };
+
+            // --- Operations ---
+            const resetStack = async () => {
+                isBusy.value = true;
+                top.value = null; size.value = 0; idCounter = 0;
+                syncVisuals();
+                await nextTick();
+                
+                // 倒序插入，以使 'JavaScript' 在栈顶
+                for (const val of ['Python', 'Java', 'JavaScript'].reverse()) {
+                    const newNode = createNode(val, top.value);
+                    top.value = newNode;
+                    size.value++;
+                }
+                syncVisuals();
+                await nextTick();
+                notyf.success('链式栈已重置。');
+                isBusy.value = false;
+            };
+
+            const push = async () => {
+                const val = inputs.value;
+                if (!val || isBusy.value) return;
+                isBusy.value = true;
+                clearAllHighlights();
+
+                notyf.open({ type: 'info', message: `<b>第1步:</b> 创建一个值为 '${val}' 的新节点。` });
+                const newNode = createNode(val);
+                // 临时将其添加到视图顶部进行展示
+                visualNodes.value.unshift(newNode);
+                await nextTick();
+                newNode.highlight = 'result';
+                await sleep(2500);
+
+                notyf.open({ type: 'info', message: `<b>第2步:</b> 将新节点的 'next' 指针指向当前的栈顶 (Top)。` });
+                newNode.highlight = 'pointer';
+                if(top.value) top.value.highlight = 'context';
+                await sleep(3000);
+                
+                newNode.next = top.value; // 核心步骤 1
+                
+                notyf.open({ type: 'info', message: `<b>第3步:</b> 更新全局的 'Top' 指针，使其指向新节点。` });
+                top.value = newNode; // 核心步骤 2
+                size.value++;
+                syncVisuals();
+                await nextTick();
+
+                top.value.highlight = 'result';
+                notyf.success(`<b>完成:</b> 节点 '${val}' 已成功入栈！`);
+                
+                await sleep(2500);
+                clearAllHighlights();
+                inputs.value = '';
+                isBusy.value = false;
+            };
+
+            const pop = async () => {
+                if (!top.value || isBusy.value) return;
+                isBusy.value = true;
+                clearAllHighlights();
+
+                const nodeToRemove = top.value;
+                const removedValue = nodeToRemove.value;
+
+                notyf.open({ type: 'info', message: `<b>第1步:</b> 定位到要移除的栈顶节点 (红色高亮)。` });
+                nodeToRemove.highlight = 'delete';
+                await sleep(2500);
+                
+                notyf.open({ type: 'info', message: `<b>第2步:</b> 准备更新 'Top' 指针，使其指向下一个节点。` });
+                if (nodeToRemove.next) {
+                    nodeToRemove.next.highlight = 'result';
+                }
+                await sleep(2500);
+
+                top.value = top.value.next; // 核心步骤
+                size.value--;
+                syncVisuals();
+                await nextTick();
+
+                notyf.success(`<b>完成:</b> 节点 '${removedValue}' 已成功出栈。`);
+                await sleep(2000);
+                clearAllHighlights();
+                isBusy.value = false;
+            };
+            
+            const peek = async () => {
+                if (!top.value || isBusy.value) return;
+                isBusy.value = true;
+                clearAllHighlights();
+                
+                const topNode = top.value;
+                notyf.success(`查找到栈顶元素: '${topNode.value}'`);
+                topNode.highlight = 'result';
+                await sleep(2000);
+                topNode.highlight = null;
+                isBusy.value = false;
+            };
+            
+            const initTooltips = () => { tippy('[data-tippy-content]', { arrow: true, animation: 'fade', theme: 'light-border', allowHTML: true }); };
+            watch(visualNodes, () => { nextTick(() => { initTooltips(); }); }, { deep: true, immediate: true });
+            onMounted(() => { resetStack(); });
+
+            return { top, size, isBusy, inputs, visualNodes, resetStack, push, pop, peek };
+        }
+    }).mount('#app');
+</script>
+
+</body>
+</html>

@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Red-Black Tree Rotation Visualization</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f7f8fc;
+            color: #2d3748;
+            overflow-x: hidden;
+        }
+
+        .node-circle {
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+            transition: all 0.3s ease;
+            stroke-width: 3;
+            stroke: rgba(0,0,0,0.1);
+        }
+
+        .node-circle:hover {
+            filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.2));
+            transform: scale(1.05);
+        }
+
+        .edge-line {
+            stroke: #cbd5e0;
+            stroke-width: 3;
+        }
+        
+        @keyframes rotateArrow {
+            0% { opacity: 0; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.1); }
+            100% { opacity: 0; transform: scale(0.8); }
+        }
+        
+        .rotation-arrow {
+            animation: rotateArrow 2s ease-in-out infinite;
+        }
+
+        .control-panel {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(229, 62, 62, 0.4);
+        }
+        
+        .code-block {
+            background: #1a202c;
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'Fira Code', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            overflow-x: auto;
+            color: #e2e8f0;
+        }
+
+        .code-highlight {
+            background: rgba(237, 100, 166, 0.2);
+            padding: 2px 4px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+        
+        .info-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .info-card:hover {
+            border-color: rgba(229, 62, 62, 0.5);
+            box-shadow: 0 4px 20px rgba(229, 62, 62, 0.1);
+        }
+
+        .step-indicator {
+            background: #e2e8f0;
+            border: 2px solid #c53030;
+            color: #c53030;
+            transition: all 0.3s ease;
+        }
+
+        .step-indicator.active {
+            background: #c53030;
+            color: white;
+            transform: scale(1.2);
+        }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #a0aec0; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #718096; }
+    </style>
+</head>
+<body>
+    <div id="app" class="min-h-screen">
+        <header class="bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50">
+            <div class="container mx-auto px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <h1 class="text-3xl font-bold bg-gradient-to-r from-red-600 to-gray-800 bg-clip-text text-transparent">
+                        Red-Black Tree Visualization
+                    </h1>
+                    <div class="flex items-center gap-4">
+                        <button @click="toggleExplanation" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            {{ showExplanation ? 'Hide' : 'Show' }} Theory
+                        </button>
+                        <button @click="resetAll" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors">
+                            <i class="fas fa-redo mr-2"></i>
+                            Reset
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="container mx-auto px-6 py-8">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-1">
+                    <div class="control-panel p-6 sticky top-24">
+                        <h2 class="text-xl font-semibold mb-6 text-gray-800">Insertion Controls</h2>
+                        
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-500 mb-3">Select Insertion Case</label>
+                            <div class="grid grid-cols-1 gap-3">
+                                <button 
+                                    v-for="type in insertionCases" 
+                                    :key="type.id"
+                                    @click="selectCaseType(type.id)"
+                                    :class="['p-3 rounded-lg border transition-all text-left', 
+                                             selectedType === type.id 
+                                             ? 'bg-red-600 border-red-600 text-white' 
+                                             : 'bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200']"
+                                >
+                                    <div class="font-semibold">{{ type.name }}</div>
+                                    <div class="text-xs mt-1 opacity-80">{{ type.description }}</div>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-500 mb-3">Animation Control</label>
+                            <div class="space-y-3">
+                                <button 
+                                    @click="startAnimation"
+                                    :disabled="isAnimating"
+                                    class="w-full btn-primary py-3 px-6 rounded-lg text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <i class="fas fa-play mr-2"></i>
+                                    {{ isAnimating ? 'Animating...' : 'Start Animation' }}
+                                </button>
+                                
+                                <div class="flex gap-2">
+                                    <button 
+                                        @click="previousStep"
+                                        :disabled="currentStep === 0 || isAnimating"
+                                        class="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors disabled:opacity-50"
+                                    >
+                                        <i class="fas fa-chevron-left mr-1"></i>
+                                        Previous
+                                    </button>
+                                    <button 
+                                        @click="nextStep"
+                                        :disabled="currentStep >= maxSteps || isAnimating"
+                                        class="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors disabled:opacity-50"
+                                    >
+                                        Next
+                                        <i class="fas fa-chevron-right ml-1"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-500 mb-3">
+                                Animation Speed: {{ animationSpeed }}ms
+                            </label>
+                            <input 
+                                type="range" 
+                                v-model="animationSpeed" 
+                                min="500" 
+                                max="3000" 
+                                step="100"
+                                class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer"
+                                style="accent-color: #c53030;"
+                            >
+                        </div>
+                        
+                        <div class="space-y-3">
+                            <label class="flex items-center cursor-pointer">
+                                <input type="checkbox" v-model="showRotationArrows" class="mr-3 w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500">
+                                <span class="text-gray-700">Show Rotation Arrows</span>
+                            </label>
+                            <label class="flex items-center cursor-pointer">
+                                <input type="checkbox" v-model="showCode" class="mr-3 w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500">
+                                <span class="text-gray-700">Show Code</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="lg:col-span-2">
+                    <div class="mb-6 flex items-center justify-center gap-3">
+                        <div 
+                            v-for="(step, index) in steps" 
+                            :key="index"
+                            :class="['step-indicator w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold',
+                                     currentStep === index ? 'active' : '']"
+                        >
+                            {{ index + 1 }}
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white/50 rounded-2xl p-8 border border-gray-200 shadow-lg">
+                        <svg 
+                            :width="svgWidth" 
+                            :height="svgHeight" 
+                            class="w-full"
+                            viewBox="0 0 800 500"
+                        >
+                            <defs>
+                                <linearGradient id="nodeRed" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#f87171;" />
+                                    <stop offset="100%" style="stop-color:#dc2626;" />
+                                </linearGradient>
+                                <linearGradient id="nodeBlack" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#4a5568;" />
+                                    <stop offset="100%" style="stop-color:#1a202c;" />
+                                </linearGradient>
+                                <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+                                        refX="9" refY="3.5" orient="auto">
+                                    <polygon points="0 0, 10 3.5, 0 7" fill="#c53030" />
+                                </marker>
+                            </defs>
+                            
+                            <g class="edges">
+                                <line 
+                                    v-for="edge in currentEdges" 
+                                    :key="edge.id"
+                                    :x1="edge.x1" 
+                                    :y1="edge.y1" 
+                                    :x2="edge.x2" 
+                                    :y2="edge.y2"
+                                    class="edge-line"
+                                />
+                            </g>
+                            
+                            <g v-if="showRotationArrows && rotationArrow" class="rotation-arrows">
+                                <path 
+                                    :d="rotationArrow.path"
+                                    fill="none"
+                                    stroke="#c53030"
+                                    stroke-width="3"
+                                    marker-end="url(#arrowhead)"
+                                    class="rotation-arrow"
+                                    stroke-dasharray="5,5"
+                                />
+                                <text :x="rotationArrow.textX" :y="rotationArrow.textY" fill="#c53030" class="font-semibold" text-anchor="middle">
+                                    {{ rotationArrow.text }}
+                                </text>
+                            </g>
+                            
+                            <g class="nodes">
+                                <g 
+                                    v-for="node in currentNodes" 
+                                    :key="node.id"
+                                    :transform="`translate(${node.x}, ${node.y})`"
+                                    class="node"
+                                >
+                                    <circle r="30" :fill="getNodeColor(node)" class="node-circle" />
+                                    <text text-anchor="middle" dy="5" class="font-bold text-lg pointer-events-none text-white">
+                                        {{ node.label }}
+                                    </text>
+                                </g>
+                            </g>
+                        </svg>
+                    </div>
+                    
+                    <div class="mt-6 info-card">
+                        <h3 class="text-lg font-semibold mb-3 text-red-600">
+                            Step {{ currentStep + 1 }}: {{ steps[currentStep]?.title }}
+                        </h3>
+                        <p class="text-gray-600 leading-relaxed">
+                            {{ steps[currentStep]?.description }}
+                        </p>
+                    </div>
+                    
+                    <div v-if="showCode" class="mt-6">
+                        <h3 class="text-lg font-semibold mb-3 text-gray-800">Implementation Code</h3>
+                        <div class="code-block">
+                            <pre><code v-html="currentCode"></code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div v-if="showExplanation" class="mt-12 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="info-card">
+                    <h3 class="text-xl font-semibold mb-4 text-red-600">
+                        <i class="fas fa-book mr-2"></i>What is a Red-Black Tree?
+                    </h3>
+                    <p class="text-gray-600 mb-4">
+                        A Red-Black Tree is another type of self-balancing binary search tree that maintains its balance using a set of rules based on node colors (either red or black).
+                    </p>
+                    <ul class="space-y-2 text-gray-600">
+                        <li><i class="fas fa-check text-green-500 mr-2"></i>Guarantees O(log n) time complexity.</li>
+                        <li><i class="fas fa-check text-green-500 mr-2"></i>The root is always black.</li>
+                        <li><i class="fas fa-check text-green-500 mr-2"></i>A red node cannot have red children.</li>
+                        <li><i class="fas fa-check text-green-500 mr-2"></i>Every path from the root to a null leaf has the same number of black nodes.</li>
+                    </ul>
+                </div>
+                
+                <div class="info-card">
+                    <h3 class="text-xl font-semibold mb-4 text-red-600">
+                        <i class="fas fa-sync-alt mr-2"></i>Insertion Fix-up
+                    </h3>
+                    <p class="text-gray-600">After inserting a new node (always red), the tree might violate the rules. Recoloring and rotations are used to fix it:</p>
+                    <div class="space-y-3 text-gray-600 mt-3">
+                        <div><span class="font-semibold text-red-700">Case 1 (Uncle is Red):</span> A "color flip" is performed. The parent and uncle become black, the grandparent becomes red. The problem may move up the tree.</div>
+                        <div><span class="font-semibold text-red-700">Case 2 (Uncle is Black - Outer):</span> A single rotation and recoloring.</div>
+                        <div><font-semibold class="font-semibold text-red-700">Case 3 (Uncle is Black - Inner):</font-semibold> A double rotation and recoloring.</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        
+        createApp({
+            data() {
+                return {
+                    svgWidth: 800,
+                    svgHeight: 500,
+                    insertionCases: [
+                        { id: 'RECOLOR', name: 'Case 1: Red Uncle', description: 'The new node\'s parent and uncle are red.' },
+                        { id: 'LL', name: 'Case 2: Black Uncle (Outer)', description: 'A single rotation (LL or RR).' },
+                        { id: 'LR', name: 'Case 3: Black Uncle (Inner)', description: 'A double rotation (LR or RL).' }
+                    ],
+                    selectedType: 'LR',
+                    currentStep: 0,
+                    isAnimating: false,
+                    animationSpeed: 1500,
+                    showRotationArrows: true,
+                    showCode: false,
+                    showExplanation: false,
+                    currentNodes: [],
+                    currentEdges: [],
+                    rotationArrow: null,
+                    steps: [],
+                    maxSteps: 0,
+                    treeStates: {},
+                };
+            },
+            
+            computed: {
+                currentCode() {
+                    const codes = {
+                        'LL': `<span class="code-highlight">// Case: Black Uncle, Outer (e.g., Left-Left)</span>\nfunction fixup(node G, node P) {\n    <span class="code-highlight">rotateRight(G);</span>\n    <span class="code-highlight">P.color = BLACK;</span>\n    <span class="code-highlight">G.color = RED;</span>\n}`,
+                        'LR': `<span class="code-highlight">// Case: Black Uncle, Inner (e.g., Left-Right)</span>\nfunction fixup(node G, node P) {\n    <span class="code-highlight">rotateLeft(P);</span>\n    // Now it's a Left-Left case\n    <span class="code-highlight">rotateRight(G);</span>\n    // ...and recolor\n}`,
+                        'RECOLOR': `<span class="code-highlight">// Case: Uncle (U) is Red</span>\nfunction fixup(node G, node P, node U) {\n    <span class="code-highlight">P.color = BLACK;</span>\n    <span class="code-highlight">U.color = BLACK;</span>\n    <span class="code-highlight">G.color = RED;</span>\n    // Propagate the problem upwards if needed\n    // fixup(G.parent.parent, G.parent)\n}`
+                    };
+                    return codes[this.selectedType] || '';
+                }
+            },
+            
+            mounted() {
+                this.defineAllTreeStates();
+                this.initializeTree();
+            },
+            
+            methods: {
+                initializeTree() {
+                    this.setupSteps();
+                    this.setTreeState(this.currentStep);
+                },
+
+                defineAllTreeStates() {
+                    this.treeStates = {
+                        'LR': [
+                            { // Initial state: Double-red violation, Uncle is black, Inner case (LR)
+                                nodes: [
+                                    { id: 'G', label: '30', x: 400, y: 80, color: 'black'}, 
+                                    { id: 'P', label: '10', x: 250, y: 180, color: 'red'}, 
+                                    { id: 'U', label: 'T', x: 550, y: 180, color: 'black'},
+                                    { id: 'N', label: '20', x: 350, y: 280, color: 'red'}, // Inserted node
+                                ],
+                                edges: [{ id: 'G-P' },{ id: 'G-U' },{ id: 'P-N' }],
+                                arrow: { path: 'M 250 210 Q 220 245 250 280', text: 'Left Rotate', textX: 180, textY: 250 }
+                            },
+                            { // After left rotation on P. Now it's an LL case.
+                                nodes: [
+                                    { id: 'G', label: '30', x: 400, y: 80, color: 'black' },
+                                    { id: 'N', label: '20', x: 250, y: 180, color: 'red' },
+                                    { id: 'U', label: 'T', x: 550, y: 180, color: 'black' },
+                                    { id: 'P', label: '10', x: 150, y: 280, color: 'red' },
+                                ],
+                                edges: [{ id: 'G-N' },{ id: 'G-U' },{ id: 'N-P' }],
+                                arrow: { path: 'M 400 110 Q 460 145 400 180', text: 'Right Rotate', textX: 490, textY: 150 }
+                            },
+                            { // After right rotation on G and recoloring. Balanced.
+                                nodes: [
+                                    { id: 'N', label: '20', x: 400, y: 80, color: 'black'}, // New subtree root is black
+                                    { id: 'P', label: '10', x: 250, y: 180, color: 'red' },  // Left child is red
+                                    { id: 'G', label: '30', x: 550, y: 180, color: 'red' },  // Right child is red
+                                    { id: 'U', label: 'T', x: 650, y: 280, color: 'black'},
+                                ],
+                                edges: [{ id: 'N-P' }, { id: 'N-G' }, { id: 'G-U'}],
+                                arrow: null
+                            }
+                        ],
+                        'LL': [
+                             { // Initial state: Double-red violation, Uncle is black, Outer case (LL)
+                                nodes: [
+                                    { id: 'G', label: '30', x: 400, y: 80, color: 'black'}, 
+                                    { id: 'P', label: '20', x: 250, y: 180, color: 'red'}, 
+                                    { id: 'U', label: 'T', x: 550, y: 180, color: 'black'},
+                                    { id: 'N', label: '10', x: 150, y: 280, color: 'red'}, // Inserted node
+                                ],
+                                edges: [{ id: 'G-P' },{ id: 'G-U' },{ id: 'P-N' }],
+                                arrow: { path: 'M 400 110 Q 460 145 400 180', text: 'Right Rotate', textX: 490, textY: 150 }
+                            },
+                            { // After right rotation on G and recoloring. Balanced.
+                                nodes: [
+                                    { id: 'P', label: '20', x: 400, y: 80, color: 'black'}, // New root is black
+                                    { id: 'N', label: '10', x: 250, y: 180, color: 'red'},   // Left child is red
+                                    { id: 'G', label: '30', x: 550, y: 180, color: 'red'},   // Right child is red
+                                    { id: 'U', label: 'T', x: 650, y: 280, color: 'black'},
+                                ],
+                                edges: [{ id: 'P-N' },{ id: 'P-G' },{ id: 'G-U' }],
+                                arrow: null
+                            }
+                        ],
+                        'RECOLOR': [
+                            { // BUG-FIXED: Initial state: Double-red violation, Uncle is RED.
+                                nodes: [
+                                    { id: 'G', label: '20', x: 400, y: 80, color: 'black'}, // Grandparent
+                                    { id: 'P', label: '10', x: 250, y: 200, color: 'red'},   // Parent
+                                    { id: 'U', label: '30', x: 550, y: 200, color: 'red'},   // Uncle is red
+                                    { id: 'N', label: '5', x: 150, y: 320, color: 'red'},   // Inserted node
+                                ],
+                                edges: [{ id: 'G-P' },{ id: 'G-U' },{ id: 'P-N' }],
+                                arrow: { path: 'M 400 110 Q 400 150 400 200', text: 'Color Flip', textX: 400, textY: 160 }
+                            },
+                            { // BUG-FIXED: After color flip. P and U are black, G is red.
+                                nodes: [
+                                    { id: 'G', label: '20', x: 400, y: 80, color: 'red'},     // Grandparent is now red
+                                    { id: 'P', label: '10', x: 250, y: 200, color: 'black'},   // Parent is now black
+                                    { id: 'U', label: '30', x: 550, y: 200, color: 'black'},   // Uncle is now black
+                                    { id: 'N', label: '5', x: 150, y: 320, color: 'red'},
+                                ],
+                                edges: [{ id: 'G-P' },{ id: 'G-U' },{ id: 'P-N' }],
+                                arrow: null
+                            }
+                        ]
+                    };
+                },
+                
+                setupSteps() {
+                    const stepConfigs = {
+                        'LL': [
+                            { title: 'Violation: Black Uncle, Outer', description: 'The new node (10) and its parent (20) are both red. The uncle (T) is black. This is an "outer" case (Left-Left) fixed with a single right rotation on the grandparent (30).' },
+                            { title: 'After Rotation & Recolor', description: 'The parent (20) becomes the new subtree root and is colored black. The old grandparent (30) and the new node (10) become its children and are colored red. The Red-Black properties are restored.' }
+                        ],
+                        'LR': [
+                            { title: 'Violation: Black Uncle, Inner', description: 'The new node (20) and its parent (10) are red, creating a violation. The uncle (T) is black. This is an "inner" case (Left-Right).' },
+                            { title: 'Left Rotation on Parent', description: 'First, a left rotation is performed on the parent (10). This converts the inner case into a simpler, outer (Left-Left) case.' },
+                            { title: 'Right Rotation & Recolor', description: 'Now, a right rotation is performed on the grandparent (30), and the nodes are recolored. The new node (20) becomes the black root of the subtree, with two red children (10 and 30). The tree is now balanced.' }
+                        ],
+                        'RECOLOR': [
+                            { title: 'Violation: Red Uncle', description: 'The new node (5) and its parent (10) are red. In this scenario, the uncle (30) is also red. No rotations are needed.' },
+                            { title: 'Color Flip', description: 'We simply flip the colors. The parent (10) and uncle (30) become black. The grandparent (20) becomes red. If the grandparent\'s parent was also red, this problem would propagate up the tree.' }
+                        ]
+                    };
+                    this.steps = stepConfigs[this.selectedType];
+                    this.maxSteps = this.steps.length - 1;
+                },
+                
+                setTreeState(step) {
+                    const state = this.treeStates[this.selectedType]?.[step];
+                    if (!state) return;
+
+                    this.currentNodes = JSON.parse(JSON.stringify(state.nodes));
+                    this.updateEdges(this.currentNodes);
+                    this.rotationArrow = state.arrow;
+                },
+                
+                updateEdges(nodes) {
+                    const nodeMap = new Map(nodes.map(n => [n.id, {x: n.x, y: n.y}]));
+                    const state = this.treeStates[this.selectedType]?.[this.currentStep];
+                    if (!state) return;
+
+                    const newEdges = [];
+                    for(const edge of state.edges) {
+                        const [fromId, toId] = edge.id.split('-');
+                        const fromNode = nodeMap.get(fromId);
+                        const toNode = nodeMap.get(toId);
+                        if(fromNode && toNode) {
+                            newEdges.push({
+                                id: edge.id,
+                                x1: fromNode.x, y1: fromNode.y + 30,
+                                x2: toNode.x, y2: toNode.y - 30
+                            });
+                        }
+                    }
+                    this.currentEdges = newEdges;
+                },
+
+                getNodeColor(node) {
+                    return node.color === 'red' ? 'url(#nodeRed)' : 'url(#nodeBlack)';
+                },
+                
+                selectCaseType(type) {
+                    if(this.isAnimating) return;
+                    this.selectedType = type;
+                    this.currentStep = 0;
+                    this.initializeTree();
+                },
+                
+                async startAnimation() {
+                    if (this.isAnimating || this.maxSteps === 0) return;
+                    
+                    this.isAnimating = true;
+                    this.currentStep = 0;
+                    this.setTreeState(0);
+                    
+                    for (let i = 0; i < this.maxSteps; i++) {
+                        await this.sleep(this.animationSpeed / 2);
+                        await this.animateStep(i, i + 1);
+                    }
+                    
+                    this.isAnimating = false;
+                },
+                
+                async nextStep() {
+                    if (this.currentStep < this.maxSteps && !this.isAnimating) {
+                       await this.animateStep(this.currentStep, this.currentStep + 1);
+                    }
+                },
+                
+                async previousStep() {
+                    if (this.currentStep > 0 && !this.isAnimating) {
+                        await this.animateStep(this.currentStep, this.currentStep - 1);
+                    }
+                },
+
+                animateStep(fromStep, toStep) {
+                    return new Promise(resolve => {
+                        this.isAnimating = true;
+
+                        const startState = this.treeStates[this.selectedType][fromStep];
+                        const endState = this.treeStates[this.selectedType][toStep];
+
+                        const startNodes = new Map(startState.nodes.map(n => [n.id, n]));
+                        const endNodes = new Map(endState.nodes.map(n => [n.id, n]));
+                        
+                        this.rotationArrow = endState.arrow;
+
+                        const duration = this.animationSpeed;
+                        let startTime = null;
+
+                        const animationFrame = (timestamp) => {
+                            if (!startTime) startTime = timestamp;
+                            const elapsed = timestamp - startTime;
+                            const progress = Math.min(elapsed / duration, 1);
+                            const easedProgress = 0.5 - 0.5 * Math.cos(progress * Math.PI);
+
+                            for (let node of this.currentNodes) {
+                                const startPos = startNodes.get(node.id);
+                                const endPos = endNodes.get(node.id);
+
+                                if (startPos && endPos) {
+                                    const curveFactor = 0.3;
+                                    const controlX = (startPos.x + endPos.x) / 2 + (startPos.y - endPos.y) * curveFactor * (toStep > fromStep ? 1 : -1);
+                                    const controlY = (startPos.y + endPos.y) / 2 + (endPos.x - startPos.x) * curveFactor * (toStep > fromStep ? 1 : -1);
+
+                                    const p0 = (1 - easedProgress) ** 2;
+                                    const p1 = 2 * (1 - easedProgress) * easedProgress;
+                                    const p2 = easedProgress ** 2;
+
+                                    node.x = p0 * startPos.x + p1 * controlX + p2 * endPos.x;
+                                    node.y = p0 * startPos.y + p1 * controlY + p2 * endPos.y;
+                                    
+                                    // Update color instantly at the beginning of the final step
+                                    if(progress > 0) {
+                                        node.color = endPos.color;
+                                    }
+
+                                } else if (endPos) { // Node is entering
+                                    node.x = endPos.x;
+                                    node.y = endPos.y;
+                                }
+                            }
+                            
+                            this.updateEdges(this.currentNodes);
+
+                            if (progress < 1) {
+                                requestAnimationFrame(animationFrame);
+                            } else {
+                                this.currentStep = toStep;
+                                this.setTreeState(toStep);
+                                this.isAnimating = false;
+                                resolve();
+                            }
+                        };
+
+                        requestAnimationFrame(animationFrame);
+                    });
+                },
+                
+                toggleExplanation() { this.showExplanation = !this.showExplanation; },
+                
+                resetAll() {
+                    if(this.isAnimating) return;
+                    this.currentStep = 0;
+                    this.selectedType = 'LR';
+                    this.initializeTree();
+                },
+                
+                sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

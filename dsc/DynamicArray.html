@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Array Explorer - 数组的奥秘</title>
+    <style>
+        /* CSS负责所有“美观”的部分，让界面现代化 */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 2rem;
+            gap: 2rem;
+        }
+
+        .container {
+            background: #fff;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 10px;
+            margin-bottom: 1.5rem;
+            border: 2px solid #e0e0e0;
+            padding: 10px;
+            border-radius: 6px;
+            min-height: 100px;
+        }
+
+        .cell {
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 10px;
+            text-align: center;
+            background-color: #fafafa;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .cell.highlight-read {
+            background-color: #a7c7e7;
+            transform: scale(1.1);
+        }
+
+        .cell.highlight-update {
+            background-color: #f7d99a;
+        }
+
+        .cell.highlight-delete {
+            background-color: #f6a6a6;
+            animation: fadeOut 0.5s forwards;
+        }
+
+        .cell.highlight-insert {
+            background-color: #a7e7b7;
+            animation: fadeIn 0.5s;
+        }
+
+        .cell-index {
+            font-size: 0.75rem;
+            color: #888;
+            display: block;
+        }
+
+        .cell-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .cell-address {
+            font-size: 0.7rem;
+            color: #aaa;
+            display: block;
+            margin-top: 4px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .controls,
+        .info-panel {
+            margin-bottom: 1.5rem;
+        }
+
+        .control-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        input,
+        button {
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            font-size: 1rem;
+            margin-right: 0.5rem;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        #info {
+            background-color: #e3f2fd;
+            border-left: 5px solid #2196f3;
+            padding: 1rem;
+            border-radius: 4px;
+            min-height: 80px;
+            transition: all 0.3s ease;
+        }
+
+        #info h4 {
+            margin-top: 0;
+        }
+
+        #info code {
+            background-color: rgba(0, 0, 0, 0.05);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.5);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+            }
+
+            to {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h2>Array Explorer - 数组的奥秘</h2>
+        <div id="array-app" v-scope>
+
+            <!-- 1. 可视化数组网格 -->
+            <div class="grid-container">
+                <div v-for="(item, index) in items" :class="['cell', item.highlight]"
+                    @animationend="item.highlight = ''">
+                    <span class="cell-value">{{ item.value }}</span>
+                    <span class="cell-index">索引: {{ index }}</span>
+                    <span class="cell-address">地址: {{ calculateAddress(index) }}</span>
+                </div>
+            </div>
+
+            <!-- 2. 信息与解说面板 -->
+            <div class="info-panel">
+                <h4>操作解析：</h4>
+                <div id="info">
+                    <p v-html="infoText"></p>
+                </div>
+            </div>
+
+            <!-- 3. 控制面板 -->
+            <div class="controls">
+                <!-- 读取 (Read) -->
+                <div class="control-group">
+                    <label for="read-index">读取 (Read / Access)</label>
+                    <input type="number" id="read-index" v-model="indices.read" placeholder="索引">
+                    <button @click="readItem()">读取</button>
+                </div>
+                <!-- 更新 (Update) -->
+                <div class="control-group">
+                    <label for="update-index">更新 (Update)</label>
+                    <input type="number" id="update-index" v-model="indices.update" placeholder="索引">
+                    <input type="text" id="update-value" v-model="values.update" placeholder="新值">
+                    <button @click="updateItem()">更新</button>
+                </div>
+                <!-- 插入 (Create/Insert) -->
+                <div class="control-group">
+                    <label for="insert-index">插入 (Insert)</label>
+                    <input type="number" id="insert-index" v-model="indices.insert" placeholder="索引">
+                    <input type="text" id="insert-value" v-model="values.insert" placeholder="值">
+                    <button @click="insertItem()">插入</button>
+                </div>
+                <!-- 删除 (Delete) -->
+                <div class="control-group">
+                    <label for="delete-index">删除 (Delete)</label>
+                    <input type="number" id="delete-index" v-model="indices.delete" placeholder="索引">
+                    <button @click="deleteItem()">删除</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/petite-vue"></script>
+    <script>
+        PetiteVue.createApp({
+            // --- 数据模型 (Model) ---
+
+            // 直接在这里初始化数组，而不是在 mounted() 中
+            items: ['C', 'Java', 'Python', 'Go', 'Rust', 'C++'].map(value => ({ value, highlight: '' })),
+
+            baseAddress: 0x1000, // 模拟的内存基地址
+            elementSize: 8, // 模拟每个元素占用8个字节
+            infoText: '欢迎来到数组浏览器！请在下方尝试不同的操作。',
+
+            indices: { read: 0, update: 1, insert: 2, delete: 3 },
+            values: { update: 'JS', insert: 'New' },
+
+            // --- 核心方法 (Methods) ---
+
+            // 计算模拟地址，这是展示数组O(1)访问的关键！
+            calculateAddress(index) {
+                return `0x${(this.baseAddress + index * this.elementSize).toString(16).toUpperCase()}`;
+            },
+
+            // 1. 读取 (Read) - O(1)
+            readItem() {
+                const index = this.indices.read;
+                if (index < 0 || index >= this.items.length) {
+                    this.infoText = `<span style="color:red;">错误：索引 ${index} 超出范围！</span>`;
+                    return;
+                }
+
+                this.highlightCell(index, 'read');
+                const address = this.calculateAddress(index);
+                const offsetDecimal = index * this.elementSize;
+                const offsetHex = offsetDecimal.toString(16);
+
+                this.infoText = `
+        <h4>读取操作 (O(1))</h4>
+        <p>要读取索引 <code>${index}</code> 的值，计算机执行一次简单的数学计算：</p>
+        <p><code>地址 = 基地址 + (索引 × 元素大小)</code></p>
+        <hr>
+        <p>1. 计算偏移量 (十进制): <code>${index} × ${this.elementSize} = ${offsetDecimal}</code></p>
+        <p>2. 将偏移量转为十六进制: <code>${offsetDecimal} (十进制) = 0x${offsetHex.toUpperCase()} (十六进制)</code></p>
+        <p>3. 执行十六进制加法: <code>0x${this.baseAddress.toString(16).toUpperCase()} + 0x${offsetHex.toUpperCase()} = ${address}</code></p>
+        <hr>
+        <p>这个操作非常快，因为它只涉及纯数学计算，无论数组有多大，耗时几乎不变。这就是数组<b>随机访问</b>的威力！</p>
+    `;
+            },
+
+            // 2. 更新 (Update) - O(1)
+            updateItem() {
+                const index = this.indices.update;
+                const value = this.values.update;
+                if (index < 0 || index >= this.items.length) {
+                    this.infoText = `<span style="color:red;">错误：索引 ${index} 超出范围！</span>`;
+                    return;
+                }
+
+                this.items[index].value = value;
+                this.highlightCell(index, 'update');
+                this.infoText = `
+                    <h4>更新操作 (O(1))</h4>
+                    <p>更新索引 <code>${index}</code> 的值同样高效。我们先用 <b>O(1)</b> 的时间定位到它，然后直接覆盖其内存中的内容。</p>
+                    <p>这个操作不会影响数组中的任何其他元素。</p>
+                `;
+            },
+
+            // 3. 插入 (Insert) - O(n)
+            insertItem() {
+                const index = this.indices.insert;
+                const value = this.values.insert;
+                if (index < 0 || index > this.items.length) {
+                    this.infoText = `<span style="color:red;">错误：索引 ${index} 超出范围！</span>`;
+                    return;
+                }
+
+                // 这就是数组插入操作的核心：splice
+                this.items.splice(index, 0, { value, highlight: 'highlight-insert' });
+                this.infoText = `
+                    <h4>插入操作 (O(n))</h4>
+                    <p>在索引 <code>${index}</code> 处插入新值 <code>'${value}'</code> 是一个<b>昂贵</b>的操作！</p>
+                    <p>为了给新元素腾出空间，从索引 <code>${index}</code> 开始到数组末尾的<b>所有元素</b>，都必须向后移动一个位置。</p>
+                    <p>如果数组有n个元素，平均需要移动 n/2 个元素。因此，时间复杂度是 <b>O(n)</b>。当数组很大时，这会非常慢！</p>
+                `;
+            },
+
+            // 4. 删除 (Delete) - O(n)
+            deleteItem() {
+                const index = this.indices.delete;
+                if (index < 0 || index >= this.items.length) {
+                    this.infoText = `<span style="color:red;">错误：索引 ${index} 超出范围！</span>`;
+                    return;
+                }
+
+                this.highlightCell(index, 'delete');
+
+                this.infoText = `
+                    <h4>删除操作 (O(n))</h4>
+                    <p>删除索引 <code>${index}</code> 的元素同样<b>昂贵</b>！</p>
+                    <p>当元素被移除后，为了保持数组的<b>连续性</b>，从索引 <code>${index + 1}</code> 开始到数组末尾的<b>所有元素</b>，都必须向前移动一个位置来填补空缺。</p>
+                    <p>这同样是一个时间复杂度为 <b>O(n)</b> 的操作。</p>
+                `;
+
+                // 我们延迟执行真正的删除，以便让CSS动画播放完毕
+                setTimeout(() => {
+                    this.items.splice(index, 1);
+                }, 500); // 500ms 对应CSS动画时长
+            },
+
+            // 辅助函数：高亮某个单元格
+            highlightCell(index, highlightClass) {
+                // 先清除所有高亮
+                this.items.forEach(item => item.highlight = '');
+                // 然后高亮目标
+                if (this.items[index]) {
+                    this.items[index].highlight = `highlight-${highlightClass}`;
+                }
+            }
+        }).mount('#array-app');
+    </script>
+</body>
+
+</html>

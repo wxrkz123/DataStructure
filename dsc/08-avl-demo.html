@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AVL Tree Rotation Visualization</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f7f8fc; /* Light background */
+            color: #2d3748; /* Dark text */
+            overflow-x: hidden;
+        }
+
+        /* Node does not need a CSS transition anymore, JS will handle animation */
+        .node-circle {
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+            transition: all 0.3s ease;
+        }
+
+        .node-circle:hover {
+            filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.15));
+            transform: scale(1.05);
+        }
+
+        /* Edge connection line style */
+        .edge-line {
+            stroke: #cbd5e0; /* Lighter gray for lines */
+            stroke-width: 3;
+        }
+
+        /* Rotation arrow animation */
+        @keyframes rotateArrow {
+            0% { opacity: 0; transform: scale(0.8) rotate(-20deg); }
+            50% { opacity: 1; transform: scale(1.1) rotate(0deg); }
+            100% { opacity: 0; transform: scale(0.8) rotate(20deg); }
+        }
+
+        .rotation-arrow {
+            animation: rotateArrow 2s ease-in-out infinite;
+        }
+
+        /* Balance factor style */
+        .balance-factor {
+            font-weight: bold;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .balance-positive { color: #e53e3e; } /* Red for positive */
+        .balance-negative { color: #3182ce; } /* Blue for negative */
+        .balance-zero { color: #38a169; } /* Green for zero */
+
+        /* Control panel style */
+        .control-panel {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Button style */
+        .btn-primary {
+            background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(66, 153, 225, 0.4);
+        }
+
+        /* Code display style */
+        .code-block {
+            background: #edf2f7; /* Light background for code */
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'Fira Code', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            overflow-x: auto;
+            border: 1px solid #e2e8f0;
+            color: #2d3748;
+        }
+
+        .code-highlight {
+            background: rgba(66, 153, 225, 0.2);
+            padding: 2px 4px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        /* Info card */
+        .info-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .info-card:hover {
+            border-color: rgba(66, 153, 225, 0.5);
+            box-shadow: 0 4px 20px rgba(66, 153, 225, 0.1);
+        }
+        
+        /* Step indicator */
+        .step-indicator {
+            background: #e2e8f0;
+            border: 2px solid #4299e1;
+            color: #4299e1;
+            transition: all 0.3s ease;
+        }
+
+        .step-indicator.active {
+            background: #4299e1;
+            color: white;
+            transform: scale(1.2);
+        }
+        
+        /* Scrollbar style */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #a0aec0; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #718096; }
+    </style>
+</head>
+<body>
+    <div id="app" class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50">
+            <div class="container mx-auto px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <h1 class="text-3xl font-bold bg-gradient-to-r from-blue-500 to-teal-400 bg-clip-text text-transparent">
+                        AVL Tree Rotation Visualization
+                    </h1>
+                    <div class="flex items-center gap-4">
+                        <button @click="toggleExplanation" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            {{ showExplanation ? 'Hide' : 'Show' }} Theory
+                        </button>
+                        <button @click="resetAll" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors">
+                            <i class="fas fa-redo mr-2"></i>
+                            Reset
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="container mx-auto px-6 py-8">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Control Panel -->
+                <div class="lg:col-span-1">
+                    <div class="control-panel p-6 sticky top-24">
+                        <h2 class="text-xl font-semibold mb-6 text-gray-800">Rotation Controls</h2>
+                        
+                        <!-- Rotation Type Selection -->
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-500 mb-3">Select Rotation Type</label>
+                            <div class="grid grid-cols-2 gap-3">
+                                <button 
+                                    v-for="type in rotationTypes" 
+                                    :key="type.id"
+                                    @click="selectRotationType(type.id)"
+                                    :class="['p-3 rounded-lg border transition-all', 
+                                             selectedType === type.id 
+                                             ? 'bg-blue-500 border-blue-500 text-white' 
+                                             : 'bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200']"
+                                >
+                                    <div class="font-semibold">{{ type.name }}</div>
+                                    <div class="text-xs mt-1 opacity-70">{{ type.case }}</div>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Animation Control -->
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-500 mb-3">Animation Control</label>
+                            <div class="space-y-3">
+                                <button 
+                                    @click="startAnimation"
+                                    :disabled="isAnimating"
+                                    class="w-full btn-primary py-3 px-6 rounded-lg text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <i class="fas fa-play mr-2"></i>
+                                    {{ isAnimating ? 'Animating...' : 'Start Animation' }}
+                                </button>
+                                
+                                <div class="flex gap-2">
+                                    <button 
+                                        @click="previousStep"
+                                        :disabled="currentStep === 0 || isAnimating"
+                                        class="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors disabled:opacity-50"
+                                    >
+                                        <i class="fas fa-chevron-left mr-1"></i>
+                                        Previous
+                                    </button>
+                                    <button 
+                                        @click="nextStep"
+                                        :disabled="currentStep >= maxSteps || isAnimating"
+                                        class="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors disabled:opacity-50"
+                                    >
+                                        Next
+                                        <i class="fas fa-chevron-right ml-1"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Speed Control -->
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-500 mb-3">
+                                Animation Speed: {{ animationSpeed }}ms
+                            </label>
+                            <input 
+                                type="range" 
+                                v-model="animationSpeed" 
+                                min="500" 
+                                max="3000" 
+                                step="100"
+                                class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer"
+                            >
+                        </div>
+                        
+                        <!-- Display Options -->
+                        <div class="space-y-3">
+                            <label class="flex items-center cursor-pointer">
+                                <input type="checkbox" v-model="showBalanceFactors" class="mr-3 w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded">
+                                <span class="text-gray-700">Show Balance Factors</span>
+                            </label>
+                            <label class="flex items-center cursor-pointer">
+                                <input type="checkbox" v-model="showRotationArrows" class="mr-3 w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded">
+                                <span class="text-gray-700">Show Rotation Arrows</span>
+                            </label>
+                            <label class="flex items-center cursor-pointer">
+                                <input type="checkbox" v-model="showCode" class="mr-3 w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded">
+                                <span class="text-gray-700">Show Code</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Visualization Area -->
+                <div class="lg:col-span-2">
+                    <!-- Step Indicator -->
+                    <div class="mb-6 flex items-center justify-center gap-3">
+                        <div 
+                            v-for="(step, index) in steps" 
+                            :key="index"
+                            :class="['step-indicator w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold',
+                                     currentStep === index ? 'active' : '']"
+                        >
+                            {{ index + 1 }}
+                        </div>
+                    </div>
+                    
+                    <!-- SVG Canvas -->
+                    <div class="bg-white/50 rounded-2xl p-8 border border-gray-200 shadow-lg">
+                        <svg 
+                            :width="svgWidth" 
+                            :height="svgHeight" 
+                            class="w-full"
+                            viewBox="0 0 800 500"
+                        >
+                            <!-- Gradient Definitions -->
+                            <defs>
+                                <linearGradient id="nodeGradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#63b3ed;" />
+                                    <stop offset="100%" style="stop-color:#4299e1;" />
+                                </linearGradient>
+                                <linearGradient id="nodeGradient2" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#f687b3;" />
+                                    <stop offset="100%" style="stop-color:#ed64a6;" />
+                                </linearGradient>
+                                <linearGradient id="nodeGradient3" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#4fd1c5;" />
+                                    <stop offset="100%" style="stop-color:#38b2ac;" />
+                                </linearGradient>
+                                <linearGradient id="nodeGradient4" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#68d391;" />
+                                    <stop offset="100%" style="stop-color:#48bb78;" />
+                                </linearGradient>
+                                
+                                <!-- Arrowhead Marker -->
+                                <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+                                        refX="9" refY="3.5" orient="auto">
+                                    <polygon points="0 0, 10 3.5, 0 7" fill="#4299e1" />
+                                </marker>
+                            </defs>
+                            
+                            <!-- Edges -->
+                            <g class="edges">
+                                <line 
+                                    v-for="edge in currentEdges" 
+                                    :key="edge.id"
+                                    :x1="edge.x1" 
+                                    :y1="edge.y1" 
+                                    :x2="edge.x2" 
+                                    :y2="edge.y2"
+                                    class="edge-line"
+                                />
+                            </g>
+                            
+                            <!-- Rotation Arrow -->
+                            <g v-if="showRotationArrows && rotationArrow" class="rotation-arrows">
+                                <path 
+                                    :d="rotationArrow.path"
+                                    fill="none"
+                                    stroke="#4299e1"
+                                    stroke-width="3"
+                                    marker-end="url(#arrowhead)"
+                                    class="rotation-arrow"
+                                    stroke-dasharray="5,5"
+                                />
+                            </g>
+                            
+                            <!-- Nodes -->
+                            <g class="nodes">
+                                <g 
+                                    v-for="node in currentNodes" 
+                                    :key="node.id"
+                                    :transform="`translate(${node.x}, ${node.y})`"
+                                    class="node"
+                                >
+                                    <circle r="30" :fill="getNodeColor(node)" class="node-circle cursor-pointer" />
+                                    <text text-anchor="middle" dy="5" class="font-bold text-lg pointer-events-none" :fill="node.type === 'subtree' ? '#e2e8f0' : '#ffffff'">
+                                        {{ node.label }}
+                                    </text>
+                                    <text v-if="showBalanceFactors && node.balance !== undefined" x="25" y="-20" :class="['balance-factor', getBalanceClass(node.balance)]">
+                                        {{ node.balance > 0 ? '+' : '' }}{{ node.balance }}
+                                    </text>
+                                </g>
+                            </g>
+                        </svg>
+                    </div>
+                    
+                    <!-- Current Step Description -->
+                    <div class="mt-6 info-card">
+                        <h3 class="text-lg font-semibold mb-3 text-blue-500">
+                            Step {{ currentStep + 1 }}: {{ steps[currentStep]?.title }}
+                        </h3>
+                        <p class="text-gray-600 leading-relaxed">
+                            {{ steps[currentStep]?.description }}
+                        </p>
+                    </div>
+                    
+                    <!-- Code Display -->
+                    <div v-if="showCode" class="mt-6">
+                        <h3 class="text-lg font-semibold mb-3 text-gray-800">Implementation Code</h3>
+                        <div class="code-block">
+                            <pre><code v-html="currentCode"></code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Theory Explanation -->
+            <div v-if="showExplanation" class="mt-12 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="info-card">
+                    <h3 class="text-xl font-semibold mb-4 text-blue-500">
+                        <i class="fas fa-book mr-2"></i>What is an AVL Tree?
+                    </h3>
+                    <p class="text-gray-600 mb-4">
+                        An AVL tree is a self-balancing binary search tree where the height difference between left and right subtrees (balance factor) cannot be more than 1 for any node.
+                    </p>
+                    <ul class="space-y-2 text-gray-600">
+                        <li><i class="fas fa-check text-green-500 mr-2"></i>Guarantees O(log n) time complexity</li>
+                        <li><i class="fas fa-check text-green-500 mr-2"></i>Automatically maintains balance</li>
+                        <li><i class="fas fa-check text-green-500 mr-2"></i>Prevents worst-case scenarios</li>
+                    </ul>
+                </div>
+                
+                <div class="info-card">
+                    <h3 class="text-xl font-semibold mb-4 text-blue-500">
+                        <i class="fas fa-sync-alt mr-2"></i>Rotation Types
+                    </h3>
+                    <div class="space-y-3 text-gray-600">
+                        <div><span class="font-semibold text-blue-600">Left-Left (LL):</span> Single right rotation.</div>
+                        <div><span class="font-semibold text-blue-600">Left-Right (LR):</span> Left rotation followed by a right rotation.</div>
+                        <div><span class="font-semibold text-blue-600">Right-Right (RR):</span> Single left rotation.</div>
+                        <div><span class="font-semibold text-blue-600">Right-Left (RL):</span> Right rotation followed by a left rotation.</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        
+        createApp({
+            data() {
+                return {
+                    svgWidth: 800,
+                    svgHeight: 500,
+                    rotationTypes: [
+                        { id: 'LL', name: 'Left-Left', case: 'LL Case' },
+                        { id: 'LR', name: 'Left-Right', case: 'LR Case' },
+                        { id: 'RR', name: 'Right-Right', case: 'RR Case' },
+                        { id: 'RL', name: 'Right-Left', case: 'RL Case' }
+                    ],
+                    selectedType: 'LR',
+                    currentStep: 0,
+                    isAnimating: false,
+                    animationSpeed: 1500,
+                    showBalanceFactors: true,
+                    showRotationArrows: true,
+                    showCode: false,
+                    showExplanation: false,
+                    currentNodes: [],
+                    currentEdges: [],
+                    rotationArrow: null,
+                    steps: [],
+                    maxSteps: 2,
+                    treeStates: {}, // Holds all possible tree states
+                };
+            },
+            
+            computed: {
+                currentCode() {
+                    const codes = {
+                        'LL': `<span class="code-highlight">// Left-Left Case - Single Right Rotation</span>\nfunction rotateRight(node) {\n    let newRoot = node.left;\n    node.left = newRoot.right;\n    newRoot.right = node;\n    // Update heights and balance factors...\n    return newRoot;\n}`,
+                        'LR': `<span class="code-highlight">// Left-Right Case - Double Rotation</span>\nfunction rotateLeftRight(node) {\n    node.left = rotateLeft(node.left);\n    return rotateRight(node);\n}`,
+                        'RR': `<span class="code-highlight">// Right-Right Case - Single Left Rotation</span>\nfunction rotateLeft(node) {\n    let newRoot = node.right;\n    node.right = newRoot.left;\n    newRoot.left = node;\n    // Update heights and balance factors...\n    return newRoot;\n}`,
+                        'RL': `<span class="code-highlight">// Right-Left Case - Double Rotation</span>\nfunction rotateRightLeft(node) {\n    node.right = rotateRight(node.right);\n    return rotateLeft(node);\n}`
+                    };
+                    return codes[this.selectedType] || '';
+                }
+            },
+            
+            mounted() {
+                this.defineAllTreeStates();
+                this.initializeTree();
+            },
+            
+            methods: {
+                initializeTree() {
+                    this.setupSteps();
+                    this.setTreeState(this.currentStep);
+                },
+
+                defineAllTreeStates() {
+                    this.treeStates = {
+                        'LR': [
+                            { // Initial state
+                                nodes: [{ id: 'F', label: 'F', x: 400, y: 80, balance: 2, type: 'critical' },{ id: 'B', label: 'B', x: 250, y: 180, balance: -1, type: 'important' },{ id: 'G', label: 'G', x: 550, y: 180, balance: 0, type: 'subtree' },{ id: 'A', label: 'A', x: 150, y: 280, balance: 0, type: 'subtree' },{ id: 'D', label: 'D', x: 350, y: 280, balance: 0, type: 'pivot' },{ id: 'C', label: 'C', x: 300, y: 380, balance: 0, type: 'subtree' },{ id: 'E', label: 'E', x: 400, y: 380, balance: 0, type: 'subtree' }],
+                                edges: [{ id: 'F-B' },{ id: 'F-G' },{ id: 'B-A' },{ id: 'B-D' },{ id: 'D-C' },{ id: 'D-E' }],
+                                arrow: { path: 'M 220 210 Q 180 240 220 280' }
+                            },
+                            { // After left rotation
+                                nodes: [{ id: 'F', label: 'F', x: 400, y: 80, balance: 2, type: 'critical' },{ id: 'D', label: 'D', x: 250, y: 180, balance: 1, type: 'pivot' },{ id: 'G', label: 'G', x: 550, y: 180, balance: 0, type: 'subtree' },{ id: 'B', label: 'B', x: 150, y: 280, balance: 0, type: 'important' },{ id: 'E', label: 'E', x: 350, y: 280, balance: 0, type: 'subtree' },{ id: 'A', label: 'A', x: 100, y: 380, balance: 0, type: 'subtree' },{ id: 'C', label: 'C', x: 200, y: 380, balance: 0, type: 'subtree' }],
+                                edges: [{ id: 'F-D' },{ id: 'F-G' },{ id: 'D-B' },{ id: 'D-E' },{ id: 'B-A' },{ id: 'B-C' }],
+                                arrow: { path: 'M 430 110 Q 470 140 430 180' }
+                            },
+                            { // Final balanced state
+                                nodes: [{ id: 'D', label: 'D', x: 400, y: 80, balance: 0, type: 'pivot' },{ id: 'B', label: 'B', x: 250, y: 180, balance: 0, type: 'important' },{ id: 'F', label: 'F', x: 550, y: 180, balance: 0, type: 'critical' },{ id: 'A', label: 'A', x: 150, y: 280, balance: 0, type: 'subtree' },{ id: 'C', label: 'C', x: 350, y: 280, balance: 0, type: 'subtree' },{ id: 'E', label: 'E', x: 450, y: 280, balance: 0, type: 'subtree' },{ id: 'G', label: 'G', x: 650, y: 280, balance: 0, type: 'subtree' }],
+                                edges: [{ id: 'D-B' },{ id: 'D-F' },{ id: 'B-A' },{ id: 'B-C' },{ id: 'F-E' },{ id: 'F-G' }],
+                                arrow: null
+                            }
+                        ],
+                        'RL': [
+                            { nodes: [{ id: 'B', label: 'B', x: 400, y: 80, balance: -2, type: 'critical' }, { id: 'A', label: 'A', x: 250, y: 180, balance: 0, type: 'subtree' }, { id: 'F', label: 'F', x: 550, y: 180, balance: 1, type: 'important' }, { id: 'D', label: 'D', x: 450, y: 280, balance: 0, type: 'pivot' }, { id: 'G', label: 'G', x: 650, y: 280, balance: 0, type: 'subtree' }, { id: 'C', label: 'C', x: 350, y: 380, balance: 0, type: 'subtree' }, { id: 'E', label: 'E', x: 550, y: 380, balance: 0, type: 'subtree' }], edges: [{ id: 'B-A' }, { id: 'B-F' }, { id: 'F-D' }, { id: 'F-G' }, { id: 'D-C' }, { id: 'D-E' }], arrow: { path: 'M 580 210 Q 620 240 580 280' } },
+                            { nodes: [{ id: 'B', label: 'B', x: 400, y: 80, balance: -2, type: 'critical' }, { id: 'A', label: 'A', x: 250, y: 180, balance: 0, type: 'subtree' }, { id: 'D', label: 'D', x: 550, y: 180, balance: -1, type: 'pivot' }, { id: 'C', label: 'C', x: 450, y: 280, balance: 0, type: 'subtree' }, { id: 'F', label: 'F', x: 650, y: 280, balance: 0, type: 'important' }, { id: 'E', label: 'E', x: 600, y: 380, balance: 0, type: 'subtree' }, { id: 'G', label: 'G', x: 700, y: 380, balance: 0, type: 'subtree' }], edges: [{ id: 'B-A' }, { id: 'B-D' }, { id: 'D-C' }, { id: 'D-F' }, { id: 'F-E' }, { id: 'F-G' }], arrow: { path: 'M 370 110 Q 330 140 370 180' } },
+                            { nodes: [{ id: 'D', label: 'D', x: 400, y: 80, balance: 0, type: 'pivot' }, { id: 'B', label: 'B', x: 250, y: 180, balance: 0, type: 'critical' }, { id: 'F', label: 'F', x: 550, y: 180, balance: 0, type: 'important' }, { id: 'A', label: 'A', x: 150, y: 280, balance: 0, type: 'subtree' }, { id: 'C', label: 'C', x: 350, y: 280, balance: 0, type: 'subtree' }, { id: 'E', label: 'E', x: 450, y: 280, balance: 0, type: 'subtree' }, { id: 'G', label: 'G', x: 650, y: 280, balance: 0, type: 'subtree' }], edges: [{ id: 'D-B' }, { id: 'D-F' }, { id: 'B-A' }, { id: 'B-C' }, { id: 'F-E' }, { id: 'F-G' }], arrow: null }
+                        ],
+                        'LL': [
+                            { nodes: [{ id: 'C', label: 'C', x: 400, y: 80, balance: 2, type: 'critical' }, { id: 'B', label: 'B', x: 250, y: 180, balance: 1, type: 'important' }, { id: 'D', label: 'D', x: 550, y: 180, balance: 0, type: 'subtree' }, { id: 'A', label: 'A', x: 150, y: 280, balance: 0, type: 'pivot' }, { id: 'BR', label: 'BR', x: 350, y: 280, balance: 0, type: 'subtree' }], edges: [{ id: 'C-B' }, { id: 'C-D' }, { id: 'B-A' }, { id: 'B-BR' }], arrow: { path: 'M 430 110 Q 470 140 430 180' } },
+                            // --- CORRECTED AND VERIFIED STATE ---
+                            { nodes: [{ id: 'B', label: 'B', x: 400, y: 80, balance: -1, type: 'important' }, { id: 'A', label: 'A', x: 250, y: 180, balance: 0, type: 'pivot' }, { id: 'C', label: 'C', x: 550, y: 180, balance: 0, type: 'critical' }, { id: 'BR', label: 'BR', x: 450, y: 280, balance: 0, type: 'subtree' }, { id: 'D', label: 'D', x: 650, y: 280, balance: 0, type: 'subtree' }], edges: [{ id: 'B-A' }, { id: 'B-C' }, { id: 'C-BR' }, { id: 'C-D' }], arrow: null }
+                        ],
+                        'RR': [
+                            { nodes: [{ id: 'A', label: 'A', x: 400, y: 80, balance: -2, type: 'critical' }, { id: 'AL', label: 'AL', x: 250, y: 180, balance: 0, type: 'subtree' }, { id: 'B', label: 'B', x: 550, y: 180, balance: -1, type: 'important' }, { id: 'BL', label: 'BL', x: 450, y: 280, balance: 0, type: 'subtree' }, { id: 'C', label: 'C', x: 650, y: 280, balance: 0, type: 'pivot' }], edges: [{ id: 'A-AL' }, { id: 'A-B' }, { id: 'B-BL' }, { id: 'B-C' }], arrow: { path: 'M 370 110 Q 330 140 370 180' } },
+                            // --- VERIFIED STATE ---
+                            { nodes: [{ id: 'B', label: 'B', x: 400, y: 80, balance: 1, type: 'important' }, { id: 'A', label: 'A', x: 250, y: 180, balance: 0, type: 'critical' }, { id: 'C', label: 'C', x: 550, y: 180, balance: 0, type: 'pivot' }, { id: 'AL', label: 'AL', x: 150, y: 280, balance: 0, type: 'subtree' }, { id: 'BL', label: 'BL', x: 350, y: 280, balance: 0, type: 'subtree' }], edges: [{ id: 'B-A' }, { id: 'B-C' }, { id: 'A-AL' }, { id: 'A-BL' }], arrow: null }
+                        ]
+                    };
+                },
+                
+                setupSteps() {
+                    const stepConfigs = {
+                        'LL': [{ title: 'Initial LL Imbalance', description: 'Node C has a balance factor of +2 and its left child B has +1. This requires a single right rotation on C.' },{ title: 'After Right Rotation', description: 'The tree is now balanced. B becomes the new root.' }],
+                        'LR': [{ title: 'Initial LR Imbalance', description: 'Node F (+2) has left child B (-1), an "inner" grandchild. This requires a double rotation: left on B, then right on F.' },{ title: 'After Left Rotation on B', description: 'A left rotation on B converts the LR case into a simpler LL case. Node D moves up.' },{ title: 'After Right Rotation on F', description: 'A right rotation on F completes the balancing. D is now the root of this subtree.' }],
+                        'RR': [{ title: 'Initial RR Imbalance', description: 'Node A has a balance factor of -2 and its right child B has -1. This requires a single left rotation on A.' },{ title: 'After Left Rotation', description: 'The tree is now balanced. B becomes the new root.' }],
+                        'RL': [{ title: 'Initial RL Imbalance', description: 'Node B (-2) has right child F (+1), an "inner" grandchild. This requires a double rotation: right on F, then left on B.' },{ title: 'After Right Rotation on F', description: 'A right rotation on F converts the RL case into a simpler RR case. Node D moves up.' },{ title: 'After Left Rotation on B', description: 'A left rotation on B completes the balancing. D is now the root of this subtree.' }]
+                    };
+                    this.steps = stepConfigs[this.selectedType];
+                    this.maxSteps = this.steps.length - 1;
+                },
+                
+                // Set the tree to a specific step without animation
+                setTreeState(step) {
+                    const state = this.treeStates[this.selectedType][step];
+                    if (!state) return;
+
+                    this.currentNodes = JSON.parse(JSON.stringify(state.nodes));
+                    this.updateEdges(this.currentNodes);
+                    this.rotationArrow = state.arrow;
+                },
+                
+                // Update edges based on current node positions
+                updateEdges(nodes) {
+                    const nodeMap = new Map(nodes.map(n => [n.id, {x: n.x, y: n.y}]));
+                    const state = this.treeStates[this.selectedType][this.currentStep];
+                    if (!state) return;
+
+                    const newEdges = [];
+                    for(const edge of state.edges) {
+                        const [fromId, toId] = edge.id.split('-');
+                        const fromNode = nodeMap.get(fromId);
+                        const toNode = nodeMap.get(toId);
+                        if(fromNode && toNode) {
+                            newEdges.push({
+                                id: edge.id,
+                                x1: fromNode.x, y1: fromNode.y + 30,
+                                x2: toNode.x, y2: toNode.y - 30
+                            });
+                        }
+                    }
+                    this.currentEdges = newEdges;
+                },
+
+                getNodeColor(node) {
+                    const colors = {
+                        'critical': 'url(#nodeGradient2)', 'important': 'url(#nodeGradient1)',
+                        'pivot': 'url(#nodeGradient4)', 'subtree': '#a0aec0'
+                    };
+                    return colors[node.type] || 'url(#nodeGradient3)';
+                },
+                
+                getBalanceClass(balance) {
+                    if (balance > 0) return 'balance-positive';
+                    if (balance < 0) return 'balance-negative';
+                    return 'balance-zero';
+                },
+                
+                selectRotationType(type) {
+                    if(this.isAnimating) return;
+                    this.selectedType = type;
+                    this.currentStep = 0;
+                    this.initializeTree();
+                },
+                
+                async startAnimation() {
+                    if (this.isAnimating) return;
+                    
+                    this.isAnimating = true;
+                    this.currentStep = 0;
+                    this.setTreeState(0);
+                    
+                    for (let i = 0; i < this.maxSteps; i++) {
+                        await this.sleep(this.animationSpeed / 2);
+                        await this.animateStep(i, i + 1);
+                    }
+                    
+                    this.isAnimating = false;
+                },
+                
+                async nextStep() {
+                    if (this.currentStep < this.maxSteps && !this.isAnimating) {
+                       await this.animateStep(this.currentStep, this.currentStep + 1);
+                    }
+                },
+                
+                async previousStep() {
+                    if (this.currentStep > 0 && !this.isAnimating) {
+                        await this.animateStep(this.currentStep, this.currentStep - 1);
+                    }
+                },
+
+                animateStep(fromStep, toStep) {
+                    return new Promise(resolve => {
+                        this.isAnimating = true;
+
+                        const startState = this.treeStates[this.selectedType][fromStep];
+                        const endState = this.treeStates[this.selectedType][toStep];
+
+                        const startNodes = new Map(startState.nodes.map(n => [n.id, n]));
+                        const endNodes = new Map(endState.nodes.map(n => [n.id, n]));
+                        
+                        this.rotationArrow = endState.arrow;
+
+                        const duration = this.animationSpeed;
+                        let startTime = null;
+
+                        const animationFrame = (timestamp) => {
+                            if (!startTime) startTime = timestamp;
+                            const elapsed = timestamp - startTime;
+                            const progress = Math.min(elapsed / duration, 1);
+                            const easedProgress = 0.5 - 0.5 * Math.cos(progress * Math.PI); // Ease-in-out
+
+                            // Animate nodes
+                            for (const node of this.currentNodes) {
+                                const startPos = startNodes.get(node.id);
+                                const endPos = endNodes.get(node.id);
+
+                                if (startPos && endPos) {
+                                    const curveFactor = 0.3; // Controls the "bow" of the arc
+                                    const controlX = (startPos.x + endPos.x) / 2 + (startPos.y - endPos.y) * curveFactor * (toStep > fromStep ? 1 : -1);
+                                    const controlY = (startPos.y + endPos.y) / 2 + (endPos.x - startPos.x) * curveFactor * (toStep > fromStep ? 1 : -1);
+
+                                    // Quadratic Bezier curve calculation
+                                    const p0 = (1 - easedProgress) * (1 - easedProgress);
+                                    const p1 = 2 * (1 - easedProgress) * easedProgress;
+                                    const p2 = easedProgress * easedProgress;
+
+                                    node.x = p0 * startPos.x + p1 * controlX + p2 * endPos.x;
+                                    node.y = p0 * startPos.y + p1 * controlY + p2 * endPos.y;
+                                }
+                            }
+                            
+                            this.updateEdges(this.currentNodes);
+
+                            if (progress < 1) {
+                                requestAnimationFrame(animationFrame);
+                            } else {
+                                this.currentStep = toStep;
+                                this.setTreeState(toStep); // Lock in final state
+                                this.isAnimating = false;
+                                resolve();
+                            }
+                        };
+
+                        requestAnimationFrame(animationFrame);
+                    });
+                },
+                
+                toggleExplanation() { this.showExplanation = !this.showExplanation; },
+                
+                resetAll() {
+                    if(this.isAnimating) return;
+                    this.currentStep = 0;
+                    this.selectedType = 'LR';
+                    this.initializeTree();
+                },
+                
+                sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

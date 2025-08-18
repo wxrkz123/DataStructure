@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>单向链表CRUD演示</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/petite-vue"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
+        .line-controls { opacity: 0; transition: opacity 0.2s ease-in-out; }
+        .line-item:hover .line-controls { opacity: 1; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-700 flex items-center justify-center min-h-screen p-8">
+
+<div id="app" v-scope @vue:mounted="init()" class="w-full max-w-6xl mx-auto">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+
+        <!-- 左侧：可视化与交互区域 -->
+        <div class="bg-white p-8 rounded-2xl shadow-lg border border-slate-200">
+            <header class="mb-8">
+                <h1 class="text-3xl font-bold text-slate-800">项目启动清单 (完整CRUD)</h1>
+                <p class="text-slate-500 mt-2">每一行都是一个链表节点，请尝试所有操作。</p>
+            </header>
+
+            <!-- 任务列表 (链表可视化) -->
+            <div class="space-y-2">
+                <div v-for="node in list.toArray()" :key="node.id" 
+                     class="line-item flex items-center p-2 rounded-lg transition-all duration-300 group"
+                     :class="currentNode === node ? 'bg-blue-100' : 'hover:bg-slate-100'">
+                    
+                    <div class="w-8 h-8 flex-shrink-0 rounded-full flex items-center justify-center mr-2"
+                         :class="currentNode === node ? 'bg-blue-500 text-white' : 'bg-slate-200 text-slate-500'">
+                        <i v-if="node.completed" class="fas fa-check"></i>
+                        <span v-else class="font-mono text-xs">{{ node.id + 1 }}</span>
+                    </div>
+                    
+                    <!-- 文本内容 / 编辑框 (UPDATE) -->
+                    <div class="flex-grow">
+                        <p v-if="editingNode !== node" @dblclick="startEditing(node)" class="font-medium text-slate-800 cursor-pointer">{{ node.value }}</p>
+                         <input v-else type="text" v-model="node.value" @keyup.enter="saveEdit(node)" @blur="saveEdit(node)"
+                               class="w-full px-2 py-1 bg-white border border-blue-400 rounded-md focus:outline-none ring-2 ring-blue-200">
+                    </div>
+                    
+                    <!-- 行内操作按钮 (CREATE, UPDATE, DELETE) -->
+                    <div class="line-controls flex items-center gap-4 text-slate-500 ml-4">
+                        <button @click="insertAfter(node)" title="在此行后插入 (Create)" class="hover:text-green-500"><i class="fas fa-plus"></i></button>
+                        <button @click="startEditing(node)" title="编辑此行 (Update)" class="hover:text-blue-500"><i class="fas fa-pencil-alt"></i></button>
+                        <button @click="deleteNode(node)" title="删除此行 (Delete)" class="hover:text-red-500"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 主操作按钮 (READ) -->
+            <div class="mt-8 pt-6 border-t border-slate-200 flex items-center justify-between">
+                <button @click="init()" class="font-semibold text-slate-500 hover:text-slate-800 transition">
+                    <i class="fas fa-undo mr-2"></i>重置列表
+                </button>
+                <button @click="completeStepAndGoNext()" :disabled="isCompleted"
+                        class="px-6 py-3 font-bold text-white bg-blue-500 rounded-full shadow-md hover:bg-blue-600 transition-transform hover:scale-105 disabled:bg-slate-300 disabled:shadow-none disabled:cursor-not-allowed">
+                    <span v-if="!isCompleted">完成当前，进入下一步 (Read) <i class="fas fa-arrow-right ml-2"></i></span>
+                    <span v-else>太棒了，全部完成！ <i class="fas fa-party-horn ml-2"></i></span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 右侧：代码解析与添加新任务 -->
+        <div class="bg-[#1e293b] text-slate-200 rounded-2xl p-8 shadow-lg sticky top-8 h-fit">
+             <h3 class="text-xl font-bold text-white mb-4 flex items-center"><i class="fas fa-graduation-cap mr-3 text-sky-400"></i>单向链表 · CRUD 解析</h3>
+            <div class="bg-black/20 p-4 rounded-lg space-y-4">
+                <div> <p class="text-xs font-bold text-slate-400">当前操作</p> <p class="text-sky-400 font-bold text-lg">{{ info.title }}</p> </div>
+                <div> <p class="text-xs font-bold text-slate-400">详细描述</p> <p class="text-sm text-slate-300 leading-relaxed">{{ info.description }}</p> </div>
+                <div v-if="info.pointers.length > 0">
+                     <p class="text-xs font-bold text-slate-400">核心代码/指针变化</p>
+                     <div class="mt-1 space-y-1 text-xs font-mono"> <p v-for="p in info.pointers" class="bg-black/20 p-2 rounded-md" v-html="p"></p> </div>
+                </div>
+                <div> <p class="text-xs font-bold text-slate-400">性能分析 (Big O)</p> <p class="text-sm text-slate-300" v-html="info.complexity"></p> </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- 定义单向链表节点和类 ---
+    let nodeIdCounter = 0;
+    class Node { constructor(value) { this.id = nodeIdCounter++; this.value = value; this.next = null; this.completed = false; } }
+    class SinglyLinkedList {
+        constructor() { this.head = null; this.tail = null; this.size = 0; }
+        append(value) { const newNode = new Node(value); if (!this.head) { this.head = this.tail = newNode; } else { this.tail.next = newNode; this.tail = newNode; } this.size++; }
+        insertAfter(node, value) { if (!node) return; const newNode = new Node(value); newNode.next = node.next; node.next = newNode; if (node === this.tail) { this.tail = newNode; } this.size++; return newNode; }
+        delete(nodeToDelete) {
+            if (!nodeToDelete || this.size === 0) return;
+            if (nodeToDelete === this.head) { this.head = this.head.next; if (!this.head) this.tail = null; this.size--; return; }
+            let current = this.head;
+            while (current && current.next !== nodeToDelete) { current = current.next; }
+            if (current) { current.next = nodeToDelete.next; if (nodeToDelete === this.tail) this.tail = current; this.size--; }
+        }
+        toArray() { const arr = []; let current = this.head; while (current) { arr.push(current); current = current.next; } return arr; }
+    }
+
+    PetiteVue.createApp({
+        // --- 数据模型 (State) ---
+        list: new SinglyLinkedList(), currentNode: null, editingNode: null, isCompleted: false,
+        info: { title: '请开始操作', description: '请点击列表中的按钮，或主按钮，来观察链表的CRUD操作。', pointers: [], complexity: 'N/A' },
+
+        init() {
+            nodeIdCounter = 0; this.list = new SinglyLinkedList(); this.isCompleted = false; this.editingNode = null;
+            ['确认需求文档', '设计UI/UX原型', '开发核心功能', '编写单元测试'].forEach(task => this.list.append(task));
+            this.currentNode = this.list.head;
+            this.updateInfo('init');
+        },
+        
+        // --- C.R.U.D. 方法 ---
+        // == READ (Next) ==
+        completeStepAndGoNext() {
+            if (this.isCompleted || !this.currentNode) return;
+            this.currentNode.completed = true;
+            if (this.currentNode.next) {
+                this.updateInfo('read_next', { from: this.currentNode, to: this.currentNode.next });
+                this.currentNode = this.currentNode.next;
+            } else {
+                this.isCompleted = true;
+                this.updateInfo('read_end');
+            }
+        },
+
+        // == CREATE (Insert After) ==
+        insertAfter(node) {
+            const newNode = this.list.insertAfter(node, `新任务...`);
+            this.updateInfo('create', { target: node, newNode });
+            this.currentNode = newNode;
+        },
+        
+        // == UPDATE ==
+        startEditing(node) { this.editingNode = node; this.updateInfo('update_start', { target: node }); },
+        saveEdit(node) { if (this.editingNode === node) { this.editingNode = null; this.updateInfo('update_save', { target: node }); }},
+
+        // == DELETE ==
+        deleteNode(node) {
+            if (this.list.size <= 1) { this.updateInfo('error', { message: '列表至少需要保留一个任务。' }); return; }
+            if (this.currentNode === node) { this.currentNode = node.next || this.list.head; }
+            this.updateInfo('delete', { target: node });
+            this.list.delete(node);
+        },
+
+        updateInfo(action, details = {}) {
+            const name = (node) => `节点('${node.value.slice(0,10)}...')`;
+            const code = (str) => `<span class="text-yellow-300">${str}</span>`;
+            switch (action) {
+                case 'init': this.info = { title: '清单已就绪', description: '列表已初始化为单向链表。当前高亮任务为 currentNode。', pointers: [], complexity: '准备就绪' }; break;
+                case 'read_next': this.info = { title: 'READ: 读取下一节点', description: `从 ${name(details.from)} 前进到 ${name(details.to)}。`, pointers: [`currentNode = ${code('currentNode.next')}`], complexity: `<b>O(1) - 恒定时间</b>。通过指针直接跳转，无论列表多长，速度都一样快，这是链表的核心优势。` }; break;
+                case 'read_end': this.info = { title: 'READ: 到达链表末尾', description: `已完成所有任务，到达了链表的尽头。最后一个节点的 .next 指向 null。`, pointers: [], complexity: `完整遍历列表的复杂度为 O(n)。` }; break;
+                case 'create': this.info = { title: 'CREATE: 插入新节点', description: `在 ${name(details.target)} 后插入了新节点。`, pointers: [`newNode.next = ${code(`${name(details.target)}.next`)}`, `${code(`${name(details.target)}.next`)} = newNode`], complexity: `<b>O(1) - 恒定时间</b>。只修改了2个指针，无需移动任何其他元素。数组的插入操作为O(n)，效率天差地别。` }; break;
+                case 'update_start': this.info = { title: 'UPDATE: 更新节点(第1步)', description: `准备编辑 ${name(details.target)} 的内容。`, pointers: [`nodeToUpdate.value = ${code('"新内容..."')}`], complexity: `<b>O(1) - 更新操作本身</b>。一旦找到节点，修改其内容是瞬间的。` }; break;
+                case 'update_save': this.info = { title: 'UPDATE: 更新节点(第2步)', description: `已成功保存 ${name(details.target)} 的新内容。`, pointers: [`// 内容已更新`], complexity: `<b>O(1) - 恒定时间</b>。节点的值被成功更新。` }; break;
+                case 'delete': this.info = { title: 'DELETE: 删除节点', description: `正在删除 ${name(details.target)}。`, pointers: [`// 1. 从头(head)开始查找...`, `prevNode.next = ${code('nodeToDelete.next')}`], complexity: `<b>O(n) - 线性时间</b>。这是单向链表的关键“弱点”！为了删除一个节点，我们必须先从头遍历找到它的<b>前一个节点</b>来修改指针。双向链表则无此问题，删除是O(1)的。` }; break;
+                case 'error': this.info = { title: '操作不允许', description: details.message, pointers: [], complexity: 'N/A' }; break;
+            }
+        }
+    }).mount('#app');
+</script>
+
+</body>
+</html>

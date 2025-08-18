@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>二叉搜索树 (BST) 浏览器 - 最终修复与优化版</title>
+
+    <!-- Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+
+    <!-- FIX: Style block to correct Notyf.js notification text color -->
+    <style>
+        .notyf__message { color: #334155; }
+    </style>
+</head>
+<body class="bg-slate-50">
+
+<div id="app" class="flex flex-col h-screen">
+    
+    <!-- Controls Panel -->
+    <div class="bg-white/80 backdrop-blur-lg shadow-md p-4 z-20">
+        <div class="max-w-6xl mx-auto">
+            <h1 class="text-2xl font-bold text-slate-800 text-center mb-4">二叉搜索树 (BST) 浏览器</h1>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
+                <div class="space-y-2">
+                    <input type="number" v-model.number="inputs.value" placeholder="输入数值" @keyup.enter="insert" class="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500">
+                    <button @click="insert" :disabled="isBusy" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 rounded-md transition disabled:bg-slate-300">插入 (Insert)</button>
+                </div>
+                 <div class="space-y-2">
+                    <input type="number" v-model.number="inputs.opValue" placeholder="要查找/删除的数值" @keyup.enter="find" class="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-teal-500">
+                     <div class="grid grid-cols-2 gap-2">
+                         <button @click="find" :disabled="isBusy" class="w-full bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 rounded-md transition disabled:bg-slate-300">查找 (Find)</button>
+                         <button @click="remove" :disabled="isBusy" class="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 rounded-md transition disabled:bg-slate-300">删除 (Remove)</button>
+                     </div>
+                </div>
+                <div class="space-y-2">
+                    <input type="text" v-model="inputs.sortedValues" placeholder="有序序列, e.g., 10,20,30" class="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-orange-500">
+                    <button @click="buildSorted" :disabled="isBusy" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 rounded-md transition disabled:bg-slate-300">构建有序树 (演示缺陷)</button>
+                </div>
+                <div class="space-y-2">
+                    <button @click="inOrderTraversal" :disabled="isBusy" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 rounded-md transition disabled:bg-slate-300">中序遍历 (In-order)</button>
+                    <button @click="resetTree" :disabled="isBusy" class="w-full bg-slate-600 hover:bg-slate-700 text-white font-semibold py-2 rounded-md transition disabled:bg-slate-300">重置随机树</button>
+                </div>
+            </div>
+            <div v-if="traversalResult" class="mt-2 text-center p-2 bg-purple-50 rounded-md font-mono text-purple-800">
+                中序遍历结果: {{ traversalResult }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Visualization -->
+    <div class="flex-grow p-4">
+        <div id="echarts-bst-container" class="w-full h-full"></div>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, reactive, onMounted, onBeforeUnmount } = Vue;
+
+    class BstNode {
+        constructor(value) { this.value = value; this.left = null; this.right = null; this.highlight = null; }
+    }
+
+    createApp({
+        setup() {
+            // --- STATE ---
+            let chartInstance = null;
+            const root = ref(null);
+            const isBusy = ref(false);
+            const inputs = reactive({ value: null, opValue: null, sortedValues: '10,20,30,40,50' });
+            const traversalResult = ref('');
+            const notyf = new Notyf({ duration: 2500, position: { x: 'top', y: 'center' }, dismissible: true });
+            const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+            // --- CORE & VISUALIZATION LOGIC (All functions defined within setup) ---
+            const _insertNode = (node, value) => {
+                if (value < node.value) {
+                    if (!node.left) node.left = new BstNode(value); else _insertNode(node.left, value);
+                } else if (value > node.value) {
+                    if (!node.right) node.right = new BstNode(value); else _insertNode(node.right, value);
+                }
+            };
+
+            const _generateTooltip = (bstNode, parentNode) => {
+                let role, roleEn;
+                if (!parentNode) { role = '根节点'; roleEn = 'Root Node'; }
+                else if (!bstNode.left && !bstNode.right) { role = '叶子节点'; roleEn = 'Leaf Node'; }
+                else { role = '内部节点'; roleEn = 'Internal Node'; }
+
+                let content = `<div style="font-family: sans-serif; font-size: 14px; border-radius: 4px; padding: 2px 8px;">`;
+                content += `<strong>值 (Value):</strong> ${bstNode.value}<br>`;
+                content += `<strong>角色 (Role):</strong> ${role} (${roleEn})<br><hr style="margin: 4px 0;">`;
+                if (parentNode) content += `<strong>父节点 (Parent):</strong> ${parentNode.value}<br>`;
+                if (bstNode.left) content += `<strong>左孩子 (Left Child):</strong> ${bstNode.left.value}<br>`;
+                if (bstNode.right) content += `<strong>右孩子 (Right Child):</strong> ${bstNode.right.value}<br>`;
+                return content.trim() + `</div>`;
+            };
+            
+            const transformToEchartsData = (bstNode, parentNode = null) => {
+                if (!bstNode) return null;
+                const data = {
+                    name: bstNode.value,
+                    itemStyle: {},
+                    tooltip: { formatter: () => _generateTooltip(bstNode, parentNode) },
+                    children: []
+                };
+                
+                if (!parentNode) { data.itemStyle = { color: { type: 'radial', x: 0.5, y: 0.5, r: 0.5, colorStops: [{ offset: 0, color: '#e0f2fe' }, { offset: 1, color: '#7dd3fc' }] }, borderColor: '#0ea5e9', borderWidth: 3, shadowColor: 'rgba(14, 165, 233, 0.5)', shadowBlur: 10 }; }
+                switch(bstNode.highlight) {
+                    case 'path': data.itemStyle.borderColor = '#f59e0b'; data.itemStyle.borderWidth = 4; break;
+                    case 'found': data.itemStyle.borderColor = '#22c55e'; data.itemStyle.borderWidth = 5; data.itemStyle.color = '#dcfce7'; break;
+                    case 'delete': data.itemStyle.borderColor = '#ef4444'; data.itemStyle.color = '#fee2e2'; data.itemStyle.borderWidth = 4; break;
+                    case 'successor': data.itemStyle.borderColor = '#8b5cf6'; data.itemStyle.color = '#ede9fe'; data.itemStyle.borderWidth = 4; break;
+                }
+
+                const leftChild = transformToEchartsData(bstNode.left, bstNode);
+                const rightChild = transformToEchartsData(bstNode.right, bstNode);
+                if (leftChild || rightChild) { data.children.push(leftChild || { name: '', symbol: 'none' }); data.children.push(rightChild || { name: '', symbol: 'none' }); }
+                return data;
+            };
+
+            let updateTimeout = null;
+            const updateChart = () => {
+                if (updateTimeout) clearTimeout(updateTimeout);
+                updateTimeout = setTimeout(() => {
+                    if (!chartInstance) return;
+                    const data = root.value ? [transformToEchartsData(root.value)] : [];
+                    chartInstance.setOption({ series: [{ data }] }, { notMerge: false, lazyUpdate: true });
+                }, 50);
+            };
+
+            const clearHighlights = (update = true) => {
+                const traverse = n => { if(n) { n.highlight = null; traverse(n.left); traverse(n.right); }};
+                traverse(root.value);
+                traversalResult.value = '';
+                if(update) updateChart();
+            };
+            
+            // --- OPERATIONS ---
+            const resetTree = () => {
+                isBusy.value = true;
+                clearHighlights(false);
+                root.value = new BstNode(50);
+                const values = [30, 70, 20, 40, 60, 80];
+                values.forEach(v => _insertNode(root.value, v));
+                updateChart();
+                notyf.success('已生成一棵随机平衡树。');
+                isBusy.value = false;
+            };
+
+            const insert = async () => {
+                if (typeof inputs.value !== 'number' || isBusy.value) return;
+                isBusy.value = true; clearHighlights(false); updateChart(); await sleep(100);
+                const value = inputs.value; inputs.value = null;
+                if (!root.value) {
+                    root.value = new BstNode(value); notyf.success(`树为空，${value} 成为根节点。`); updateChart(); isBusy.value = false; return;
+                }
+                let current = root.value;
+                while (true) {
+                    current.highlight = 'path'; updateChart(); await sleep(600);
+                    if (value < current.value) {
+                        notyf.open({type: 'info', message: `${value} < ${current.value}，向左...`});
+                        if (!current.left) { current.highlight = null; current.left = new BstNode(value); current.left.highlight = 'found'; updateChart(); notyf.success(`找到空位，插入 ${value}！`); break; }
+                        current.highlight = null; current = current.left;
+                    } else if (value > current.value) {
+                        notyf.open({type: 'info', message: `${value} > ${current.value}，向右...`});
+                        if (!current.right) { current.highlight = null; current.right = new BstNode(value); current.right.highlight = 'found'; updateChart(); notyf.success(`找到空位，插入 ${value}！`); break; }
+                        current.highlight = null; current = current.right;
+                    } else {
+                        current.highlight = 'found'; updateChart(); notyf.error(`值 ${value} 已存在！`); break;
+                    }
+                }
+                await sleep(1200); clearHighlights(); isBusy.value = false;
+            };
+
+            const find = async () => {
+                const value = inputs.opValue; if (typeof value !== 'number' || isBusy.value) return;
+                isBusy.value = true; clearHighlights(false); updateChart(); await sleep(100);
+                let current = root.value;
+                while(current) {
+                    current.highlight = 'path'; updateChart(); await sleep(600);
+                    if(value === current.value) {
+                        current.highlight = 'found'; updateChart(); notyf.success(`找到值 ${value}！`);
+                        await sleep(1200); clearHighlights(); isBusy.value = false; return;
+                    }
+                    const nextNode = value < current.value ? current.left : current.right;
+                    if (nextNode) { current.highlight = null; }
+                    current = nextNode;
+                }
+                notyf.error(`未找到值 ${value}！`); clearHighlights(); isBusy.value = false;
+            };
+
+            const remove = async () => {
+                const value = inputs.opValue; if (typeof value !== 'number' || isBusy.value) return;
+                isBusy.value = true; clearHighlights(false); updateChart(); await sleep(100);
+                notyf.open({ type: 'info', message: `准备删除值 ${value}...` });
+                const findMin = (node) => { while(node.left) node = node.left; return node; };
+                const deleteNode = async (node, val) => {
+                    if (!node) { notyf.error(`未找到值 ${val}！`); return null; }
+                    node.highlight = 'path'; updateChart(); await sleep(600);
+                    if (val < node.value) {
+                        node.highlight = null; node.left = await deleteNode(node.left, val);
+                    } else if (val > node.value) {
+                        node.highlight = null; node.right = await deleteNode(node.right, val);
+                         } else {
+                        node.highlight = 'delete'; updateChart(); await sleep(800);
+                        if (!node.left) return node.right; if (!node.right) return node.left;
+                        let successor = findMin(node.right); successor.highlight = 'successor'; updateChart(); await sleep(1200);
+                        node.value = successor.value; node.highlight = 'found'; updateChart(); await sleep(1200);
+                        node.right = await deleteNode(node.right, successor.value);
+                    }
+                    return node;
+                };
+                root.value = await deleteNode(root.value, value); await sleep(500); clearHighlights(); isBusy.value = false;
+            };
+
+            const buildSorted = async () => {
+                const values = inputs.sortedValues.split(',').map(v => parseInt(v.trim())).filter(v => !isNaN(v)); if(values.length === 0) return;
+                isBusy.value = true; root.value = null; updateChart(); await sleep(500);
+                for(const v of values) {
+                    notyf.open({type:'info', message:`插入有序数据: ${v}`});
+                    if(!root.value) root.value = new BstNode(v); else _insertNode(root.value, v);
+                    updateChart(); await sleep(400);
+                }
+                notyf.success('有序树构建完成，观察其退化的形态！'); isBusy.value = false;
+            };
+
+            const inOrderTraversal = async () => {
+                if (isBusy.value) return; isBusy.value = true; clearHighlights(false); updateChart(); await sleep(100);
+                let result = [];
+                const traverse = async (node) => {
+                    if (!node) return; await traverse(node.left);
+                    node.highlight = 'path'; updateChart(); result.push(node.value); traversalResult.value = result.join(' -> ');
+                    await sleep(500); node.highlight = null; await traverse(node.right);
+                };
+                await traverse(root.value); notyf.success('中序遍历完成！'); isBusy.value = false;
+            };
+
+            // --- LIFECYCLE ---
+            onMounted(() => {
+                chartInstance = echarts.init(document.getElementById('echarts-bst-container'));
+                const baseOption = {
+                    tooltip: { trigger: 'item', triggerOn: 'mousemove', backgroundColor: 'rgba(255,255,255,0.95)', borderWidth: 1, borderColor: '#e2e8f0', shadowColor: 'rgba(0,0,0,0.1)', shadowBlur: 10 },
+                    series: [{
+                        type: 'tree', data: [], symbol: 'circle', symbolSize: 50, orient: 'TB', edgeShape: 'curve', initialTreeDepth: -1,
+                        label: { show: true, position: 'inside', fontSize: 16, color: '#0f172a', fontWeight: 'bold' },
+                        lineStyle: { color: '#64748b', width: 2 },
+                        itemStyle: { color: { type: 'radial', x: 0.5, y: 0.5, r: 0.5, colorStops: [{ offset: 0, color: '#ffffff' }, { offset: 1, color: '#e2e8f0' }] }, borderColor: '#64748b', borderWidth: 2, shadowColor: 'rgba(0, 0, 0, 0.1)', shadowBlur: 5 },
+                        emphasis: { disabled: true }
+                    }]
+                };
+                chartInstance.setOption(baseOption);
+                
+                resetTree();
+                
+                const resizeHandler = () => chartInstance && chartInstance.resize();
+                window.addEventListener('resize', resizeHandler);
+                onBeforeUnmount(() => {
+                    window.removeEventListener('resize', resizeHandler);
+                    chartInstance.dispose();
+                });
+            });
+
+            // Return all functions and state needed by the template
+            return { root, inputs, isBusy, traversalResult, resetTree, insert, find, remove, buildSorted, inOrderTraversal };
+        }
+    }).mount('#app');
+</script>
+
+</body>
+</html>

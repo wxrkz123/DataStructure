@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>现代链表浏览器</title>
+
+    <!-- Vue 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- AutoAnimate -->
+    <script src="https://unpkg.com/@formkit/auto-animate@0.8.2/index.global.js"></script>
+    
+    <!-- Notyf (Notifications) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+
+    <!-- Tippy.js (Tooltips) -->
+    <script src="https://unpkg.com/@popperjs/core@2"></script>
+    <script src="https://unpkg.com/tippy.js@6"></script>
+
+    <style>
+       
+        body { background-color: #f8fafc; }
+        .tippy-box[data-theme~='light-border'] { border: 2px solid #3b82f6; }
+        .notyf__toast { border-radius: 0.5rem; }
+        .notyf__message { font-size: 1rem; }
+        @keyframes subtle-highlight {
+            0% { background-color: transparent; }
+            50% { background-color: #dbeafe; }
+            100% { background-color: transparent; }
+        }
+        .highlight-animation { animation: subtle-highlight 1.5s ease-in-out; }
+    </style>
+</head>
+<body>
+
+<div id="app" class="max-w-3xl mx-auto px-4 py-8">
+    
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-slate-800">现代链表浏览器</h1>
+    </div>
+
+    <!-- Controls Panel  -->
+    <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="space-y-4">
+                <h3 class="font-semibold text-lg text-slate-700 border-b pb-2">创建 & 插入 (Create & Insert)</h3>
+                <div class="flex gap-2">
+                    <input type="text" v-model="inputs.value" placeholder="节点值" @keyup.enter="append" class="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button @click="prepend" :disabled="isBusy" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" /></svg>
+                        头部添加
+                    </button>
+                    <button @click="append" :disabled="isBusy" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" /></svg>
+                        尾部追加
+                    </button>
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="number" v-model.number="inputs.index" placeholder="索引" class="w-1/3 px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    <button @click="insertAt" :disabled="isBusy" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300 disabled:cursor-not-allowed">在索引处插入</button>
+                </div>
+            </div>
+            <div class="space-y-4">
+                <h3 class="font-semibold text-lg text-slate-700 border-b pb-2">查找 & 删除 (Find & Delete)</h3>
+                <div class="flex items-center gap-2">
+                    <input type="number" v-model="inputs.findIndex" placeholder="索引" class="w-1/3 px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    <button @click="findNode" :disabled="isBusy" class="flex-1 bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" /></svg>
+                        查找节点
+                    </button>
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="number" v-model.number="inputs.deleteIndex" placeholder="索引" class="w-1/3 px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    <button @click="deleteAt" :disabled="isBusy" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-1.157.244-2.135.752-2.932 1.458C1.52 6.957.995 8.435.995 10.12c0 1.54.522 2.943 1.989 4.025a.75.75 0 001.102-.992A5.485 5.485 0 012.495 10.12c0-1.15.38-2.202 1.155-3.111l.332-.39a.75.75 0 00-1.11-1.004l-.332.39c-.93 1.096-1.536 2.45-1.536 3.915 0 1.833.682 3.49 2.181 4.796C4.68 18.781 6.75 19.5 9 19.5c2.25 0 4.32-.719 5.819-2.004C16.318 16.19 17 14.534 17 12.7c0-1.465-.605-2.819-1.536-3.915l-.332-.39a.75.75 0 00-1.11 1.004l.332.39c.775.909 1.155 1.96 1.155 3.11c0 1.54-.522 2.943-1.989 4.025a.75.75 0 101.102.992c1.467-1.082 1.989-2.485 1.989-4.025 0-1.685-.525-3.163-2.073-4.471C13.135 4.945 12.157 4.437 11 4.193v-.443A2.75 2.75 0 008.75 1z" clip-rule="evenodd" /></svg>
+                        删除节点
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="mt-4 pt-4 border-t border-slate-200 text-center">
+            <button @click="resetList" :disabled="isBusy" class="bg-slate-600 hover:bg-slate-700 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300">重置链表</button>
+        </div>
+    </div>
+
+    <!-- Visualization -->
+    <div class="bg-white p-6 rounded-xl shadow-lg">
+        <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-200">
+            <div class="flex items-center gap-2 text-2xl font-bold text-slate-700" data-tippy-content="Head 是指向链表第一个节点的特殊指针。所有操作都从这里开始。如果为 null，则链表为空。">
+                <span class="bg-blue-100 text-blue-800 text-sm font-semibold mr-2 px-2.5 py-0.5 rounded-full">HEAD</span>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-blue-500"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg>
+                <span class="text-2xl font-mono" :class="head ? 'text-blue-600' : 'text-slate-400'">{{ head ? head.value : 'null' }}</span>
+            </div>
+            <div class="text-lg font-semibold text-slate-600" data-tippy-content="链表中当前节点的总数。">
+                Size: <span class="font-bold text-blue-600">{{ size }}</span>
+            </div>
+        </div>
+        <div v-auto-animate="{ duration: 500 }" class="space-y-4 min-h-[80px]">
+            <div v-if="!head" class="text-center text-slate-400 py-8">
+                链表为空。请添加一个新节点。
+            </div>
+            <div v-for="(node, index) in visualNodes" :key="node.id" :id="'node-' + node.id" class="node-element bg-slate-50 border-2 border-slate-200 p-4 rounded-lg flex items-center justify-between transition-all" :class="{ 'border-blue-500 bg-blue-50': node.highlight }" :data-tippy-content="`索引: ${index}<br>模拟地址: ${node.address}<br>值: ${node.value}`">
+                <div class="flex items-center gap-3">
+                     <span class="bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded">VAL</span>
+                     <span class="font-mono text-xl font-semibold text-slate-800">{{ node.value }}</span>
+                </div>
+                <div class="flex items-center gap-3" data-tippy-content="`'next' 指针指向链表中的下一个节点。如果是最后一个节点，则指向 null。`">
+                    <span class="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded">NEXT</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-slate-400"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 8.25 21 12m0 0-3.75 3.75M21 12H3" /></svg>
+                    <span class="font-mono text-lg" :class="node.next ? 'text-green-700' : 'text-slate-400'">
+                        {{ node.next ? node.next.value : 'null' }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    const { createApp, ref, reactive, onMounted, nextTick, watch } = Vue;
+
+    createApp({
+        setup() {
+            // --- Model, Tools, and Core Logic  ---
+            const head = ref(null);
+            const size = ref(0);
+            const isBusy = ref(false);
+            let idCounter = 0;
+            const notyf = new Notyf({
+                duration: 4000,
+                position: { x: 'right', y: 'top' },
+                dismissible: true
+            });
+            const inputs = reactive({ value: 'JS', index: 1, findIndex: 0, deleteIndex: 0 });
+            const visualNodes = ref([]);
+            const createNode = (value, next = null) => ({
+                id: idCounter++, value, next, highlight: false,
+                address: `0x${(Math.random() * 0xFFFFFF << 0).toString(16).padStart(6, '0').toUpperCase()}`
+            });
+            const lockUI = (lock = true) => isBusy.value = lock;
+            const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+            const syncVisuals = () => {
+                const nodes = [];
+                let current = head.value;
+                while (current) {
+                    nodes.push(current);
+                    current = current.next;
+                }
+                visualNodes.value = nodes;
+            };
+            const highlightNode = async (node) => {
+                if (!node) return;
+                node.highlight = true;
+                const element = document.getElementById('node-' + node.id);
+                if (element) {
+                   element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                await sleep(1500);
+                if (node) node.highlight = false;
+            };
+            const _internalAppend = (value) => {
+                const newNode = createNode(value);
+                if (!head.value) {
+                    head.value = newNode;
+                } else {
+                    let current = head.value;
+                    while (current.next) { current = current.next; }
+                    current.next = newNode;
+                }
+                size.value++;
+            };
+            
+            const resetList = async () => { 
+                if (isBusy.value) return;
+                lockUI(true);
+                try {
+                    head.value = null; size.value = 0; idCounter = 0;
+                    syncVisuals(); await nextTick();
+                    ['Python', 'Go', 'Rust'].forEach(val => _internalAppend(val));
+                    syncVisuals(); await nextTick();
+                    notyf.success('链表已重置为初始状态。');
+                } catch (e) {
+                    notyf.error('重置时发生错误！'); console.error(e);
+                } finally { lockUI(false); }
+            };
+            const append = async () => { 
+                const val = inputs.value;
+                if (!val || isBusy.value) return;
+                lockUI(true);
+                try {
+                    _internalAppend(val); syncVisuals();
+                    notyf.success(`成功追加节点 '${val}'。这是一个 O(n) 操作。`);
+                    await nextTick();
+                    let lastNode = head.value;
+                    while(lastNode && lastNode.next) { lastNode = lastNode.next; }
+                    await highlightNode(lastNode);
+                    inputs.value = '';
+                } catch (e) {
+                    notyf.error('追加节点时发生错误！'); console.error(e);
+                } finally { lockUI(false); }
+            };
+            const prepend = async () => { 
+                const val = inputs.value;
+                if (!val || isBusy.value) return;
+                lockUI(true);
+                try {
+                    const newNode = createNode(val); newNode.next = head.value;
+                    head.value = newNode; size.value++;
+                    syncVisuals();
+                    notyf.success(`成功在头部添加节点 '${val}'。这是一个 O(1) 操作。`);
+                    await nextTick(); await highlightNode(newNode);
+                    inputs.value = '';
+                } catch (e) {
+                    notyf.error('头部添加时发生错误！'); console.error(e);
+                } finally { lockUI(false); }
+            };
+             const insertAt = async () => { 
+                const value = inputs.value;
+                const index = parseInt(inputs.index, 10);
+                if (!value || isNaN(index) || index < 0 || index > size.value || isBusy.value) {
+                    notyf.error('索引无效或值为空！'); return;
+                }
+                if (index === 0) { await prepend(); return; }
+                if (index === size.value) { await append(); return; }
+                lockUI(true);
+                try {
+                    let current = head.value;
+                    for (let i = 0; i < index - 1; i++) { current = current.next; }
+                    const newNode = createNode(value); newNode.next = current.next;
+                    current.next = newNode; size.value++;
+                    syncVisuals();
+                    notyf.success(`在索引 ${index} 处插入了 '${value}'。这是一个 O(n) 操作。`);
+                    await nextTick(); await highlightNode(newNode);
+                    inputs.value = '';
+                } catch (e) {
+                    notyf.error('插入节点时发生错误！'); console.error(e);
+                } finally { lockUI(false); }
+            };
+
+            // -------------------  FIXED FUNCTION  -------------------
+            const findNode = async () => {
+                // 1. 强制将输入解析为整数，这是最关键的修复
+                const index = parseInt(inputs.findIndex, 10);
+
+                console.log("index + ",index);
+
+                // 2. 使用解析后的整数进行严格校验，包括检查是否为 NaN (Not-a-Number)
+                if (isNaN(index) || index < 0 || index >= size.value || isBusy.value) {
+                     notyf.error('索引无效或超出范围！');
+                    return;
+                }
+                
+                lockUI(true);
+                try {
+                    let current = head.value;
+                    // 3. 在循环中使用确定的整数 `index`
+                    for (let i = 0; i < index; i++) {
+                        current = current.next;
+                    }
+                    notyf.success(`正在查找索引 ${index}... 找到节点 '${current.value}'。`);
+                    await highlightNode(current);
+                } catch (e) {
+                    // 这个 catch 块现在只会在非常意外的情况下触发
+                    notyf.error('查找节点时发生意外错误！');
+                    console.error(e);
+                } finally {
+                    lockUI(false);
+                }
+            };
+            // --------------------------------------------------------
+
+            const deleteAt = async () => { 
+                const index = parseInt(inputs.deleteIndex, 10);
+                if (isNaN(index) || index < 0 || index >= size.value || isBusy.value) {
+                     notyf.error('索引无效或超出范围！'); return;
+                }
+                lockUI(true);
+                try {
+                    let deletedValue;
+                    if (index === 0) {
+                        deletedValue = head.value.value;
+                        head.value = head.value.next;
+                    } else {
+                        let prev = head.value;
+                        for (let i = 0; i < index - 1; i++) { prev = prev.next; }
+                        deletedValue = prev.next.value;
+                        prev.next = prev.next.next;
+                    }
+                    size.value--; syncVisuals();
+                    notyf.success(`成功删除节点 '${deletedValue}'。这是一个 O(n) 操作。`);
+                } catch (e) {
+                    notyf.error('删除节点时发生错误！'); console.error(e);
+                } finally { lockUI(false); }
+            };
+
+            // --- Lifecycle and Watchers  ---
+            const initTooltips = () => {
+                tippy('[data-tippy-content]', {
+                    arrow: true, animation: 'fade', theme: 'light-border', allowHTML: true,
+                });
+            };
+            watch(visualNodes, () => {
+                nextTick(() => { initTooltips(); });
+            }, { deep: true });
+            onMounted(() => { resetList(); });
+
+            return {
+                head, size, isBusy, inputs, visualNodes,
+                resetList, append, prepend, insertAt, findNode, deleteAt
+            };
+        }
+    }).mount('#app');
+</script>
+
+</body>
+</html>

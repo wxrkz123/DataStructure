@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>现代循环双向链表浏览器 - 指针级高亮教学版</title>
+
+    <!-- Dependencies (Vue, Tailwind, etc.) -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@formkit/auto-animate@0.8.2/index.global.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+    <script src="https://unpkg.com/@popperjs/core@2"></script>
+    <script src="https://unpkg.com/tippy.js@6"></script>
+
+    <style>
+        body { background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+        .tippy-box[data-theme~='light-border'] { border: 2px solid #3b82f6; }
+        .notyf__toast { border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }
+        .notyf__message { font-size: 1rem; }
+        
+        .node-element, .pointer-wrapper, .wrap-around-link { transition: all 0.4s ease-in-out; }
+        
+        .highlight-context { 
+            border-color: #f97316 !important; background-color: #fff7ed !important; transform: scale(1.02);
+        }
+        .highlight-result {
+            border-color: #22c55e !important; background-color: #f0fdf4 !important; transform: scale(1.05);
+        }
+        .highlight-delete {
+            border-color: #ef4444 !important; background-color: #fef2f2 !important; opacity: 0.5; transform: scale(0.95);
+        }
+        .highlight-pointer {
+            background-color: #fef08a; border-radius: 0.375rem; transform: scale(1.05); box-shadow: 0 0 0 2px #facc15;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app" class="max-w-4xl mx-auto px-4 py-8">
+    
+    <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-slate-800">现代循环双向链表浏览器</h1>
+        <p class="text-slate-500 mt-2">一个直观的、交互式的循环双向链表演示，重点展示其闭环结构</p>
+    </div>
+
+    <!-- Controls Panel -->
+    <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="space-y-4">
+                <h3 class="font-semibold text-lg text-slate-700 border-b pb-2">创建 & 插入</h3>
+                <div class="flex gap-2"><input type="text" v-model="inputs.value" placeholder="节点值" @keyup.enter="append" class="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"></div>
+                <div class="flex flex-wrap gap-2">
+                    <button @click="prepend" :disabled="isBusy" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300 disabled:cursor-not-allowed">头部添加</button>
+                    <button @click="append" :disabled="isBusy" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300 disabled:cursor-not-allowed">尾部追加</button>
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="number" v-model.number="inputs.index" placeholder="索引" class="w-1/3 px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    <button @click="insertAt" :disabled="isBusy" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300 disabled:cursor-not-allowed">在索引处插入</button>
+                </div>
+            </div>
+            <div class="space-y-4">
+                <h3 class="font-semibold text-lg text-slate-700 border-b pb-2">查找 & 删除</h3>
+                <div class="flex items-center gap-2"><input type="number" v-model="inputs.findIndex" placeholder="索引" class="w-1/3 px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    <button @click="findNode" :disabled="isBusy" class="flex-1 bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300 disabled:cursor-not-allowed">查找节点</button>
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="number" v-model.number="inputs.deleteIndex" placeholder="索引" class="w-1/3 px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    <button @click="deleteAt" :disabled="isBusy" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300 disabled:cursor-not-allowed">删除节点</button>
+                </div>
+            </div>
+        </div>
+        <div class="mt-4 pt-4 border-t border-slate-200 text-center"><button @click="resetList" :disabled="isBusy" class="bg-slate-600 hover:bg-slate-700 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300">重置链表</button></div>
+    </div>
+
+
+    <!-- Visualization -->
+    <div class="bg-white p-6 rounded-xl shadow-lg">
+        <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-200">
+             <div class="flex items-center gap-2 text-xl font-bold text-slate-700" data-tippy-content="Head 是链表的入口点。在循环链表中，它的 'prev' 指针指向尾节点。">
+                <span class="bg-blue-100 text-blue-800 text-sm font-semibold mr-2 px-2.5 py-0.5 rounded-full">HEAD</span>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-blue-500"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg>
+                <span class="text-xl font-mono" :class="head ? 'text-blue-600' : 'text-slate-400'">{{ head ? head.value : 'null' }}</span>
+            </div>
+            <div class="text-lg font-semibold text-slate-600">Size: <span class="font-bold text-blue-600">{{ size }}</span></div>
+            <div class="flex items-center gap-2 text-xl font-bold text-slate-700" data-tippy-content="Tail 是链表的“逻辑”末尾。在循环链表中，它的 'next' 指针指向头节点。">
+                <span class="text-xl font-mono" :class="tail ? 'text-red-600' : 'text-slate-400'">{{ tail ? tail.value : 'null' }}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-red-500"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" /></svg>
+                <span class="bg-red-100 text-red-800 text-sm font-semibold ml-2 px-2.5 py-0.5 rounded-full">TAIL</span>
+            </div>
+        </div>
+        
+        <div v-auto-animate="{ duration: 500 }" class="space-y-4 min-h-[80px]">
+            <div v-if="!head" class="text-center text-slate-400 py-8">链表为空。</div>
+            <div v-for="(node, index) in visualNodes" :key="node.id" :id="'node-' + node.id" 
+                 class="node-element bg-slate-50 border-2 border-slate-200 p-4 rounded-lg flex items-center justify-between" 
+                 :class="{ 'highlight-context': node.highlight.node === 'context', 'highlight-result': node.highlight.node === 'result', 'highlight-delete': node.highlight.node === 'delete' }" 
+                 :data-tippy-content="`索引: ${index}<br>值: ${node.value}`">
+                
+                <div class="pointer-wrapper p-2" :class="{'highlight-pointer': node.highlight.prev}">
+                    <div class="flex items-center gap-3" data-tippy-content="`'prev'` 指针"><span class="bg-purple-100 text-purple-800 text-xs font-bold px-2 py-1 rounded">PREV</span><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-slate-400"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" /></svg><span class="font-mono text-lg" :class="node.prev ? 'text-purple-700' : 'text-slate-400'">{{ node.prev ? node.prev.value : 'null' }}</span></div>
+                </div>
+                <div class="flex items-center gap-3"><span class="bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded">VAL</span><span class="font-mono text-xl font-semibold text-slate-800">{{ node.value }}</span></div>
+                <div class="pointer-wrapper p-2" :class="{'highlight-pointer': node.highlight.next}">
+                    <div class="flex items-center gap-3" data-tippy-content="`'next'` 指针"><span class="font-mono text-lg" :class="node.next ? 'text-green-700' : 'text-slate-400'">{{ node.next ? node.next.value : 'null' }}</span><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-slate-400"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg><span class="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded">NEXT</span></div>
+                </div>
+            </div>
+        </div>
+        
+        <div v-if="size > 1" v-auto-animate class="mt-6 pt-4 border-t-2 border-dashed">
+            <div class="text-center text-slate-500 mb-4 font-semibold">环形链接</div>
+            <div class="wrap-around-link bg-slate-100 border-2 border-slate-200 p-4 rounded-lg flex items-center justify-around" :class="{'highlight-context': highlightWrapAround}">
+                <div class="flex flex-col items-center" data-tippy-content="尾节点的 'next' 指针指向头节点">
+                    <div class="text-sm text-slate-600 mb-1">TAIL.next</div>
+                    <div class="flex items-center gap-2"><span class="font-mono text-lg text-red-600">{{ tail.value }}</span><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-green-500"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg><span class="font-mono text-lg text-blue-600">{{ head.value }}</span></div>
+                </div>
+                <div class="flex flex-col items-center" data-tippy-content="头节点的 'prev' 指针指向尾节点">
+                    <div class="text-sm text-slate-600 mb-1">HEAD.prev</div>
+                    <div class="flex items-center gap-2"><span class="font-mono text-lg text-red-600">{{ tail.value }}</span><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-purple-500"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" /></svg><span class="font-mono text-lg text-blue-600">{{ head.value }}</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, reactive, onMounted, nextTick, watch } = Vue;
+
+    createApp({
+        setup() {
+            // --- State ---
+            const head = ref(null);
+            const tail = ref(null);
+            const size = ref(0);
+            const isBusy = ref(false);
+            let idCounter = 0;
+            const visualNodes = ref([]);
+            const inputs = reactive({ value: 'Vue', index: 1, findIndex: 0, deleteIndex: 0 });
+            const highlightWrapAround = ref(false);
+
+            // --- Tools ---
+            const notyf = new Notyf({ duration: 5000, position: { x: 'right', y: 'top' }, dismissible: true, types: [ { type: 'info', backgroundColor: '#3b82f6', icon: false }, { type: 'success', backgroundColor: '#22c55e' }, { type: 'error', backgroundColor: '#ef4444' }] });
+            const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+            // --- Core Logic ---
+            const createNode = (value, next = null, prev = null) => ({
+                id: idCounter++, value, next, prev, 
+                highlight: { node: null, prev: false, next: false }
+            });
+
+            const syncVisuals = () => {
+                const nodes = [];
+                if(head.value){
+                    let current = head.value;
+                    do { nodes.push(current); current = current.next; } while (size.value > 0 && current !== head.value);
+                }
+                visualNodes.value = nodes;
+            };
+
+            const clearAllHighlights = () => {
+                highlightWrapAround.value = false;
+                if(!head.value) return;
+                let current = head.value;
+                do { current.highlight = { node: null, prev: false, next: false }; current = current.next; } while (current !== head.value);
+                syncVisuals();
+            };
+            
+            const findNodeByIndex = (index) => {
+                if (index < 0 || index >= size.value) return null;
+                let current = head.value;
+                for (let i = 0; i < index; i++) { current = current.next; }
+                return current;
+            }
+            
+            // --- Operations ---
+            const resetList = async () => {
+                isBusy.value = true;
+                head.value = null; tail.value = null; size.value = 0; idCounter = 0;
+                syncVisuals(); await nextTick();
+                for (const val of ['Python', 'Go', 'Rust']) {
+                    const newNode = createNode(val);
+                    if (!head.value) {
+                        head.value = newNode;
+                        tail.value = newNode;
+                        newNode.next = newNode;
+                        newNode.prev = newNode;
+                    } else {
+                        newNode.prev = tail.value;
+                        newNode.next = head.value;
+                        tail.value.next = newNode;
+                        head.value.prev = newNode;
+                        tail.value = newNode;
+                    }
+                    size.value++;
+                }
+                syncVisuals(); await nextTick();
+                notyf.success('循环双向链表已重置。');
+                isBusy.value = false;
+            };
+
+            const append = async () => {
+                const val = inputs.value; if (!val || isBusy.value) return; isBusy.value = true;
+                const newNode = createNode(val);
+                if (!head.value) {
+                    head.value = newNode; tail.value = newNode;
+                    newNode.next = newNode; newNode.prev = newNode;
+                } else {
+                    newNode.prev = tail.value;
+                    newNode.next = head.value;
+                    tail.value.next = newNode;
+                    head.value.prev = newNode;
+                    tail.value = newNode;
+                }
+                size.value++;
+                syncVisuals(); await nextTick();
+                notyf.success(`成功在尾部追加节点 '${val}'。`);
+                newNode.highlight.node = 'result'; await sleep(1500); newNode.highlight.node = null;
+                inputs.value = ''; isBusy.value = false;
+            };
+
+            const prepend = async () => {
+                const val = inputs.value; if (!val || isBusy.value) return; isBusy.value = true;
+                const newNode = createNode(val);
+                if (!head.value) {
+                    head.value = newNode; tail.value = newNode;
+                    newNode.next = newNode; newNode.prev = newNode;
+                } else {
+                    newNode.prev = tail.value;
+                    newNode.next = head.value;
+                    tail.value.next = newNode;
+                    head.value.prev = newNode;
+                    head.value = newNode;
+                }
+                size.value++;
+                syncVisuals(); await nextTick();
+                notyf.success(`成功在头部添加节点 '${val}'。`);
+                newNode.highlight.node = 'result'; await sleep(1500); newNode.highlight.node = null;
+                inputs.value = ''; isBusy.value = false;
+            };
+
+            // *** BUG FIX: Added the missing findNode function ***
+            const findNode = async () => {
+                const index = parseInt(inputs.findIndex, 10);
+                if (isNaN(index) || index < 0 || index >= size.value || isBusy.value) { notyf.error('索引无效或超出范围！'); return; }
+                isBusy.value = true;
+                const node = findNodeByIndex(index);
+                notyf.success(`查找到索引 ${index} 的节点 '${node.value}'。`);
+                node.highlight.node = 'result';
+                document.getElementById('node-' + node.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                await sleep(2000);
+                node.highlight.node = null;
+                isBusy.value = false;
+            };
+
+            const insertAt = async () => {
+                const value = inputs.value; const index = parseInt(inputs.index, 10);
+                if (!value || isNaN(index) || index < 0 || index > size.value || isBusy.value) { notyf.error('索引无效或值为空！'); return; }
+                if (index === 0) { await prepend(); return; } if (index === size.value) { await append(); return; }
+                isBusy.value = true; clearAllHighlights();
+
+                notyf.open({ type: 'info', message: `<b>第1步:</b> 找到插入点。新节点将插入在橙色高亮的两个节点之间。` });
+                const nextNode = findNodeByIndex(index);
+                const prevNode = nextNode.prev;
+                nextNode.highlight.node = 'context'; prevNode.highlight.node = 'context';
+                await sleep(3000);
+
+                notyf.open({ type: 'info', message: `<b>第2步:</b> 更新前一个节点的 'next' 指针，指向新节点。` });
+                prevNode.highlight.next = true; await sleep(2500);
+
+                notyf.open({ type: 'info', message: `<b>第3步:</b> 更新后一个节点的 'prev' 指针，指向新节点。` });
+                nextNode.highlight.prev = true; await sleep(2500);
+                
+                notyf.open({ type: 'info', message: `<b>第4步:</b> 创建新节点，并完成链接。` });
+                const newNode = createNode(value, nextNode, prevNode);
+                prevNode.next = newNode; nextNode.prev = newNode;
+                size.value++;
+                syncVisuals(); await nextTick();
+                
+                clearAllHighlights(); newNode.highlight.node = 'result';
+                notyf.success(`<b>完成:</b> 节点 '${value}' 已成功插入！`);
+                await sleep(4000);
+                clearAllHighlights(); inputs.value = ''; isBusy.value = false;
+            };
+
+            const deleteAt = async () => {
+                const index = parseInt(inputs.deleteIndex, 10);
+                if (isNaN(index) || index < 0 || index >= size.value || isBusy.value) { notyf.error('索引无效或超出范围！'); return; }
+                isBusy.value = true; clearAllHighlights();
+
+                const nodeToDelete = findNodeByIndex(index);
+                const isHeadOrTail = (nodeToDelete === head.value || nodeToDelete === tail.value);
+                
+                notyf.open({ type: 'info', message: `<b>第1步:</b> 找到要删除的节点 (红色) 及其相邻节点 (橙色)。` });
+                nodeToDelete.highlight.node = 'delete';
+                if(size.value > 1) { // Avoid highlighting itself if it's the only node
+                    nodeToDelete.prev.highlight.node = 'context';
+                    nodeToDelete.next.highlight.node = 'context';
+                }
+                if(isHeadOrTail && size.value > 1) highlightWrapAround.value = true;
+                await sleep(3000);
+
+                notyf.open({ type: 'info', message: `<b>第2步:</b> 准备更新指针，以绕过被删除的节点。` + (isHeadOrTail && size.value > 2 ? ` 注意环形链接也将被修改！` : ``) });
+                if(size.value > 1) {
+                    nodeToDelete.prev.highlight.next = true;
+                    nodeToDelete.next.highlight.prev = true;
+                }
+                await sleep(3000);
+                
+                notyf.open({ type: 'info', message: `<b>第3步:</b> 指针更新完成，节点正式从链表中移除。` });
+                const deletedValue = nodeToDelete.value;
+                if (size.value === 1) {
+                    head.value = null; tail.value = null;
+                } else {
+                    const prevNode = nodeToDelete.prev;
+                    const nextNode = nodeToDelete.next;
+                    prevNode.next = nextNode;
+                    nextNode.prev = prevNode;
+                    if (nodeToDelete === head.value) head.value = nextNode;
+                    if (nodeToDelete === tail.value) tail.value = prevNode;
+                }
+                size.value--;
+                
+                syncVisuals(); await nextTick();
+                
+                if(head.value) {
+                    const prevOfDeleted = findNodeByIndex((index - 1 + size.value) % size.value);
+                    const nextOfDeleted = findNodeByIndex(index % size.value);
+                    prevOfDeleted.highlight.node = 'result'; prevOfDeleted.highlight.next = true;
+                    nextOfDeleted.highlight.node = 'result'; nextOfDeleted.highlight.prev = true;
+                }
+                notyf.success(`<b>完成:</b> 节点 '${deletedValue}' 已被删除。`);
+                await sleep(4000);
+
+                clearAllHighlights(); isBusy.value = false;
+            };
+            
+            const initTooltips = () => { tippy('[data-tippy-content]', { arrow: true, animation: 'fade', theme: 'light-border', allowHTML: true }); };
+            watch(visualNodes, () => { nextTick(() => { initTooltips(); }); }, { deep: true, immediate: true });
+            onMounted(() => { resetList(); });
+
+            return { head, tail, size, isBusy, inputs, visualNodes, highlightWrapAround, resetList, append, prepend, insertAt, findNode, deleteAt };
+        }
+    }).mount('#app');
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1477 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图数据结构交互式教学平台 - 专业版 v3.0</title>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+
+    <style>
+        /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+         * 🎨 全局设计系统 - 优化版 (Global Design System - Optimized)
+         * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+        :root {
+            /* 色彩系统 - Material Design 3.0 */
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --primary-light: #60a5fa;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #06b6d4;
+
+            /* 背景渐变 - 优化对比度 */
+            --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --card-gradient: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%);
+
+            /* 玻璃态效果 - 增强可读性 */
+            --glass-bg: rgba(255, 255, 255, 0.92);
+            --glass-border: rgba(255, 255, 255, 0.4);
+            --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.25);
+            --glass-blur: blur(8px);
+
+            /* 动画时序 - 优化性能 */
+            --animation-fast: 150ms;
+            --animation-normal: 250ms;
+            --animation-slow: 400ms;
+            --easing: cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* 滚动条优化 */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary-light) rgba(255, 255, 255, 0.1);
+        }
+
+        *::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        *::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        *::-webkit-scrollbar-thumb {
+            background: var(--primary-light);
+            border-radius: 3px;
+        }
+
+        *::-webkit-scrollbar-thumb:hover {
+            background: var(--primary);
+        }
+
+        body {
+            background: var(--bg-gradient);
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* 玻璃态卡片 - 优化 */
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border-radius: 16px;
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--glass-shadow);
+            transition: all var(--animation-normal) var(--easing);
+        }
+
+        .glass-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.35);
+        }
+
+        /* 按钮系统 - 优化 */
+        .btn {
+            @apply px-4 py-2.5 font-medium rounded-lg shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95;
+        }
+
+        .btn-primary {
+            @apply btn bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-400;
+        }
+
+        .btn-success {
+            @apply btn bg-green-600 text-white hover:bg-green-700 focus:ring-green-400;
+        }
+
+        .btn-danger {
+            @apply btn bg-red-600 text-white hover:bg-red-700 focus:ring-red-400;
+        }
+
+        .btn-warning {
+            @apply btn bg-yellow-600 text-white hover:bg-yellow-700 focus:ring-yellow-400;
+        }
+
+        /* 图表容器 - 关键优化 */
+        .chart-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            min-height: 500px;
+        }
+
+        .chart-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+
+        /* 响应式高度设置 */
+        @media (max-width: 768px) {
+            .chart-container {
+                min-height: 400px;
+            }
+        }
+
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .chart-container {
+                min-height: 450px;
+            }
+        }
+
+        @media (min-width: 1025px) {
+            .chart-container {
+                min-height: 550px;
+            }
+        }
+
+        /* 标签样式 */
+        .tag {
+            @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium;
+        }
+
+        .tag-blue {
+            @apply tag bg-blue-100 text-blue-800;
+        }
+
+        .tag-green {
+            @apply tag bg-green-100 text-green-800;
+        }
+
+        .tag-yellow {
+            @apply tag bg-yellow-100 text-yellow-800;
+        }
+
+        /* 加载动画 - 优化 */
+        .loading-spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* 脉冲动画 */
+        @keyframes pulse-soft {
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.03);
+                opacity: 0.9;
+            }
+        }
+
+        .pulse-soft {
+            animation: pulse-soft 2s ease-in-out infinite;
+        }
+
+        /* 算法步骤高亮 - 优化 */
+        .algorithm-step {
+            @apply p-3 mb-2 rounded-lg transition-all duration-300 border-l-4 border-transparent;
+        }
+
+        .algorithm-step.active {
+            @apply bg-blue-50 border-blue-500 shadow-md transform scale-105;
+        }
+
+        .algorithm-step.completed {
+            @apply bg-green-50 opacity-80 border-green-400;
+        }
+
+        /* 通知样式 - 优化 */
+        .notification {
+            @apply fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg animate__animated animate__fadeInRight min-w-[300px] max-w-[400px];
+        }
+
+        .notification.success {
+            @apply bg-green-500 text-white;
+        }
+
+        .notification.error {
+            @apply bg-red-500 text-white;
+        }
+
+        .notification.info {
+            @apply bg-blue-500 text-white;
+        }
+
+        .notification.warning {
+            @apply bg-yellow-500 text-white;
+        }
+
+        /* 深色模式支持 */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --glass-bg: rgba(30, 30, 30, 0.9);
+                --glass-border: rgba(255, 255, 255, 0.15);
+                --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+            }
+
+            body {
+                color: #e2e8f0;
+            }
+        }
+
+        /* 防止内容溢出 */
+        .overflow-container {
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* 响应式网格 - 优化 */
+        .responsive-grid {
+            display: grid;
+            gap: 1.5rem;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        }
+
+        @media (max-width: 640px) {
+            .responsive-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body class="text-slate-800">
+
+    <div id="app" class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
+
+        <!-- ========== 通知系统 ========== -->
+        <transition name="fade">
+            <div v-if="notification.show" :class="['notification', notification.type]">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <i :class="['fas', notification.icon, 'mr-3']"></i>
+                        <span>{{ notification.message }}</span>
+                    </div>
+                    <button @click="notification.show = false" class="ml-4 text-white/80 hover:text-white">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </transition>
+
+        <!-- ========== 页面头部 ========== -->
+        <header class="text-center mb-12 animate__animated animate__fadeInDown">
+            <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-4">
+                <i class="fas fa-project-diagram mr-4"></i>
+                图数据结构交互式教学演示
+            </h1>
+        </header>
+
+        <!-- ========== 导航标签 ========== -->
+        <nav class="glass-card p-2 mb-8 animate__animated animate__fadeInUp">
+            <div class="flex flex-wrap justify-center gap-2">
+                <button v-for="tab in navigationTabs" :key="tab.id" @click="switchTab(tab.id)"
+                    :class="['px-4 py-2 rounded-lg font-medium transition-all duration-200',
+                            activeTab === tab.id ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-700 hover:bg-slate-100']">
+                    <i :class="[tab.icon, 'mr-2']"></i>{{ tab.name }}
+                </button>
+            </div>
+        </nav>
+
+        <!-- ========== 内容区域 ========== -->
+        <div class="space-y-12">
+
+            <!-- 概念介绍 -->
+            <section v-show="activeTab === 'concepts'" class="animate__animated animate__fadeIn">
+                <h2 class="text-3xl font-bold text-white mb-8 text-center">
+                    <i class="fas fa-book-open mr-3"></i>核心概念与实际应用
+                </h2>
+
+                <!-- 实际应用案例 -->
+                <div class="responsive-grid mb-12">
+                    <div v-for="(example, index) in realWorldExamples" :key="index"
+                        class="glass-card p-6 animate__animated animate__fadeInUp overflow-container"
+                        :style="{animationDelay: index * 100 + 'ms'}">
+                        <div class="flex items-center mb-4">
+                            <div
+                                class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center mr-4 shadow-lg">
+                                <i :class="[example.icon, 'text-white text-xl']"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-lg">{{ example.title }}</h3>
+                                <p class="text-sm text-slate-600">{{ example.category }}</p>
+                            </div>
+                        </div>
+                        <p class="text-slate-700 mb-4">{{ example.desc }}</p>
+                        <div class="chart-container" style="height: 350px;">
+                            <div class="chart-wrapper" :ref="el => { if (el) exampleChartRefs[index] = el }"></div>
+                        </div>
+                        <div class="mt-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
+                            <strong class="text-blue-700">💡 关键特征：</strong>
+                            <span class="text-slate-700">{{ example.keyFeature }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 术语详解 -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="glass-card p-8">
+                        <h3 class="text-xl font-bold mb-6 text-slate-800">
+                            <i class="fas fa-list-check mr-2 text-blue-600"></i>图的分类与性质
+                        </h3>
+                        <div class="space-y-2">
+                            <button v-for="term in terminology" :key="term.id" @click="selectTerm(term.id)"
+                                :class="['w-full text-left p-4 rounded-lg transition-all duration-200',
+                                        activeTermId === term.id ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-600 shadow-md' : 'hover:bg-slate-50']">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-medium">{{ term.name }}</span>
+                                    <i class="fas fa-chevron-right text-blue-600 transition-transform duration-200"
+                                        :class="{'rotate-90': activeTermId === term.id}"></i>
+                                </div>
+                            </button>
+                        </div>
+                        <transition name="fade">
+                            <div v-if="activeTerm"
+                                class="mt-6 p-4 bg-gradient-to-br from-slate-50 to-blue-50 rounded-lg">
+                                <h4 class="font-bold text-blue-700 mb-2">{{ activeTerm.name }}</h4>
+                                <p class="text-slate-700 mb-3" v-html="activeTerm.definition"></p>
+                                <div class="flex items-start">
+                                    <i class="fas fa-lightbulb text-yellow-500 mr-2 mt-1"></i>
+                                    <span class="text-sm">{{ activeTerm.takeaway }}</span>
+                                </div>
+                            </div>
+                        </transition>
+                    </div>
+                    <div class="glass-card p-4 overflow-container">
+                        <div class="chart-container" style="height: 500px;">
+                            <div class="chart-wrapper" ref="terminologyChartRef"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 交互式沙箱 -->
+            <section v-show="activeTab === 'sandbox'" class="animate__animated animate__fadeIn">
+                <h2 class="text-3xl font-bold text-white mb-8 text-center">
+                    <i class="fas fa-flask mr-3"></i>自动化图演示沙箱
+                </h2>
+
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    <!-- 控制面板 -->
+                    <div class="lg:col-span-1 space-y-4">
+                        <!-- 预设场景选择 -->
+                        <div class="glass-card p-6">
+                            <h3 class="font-bold mb-4 text-slate-800">
+                                <i class="fas fa-magic mr-2 text-purple-600"></i>预设场景
+                            </h3>
+                            <div class="space-y-2">
+                                <button v-for="preset in presetScenarios" :key="preset.id"
+                                    @click="loadPresetScenario(preset.id)" class="w-full btn-primary text-sm">
+                                    <i :class="[preset.icon, 'mr-2']"></i>{{ preset.name }}
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 自动演示控制 -->
+                        <div class="glass-card p-6">
+                            <h3 class="font-bold mb-4 text-slate-800">
+                                <i class="fas fa-play-circle mr-2 text-green-600"></i>自动演示
+                            </h3>
+                            <div class="space-y-3">
+                                <button @click="startAutoDemo" :disabled="isAutoPlaying" class="w-full btn-success">
+                                    <i class="fas fa-play mr-2"></i>开始演示
+                                </button>
+                                <button @click="pauseAutoDemo" :disabled="!isAutoPlaying" class="w-full btn-warning">
+                                    <i class="fas fa-pause mr-2"></i>暂停演示
+                                </button>
+                                <button @click="resetDemo" class="w-full btn-danger">
+                                    <i class="fas fa-redo mr-2"></i>重置场景
+                                </button>
+                                <div>
+                                    <label class="text-sm font-medium text-slate-700">演示速度</label>
+                                    <input type="range" v-model="demoSpeed" min="1" max="10" class="w-full mt-1">
+                                    <div class="flex justify-between text-xs text-slate-500">
+                                        <span>慢</span>
+                                        <span>{{ demoSpeed }}</span>
+                                        <span>快</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 图属性显示 -->
+                        <div class="glass-card p-6">
+                            <h3 class="font-bold mb-4 text-slate-800">
+                                <i class="fas fa-info-circle mr-2 text-blue-600"></i>图的实时属性
+                            </h3>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between p-2 bg-slate-50 rounded">
+                                    <span class="text-slate-600">节点数：</span>
+                                    <span class="font-bold">{{ graphStats.nodeCount }}</span>
+                                </div>
+                                <div class="flex justify-between p-2 bg-slate-50 rounded">
+                                    <span class="text-slate-600">边数：</span>
+                                    <span class="font-bold">{{ graphStats.edgeCount }}</span>
+                                </div>
+                                <div class="flex justify-between p-2 bg-slate-50 rounded">
+                                    <span class="text-slate-600">平均度：</span>
+                                    <span class="font-bold">{{ graphStats.avgDegree }}</span>
+                                </div>
+                                <div class="flex justify-between p-2 bg-slate-50 rounded">
+                                    <span class="text-slate-600">图密度：</span>
+                                    <span class="font-bold">{{ graphStats.density }}%</span>
+                                </div>
+                                <div class="flex justify-between p-2 bg-slate-50 rounded">
+                                    <span class="text-slate-600">是否连通：</span>
+                                    <span class="font-bold">
+                                        <i
+                                            :class="graphStats.isConnected ? 'fas fa-check text-green-600' : 'fas fa-times text-red-600'"></i>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 图可视化区域 -->
+                    <div class="lg:col-span-3 glass-card p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-lg text-slate-800">
+                                <i class="fas fa-chart-network mr-2 text-indigo-600"></i>图可视化
+                            </h3>
+                            <div class="flex gap-2">
+                                <button @click="centerGraph" class="btn-primary text-sm">
+                                    <i class="fas fa-compress"></i> 居中
+                                </button>
+                                <button @click="toggleLayout" class="btn-primary text-sm">
+                                    <i class="fas fa-random"></i> 切换布局
+                                </button>
+                            </div>
+                        </div>
+                        <div class="chart-container" style="height: 600px;">
+                            <div class="chart-wrapper" ref="sandboxChartRef"></div>
+                        </div>
+
+                        <!-- 当前演示说明 -->
+                        <transition name="fade">
+                            <div v-if="currentDemoStep"
+                                class="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
+                                <h4 class="font-bold text-blue-700 mb-2">
+                                    <i class="fas fa-info-circle mr-2"></i>当前步骤
+                                </h4>
+                                <p class="text-slate-700">{{ currentDemoStep }}</p>
+                            </div>
+                        </transition>
+                    </div>
+                </div>
+            </section>
+            
+        </div>
+
+        <!-- 快捷键提示 -->
+        <div class="fixed bottom-8 right-8 glass-card p-3 text-xs text-slate-600">
+            <div><kbd>Space</kbd> 播放/暂停</div>
+            <div><kbd>R</kbd> 重置</div>
+            <div><kbd>1-2</kbd> 切换标签</div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } = Vue;
+
+        createApp({
+            setup() {
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                // 📊 核心状态管理 (Core State Management)
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+                // 导航状态
+                const activeTab = ref('concepts');
+                const navigationTabs = [
+                    { id: 'concepts', name: '核心概念', icon: 'fas fa-book' },
+                    { id: 'sandbox', name: '演示沙箱', icon: 'fas fa-flask' },
+                ];
+
+                // 通知系统
+                const notification = reactive({
+                    show: false,
+                    type: 'info',
+                    message: '',
+                    icon: 'fa-info-circle'
+                });
+
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                // 📚 概念展示数据 (Concept Demonstration Data)
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+                const realWorldExamples = [
+                    {
+                        title: '社交网络分析',
+                        category: '无向图应用',
+                        icon: 'fa-users',
+                        desc: 'Facebook、LinkedIn等社交平台的好友关系网络，展示六度分隔理论的实际应用。',
+                        keyFeature: '小世界现象：平均路径长度为6，聚类系数高达0.4',
+                        graphData: {
+                            nodes: [
+                                { id: 'User1', name: '张三', value: 25, category: 0, symbolSize: 50 },
+                                { id: 'User2', name: '李四', value: 20, category: 0, symbolSize: 45 },
+                                { id: 'User3', name: '王五', value: 22, category: 1, symbolSize: 47 },
+                                { id: 'User4', name: '赵六', value: 18, category: 1, symbolSize: 42 },
+                                { id: 'User5', name: '钱七', value: 24, category: 2, symbolSize: 48 },
+                                { id: 'User6', name: '孙八', value: 15, category: 2, symbolSize: 40 }
+                            ],
+                            links: [
+                                { source: 'User1', target: 'User2', value: 10 },
+                                { source: 'User1', target: 'User3', value: 8 },
+                                { source: 'User2', target: 'User3', value: 12 },
+                                { source: 'User2', target: 'User4', value: 6 },
+                                { source: 'User3', target: 'User5', value: 9 },
+                                { source: 'User4', target: 'User5', value: 7 },
+                                { source: 'User4', target: 'User6', value: 11 },
+                                { source: 'User5', target: 'User6', value: 5 }
+                            ]
+                        }
+                    },
+                    {
+                        title: '城市交通网络',
+                        category: '带权图应用',
+                        icon: 'fa-route',
+                        desc: '基于实际距离和时间成本的城市间交通网络优化，用于物流和出行规划。',
+                        keyFeature: 'Dijkstra算法可找到最优路径，平均节省30%时间',
+                        graphData: {
+                            nodes: [
+                                { id: 'BJ', name: '北京', symbolSize: 60, category: 0, value: 2154 },
+                                { id: 'SH', name: '上海', symbolSize: 55, category: 1, value: 2424 },
+                                { id: 'GZ', name: '广州', symbolSize: 50, category: 1, value: 1392 },
+                                { id: 'SZ', name: '深圳', symbolSize: 45, category: 2, value: 1303 },
+                                { id: 'CD', name: '成都', symbolSize: 48, category: 2, value: 1633 },
+                                { id: 'WH', name: '武汉', symbolSize: 46, category: 3, value: 1121 }
+                            ],
+                            links: [
+                                { source: 'BJ', target: 'SH', value: 1200, lineStyle: { width: 3 } },
+                                { source: 'BJ', target: 'WH', value: 1100, lineStyle: { width: 3 } },
+                                { source: 'SH', target: 'GZ', value: 1400, lineStyle: { width: 2 } },
+                                { source: 'GZ', target: 'SZ', value: 130, lineStyle: { width: 4 } },
+                                { source: 'WH', target: 'CD', value: 900, lineStyle: { width: 2 } },
+                                { source: 'WH', target: 'GZ', value: 1000, lineStyle: { width: 2 } }
+                            ]
+                        }
+                    },
+                    {
+                        title: '网页排名系统',
+                        category: '有向图应用',
+                        icon: 'fa-link',
+                        desc: 'Google PageRank算法的核心原理展示，基于链接结构评估网页重要性。',
+                        keyFeature: 'PageRank值通过迭代计算收敛，影响70%搜索结果排序',
+                        graphData: {
+                            nodes: [
+                                { id: 'Page1', name: '主页', value: 0.35, symbolSize: 55, category: 0 },
+                                { id: 'Page2', name: '产品', value: 0.20, symbolSize: 45, category: 1 },
+                                { id: 'Page3', name: '博客', value: 0.25, symbolSize: 48, category: 1 },
+                                { id: 'Page4', name: '关于', value: 0.10, symbolSize: 40, category: 2 },
+                                { id: 'Page5', name: '联系', value: 0.10, symbolSize: 40, category: 2 }
+                            ],
+                            links: [
+                                { source: 'Page1', target: 'Page2', value: 5 },
+                                { source: 'Page1', target: 'Page3', value: 4 },
+                                { source: 'Page2', target: 'Page3', value: 3 },
+                                { source: 'Page2', target: 'Page4', value: 2 },
+                                { source: 'Page3', target: 'Page1', value: 6 },
+                                { source: 'Page3', target: 'Page5', value: 2 },
+                                { source: 'Page4', target: 'Page5', value: 1 },
+                                { source: 'Page5', target: 'Page1', value: 3 }
+                            ],
+                            directed: true
+                        }
+                    },
+                    {
+                        title: '项目依赖管理',
+                        category: 'DAG应用',
+                        icon: 'fa-diagram-project',
+                        desc: 'Maven/NPM等包管理器的依赖解析，通过拓扑排序确定构建顺序。',
+                        keyFeature: '拓扑排序可检测循环依赖，优化构建时间达40%',
+                        graphData: {
+                            nodes: [
+                                { id: 'Core', name: '核心库', symbolSize: 50, category: 0, x: 200, y: 50 },
+                                { id: 'Utils', name: '工具库', symbolSize: 45, category: 0, x: 100, y: 150 },
+                                { id: 'UI', name: 'UI组件', symbolSize: 48, category: 1, x: 100, y: 250 },
+                                { id: 'API', name: 'API层', symbolSize: 46, category: 1, x: 300, y: 150 },
+                                { id: 'App', name: '应用层', symbolSize: 52, category: 2, x: 200, y: 350 }
+                            ],
+                            links: [
+                                { source: 'Core', target: 'Utils', value: 1 },
+                                { source: 'Core', target: 'API', value: 1 },
+                                { source: 'Utils', target: 'UI', value: 1 },
+                                { source: 'API', target: 'App', value: 1 },
+                                { source: 'UI', target: 'App', value: 1 }
+                            ],
+                            directed: true
+                        }
+                    }
+                ];
+
+                const terminology = [
+                    {
+                        id: 'undirected',
+                        name: '无向图 (Undirected Graph)',
+                        definition: '边没有方向的图结构。适用于表示双向对等关系，如朋友关系、道路网络等。',
+                        takeaway: '关键应用：社交网络、协作网络、物理网络建模',
+                        graphData: {
+                            nodes: [
+                                { id: 'A', name: 'A', symbolSize: 45 },
+                                { id: 'B', name: 'B', symbolSize: 45 },
+                                { id: 'C', name: 'C', symbolSize: 45 },
+                                { id: 'D', name: 'D', symbolSize: 45 },
+                                { id: 'E', name: 'E', symbolSize: 45 }
+                            ],
+                            links: [
+                                { source: 'A', target: 'B' },
+                                { source: 'B', target: 'C' },
+                                { source: 'C', target: 'D' },
+                                { source: 'D', target: 'E' },
+                                { source: 'E', target: 'A' },
+                                { source: 'A', target: 'C' }
+                            ]
+                        }
+                    },
+                    {
+                        id: 'directed',
+                        name: '有向图 (Directed Graph)',
+                        definition: '边具有方向的图结构。用于表示单向关系，如网页链接、关注关系、依赖关系等。',
+                        takeaway: '关键应用：网页排名、任务调度、数据流分析',
+                        graphData: {
+                            nodes: [
+                                { id: 'A', name: 'A', symbolSize: 50 },
+                                { id: 'B', name: 'B', symbolSize: 45 },
+                                { id: 'C', name: 'C', symbolSize: 45 },
+                                { id: 'D', name: 'D', symbolSize: 45 },
+                                { id: 'E', name: 'E', symbolSize: 45 }
+                            ],
+                            links: [
+                                { source: 'A', target: 'B' },
+                                { source: 'B', target: 'C' },
+                                { source: 'C', target: 'D' },
+                                { source: 'D', target: 'E' },
+                                { source: 'E', target: 'A' },
+                                { source: 'B', target: 'D' }
+                            ],
+                            directed: true
+                        }
+                    },
+                    {
+                        id: 'weighted',
+                        name: '带权图 (Weighted Graph)',
+                        definition: '边附带数值权重的图。权重可表示距离、成本、容量、概率等度量。',
+                        takeaway: '关键应用：最短路径、最小生成树、网络流优化',
+                        graphData: {
+                            nodes: [
+                                { id: 'A', name: 'A', symbolSize: 50 },
+                                { id: 'B', name: 'B', symbolSize: 45 },
+                                { id: 'C', name: 'C', symbolSize: 45 },
+                                { id: 'D', name: 'D', symbolSize: 45 },
+                                { id: 'E', name: 'E', symbolSize: 45 }
+                            ],
+                            links: [
+                                { source: 'A', target: 'B', value: 5 },
+                                { source: 'B', target: 'C', value: 3 },
+                                { source: 'C', target: 'D', value: 7 },
+                                { source: 'D', target: 'E', value: 2 },
+                                { source: 'E', target: 'A', value: 8 },
+                                { source: 'A', target: 'D', value: 4 }
+                            ]
+                        }
+                    },
+                    {
+                        id: 'complete',
+                        name: '完全图 (Complete Graph)',
+                        definition: '任意两个节点间都有边相连的图。n个节点的完全图有n(n-1)/2条边。',
+                        takeaway: '关键性质：最大连通性、用于理论分析和算法下界',
+                        graphData: {
+                            nodes: [
+                                { id: 'A', name: 'A', symbolSize: 50 },
+                                { id: 'B', name: 'B', symbolSize: 50 },
+                                { id: 'C', name: 'C', symbolSize: 50 },
+                                { id: 'D', name: 'D', symbolSize: 50 }
+                            ],
+                            links: [
+                                { source: 'A', target: 'B' },
+                                { source: 'A', target: 'C' },
+                                { source: 'A', target: 'D' },
+                                { source: 'B', target: 'C' },
+                                { source: 'B', target: 'D' },
+                                { source: 'C', target: 'D' }
+                            ]
+                        }
+                    }
+                ];
+
+                const activeTermId = ref('undirected');
+                const activeTerm = computed(() => terminology.find(t => t.id === activeTermId.value));
+
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                // 🔧 沙箱功能 - 完全自动化 (Sandbox - Fully Automated)
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+                const presetScenarios = [
+                    { id: 'social', name: '社交网络', icon: 'fas fa-users' },
+                    { id: 'transport', name: '交通网络', icon: 'fas fa-route' },
+                    { id: 'binary', name: '二叉树', icon: 'fas fa-sitemap' },
+                    { id: 'complete', name: '完全图', icon: 'fas fa-circle-nodes' },
+                    { id: 'bipartite', name: '二部图', icon: 'fas fa-project-diagram' },
+                    { id: 'cycle', name: '环形图', icon: 'fas fa-circle-notch' }
+                ];
+
+                const currentGraph = reactive({
+                    nodes: [],
+                    links: [],
+                    layout: 'force'
+                });
+
+                const isAutoPlaying = ref(false);
+                const demoSpeed = ref(5);
+                const currentDemoStep = ref('');
+
+                const graphStats = computed(() => {
+                    const nodeCount = currentGraph.nodes.length;
+                    const edgeCount = currentGraph.links.length;
+                    const maxEdges = nodeCount * (nodeCount - 1) / 2;
+
+                    return {
+                        nodeCount,
+                        edgeCount,
+                        avgDegree: nodeCount > 0 ? (2 * edgeCount / nodeCount).toFixed(2) : 0,
+                        density: maxEdges > 0 ? Math.round((edgeCount / maxEdges) * 100) : 0,
+                        isConnected: nodeCount > 0 // 简化判断
+                    };
+                });
+                
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                // 📊 ECharts 实例管理 - 优化版 (ECharts Management - Optimized)
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+                const exampleChartRefs = ref([]);
+                const terminologyChartRef = ref(null);
+                const sandboxChartRef = ref(null);
+
+                let chartInstances = {
+                    examples: [],
+                    terminology: null,
+                    sandbox: null,
+                };
+
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                // 🎮 核心方法 - 重构版 (Core Methods - Refactored)
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+                // 通知方法
+                const showNotification = (message, type = 'info') => {
+                    const icons = {
+                        success: 'fa-check-circle',
+                        error: 'fa-exclamation-circle',
+                        warning: 'fa-exclamation-triangle',
+                        info: 'fa-info-circle'
+                    };
+
+                    notification.message = message;
+                    notification.type = type;
+                    notification.icon = icons[type];
+                    notification.show = true;
+
+                    setTimeout(() => {
+                        notification.show = false;
+                    }, 3000);
+                };
+
+                // 切换标签
+                const switchTab = (tabId) => {
+                    activeTab.value = tabId;
+                    showNotification(`已切换到${navigationTabs.find(t => t.id === tabId).name}`, 'info');
+
+                    // 确保图表正确渲染
+                    nextTick(() => {
+                        // 延迟初始化或重新初始化图表
+                        setTimeout(() => {
+                            if (tabId === 'sandbox') {
+                                if (!chartInstances.sandbox && sandboxChartRef.value) {
+                                    try {
+                                        chartInstances.sandbox = echarts.init(sandboxChartRef.value);
+                                        console.log('✅ 沙箱图表延迟初始化成功');
+                                    } catch (error) {
+                                        console.error('❌ 沙箱图表延迟初始化失败:', error);
+                                    }
+                                }
+                                if (currentGraph.nodes.length === 0) {
+                                    loadPresetScenario('social');
+                                } else {
+                                    updateSandboxChart();
+                                }
+                            }
+
+                            // 调整所有图表大小
+                            Object.values(chartInstances).forEach(instance => {
+                                if (instance && typeof instance.resize === 'function') {
+                                    instance.resize();
+                                } else if (Array.isArray(instance)) {
+                                    instance.forEach(chart => chart && chart.resize());
+                                }
+                            });
+                        }, 200);
+                    });
+                };
+
+                // 选择术语
+                const selectTerm = (termId) => {
+                    activeTermId.value = termId;
+                    updateTerminologyChart();
+                };
+
+                // 加载预设场景
+                const loadPresetScenario = (scenarioId) => {
+                    const scenarios = {
+                        social: {
+                            nodes: [
+                                { id: 'Person1', name: '张三', symbolSize: 55, category: 0 },
+                                { id: 'Person2', name: '李四', symbolSize: 50, category: 0 },
+                                { id: 'Person3', name: '王五', symbolSize: 50, category: 1 },
+                                { id: 'Person4', name: '赵六', symbolSize: 45, category: 1 },
+                                { id: 'Person5', name: '钱七', symbolSize: 45, category: 2 },
+                                { id: 'Person6', name: '孙八', symbolSize: 45, category: 2 },
+                                { id: 'Person7', name: '周九', symbolSize: 40, category: 3 },
+                                { id: 'Person8', name: '吴十', symbolSize: 40, category: 3 }
+                            ],
+                            links: [
+                                { source: 'Person1', target: 'Person2', value: 10 },
+                                { source: 'Person1', target: 'Person3', value: 8 },
+                                { source: 'Person2', target: 'Person4', value: 6 },
+                                { source: 'Person3', target: 'Person4', value: 7 },
+                                { source: 'Person3', target: 'Person5', value: 9 },
+                                { source: 'Person4', target: 'Person6', value: 5 },
+                                { source: 'Person5', target: 'Person7', value: 4 },
+                                { source: 'Person6', target: 'Person8', value: 6 },
+                                { source: 'Person7', target: 'Person8', value: 3 }
+                            ]
+                        },
+                        transport: {
+                            nodes: [
+                                { id: 'Station1', name: '中心站', symbolSize: 60, category: 0 },
+                                { id: 'Station2', name: '东站', symbolSize: 50, category: 1 },
+                                { id: 'Station3', name: '西站', symbolSize: 50, category: 1 },
+                                { id: 'Station4', name: '南站', symbolSize: 50, category: 1 },
+                                { id: 'Station5', name: '北站', symbolSize: 50, category: 1 },
+                                { id: 'Station6', name: '机场', symbolSize: 55, category: 2 }
+                            ],
+                            links: [
+                                { source: 'Station1', target: 'Station2', value: 15 },
+                                { source: 'Station1', target: 'Station3', value: 12 },
+                                { source: 'Station1', target: 'Station4', value: 10 },
+                                { source: 'Station1', target: 'Station5', value: 8 },
+                                { source: 'Station2', target: 'Station6', value: 25 },
+                                { source: 'Station3', target: 'Station4', value: 18 },
+                                { source: 'Station5', target: 'Station6', value: 30 }
+                            ]
+                        },
+                        binary: {
+                            nodes: [
+                                { id: 'Root', name: 'Root', symbolSize: 55, category: 0 },
+                                { id: 'L1', name: 'L1', symbolSize: 50, category: 1 },
+                                { id: 'R1', name: 'R1', symbolSize: 50, category: 1 },
+                                { id: 'L2', name: 'L2', symbolSize: 45, category: 2 },
+                                { id: 'L3', name: 'L3', symbolSize: 45, category: 2 },
+                                { id: 'R2', name: 'R2', symbolSize: 45, category: 2 },
+                                { id: 'R3', name: 'R3', symbolSize: 45, category: 2 }
+                            ],
+                            links: [
+                                { source: 'Root', target: 'L1', value: 1 },
+                                { source: 'Root', target: 'R1', value: 1 },
+                                { source: 'L1', target: 'L2', value: 1 },
+                                { source: 'L1', target: 'L3', value: 1 },
+                                { source: 'R1', target: 'R2', value: 1 },
+                                { source: 'R1', target: 'R3', value: 1 }
+                            ]
+                        },
+                        complete: {
+                            nodes: [
+                                { id: 'N1', name: 'N1', symbolSize: 50, category: 0 },
+                                { id: 'N2', name: 'N2', symbolSize: 50, category: 0 },
+                                { id: 'N3', name: 'N3', symbolSize: 50, category: 0 },
+                                { id: 'N4', name: 'N4', symbolSize: 50, category: 0 },
+                                { id: 'N5', name: 'N5', symbolSize: 50, category: 0 }
+                            ],
+                            links: []
+                        },
+                        bipartite: {
+                            nodes: [
+                                { id: 'A1', name: 'A1', symbolSize: 50, category: 0, x: 100 },
+                                { id: 'A2', name: 'A2', symbolSize: 50, category: 0, x: 100 },
+                                { id: 'A3', name: 'A3', symbolSize: 50, category: 0, x: 100 },
+                                { id: 'B1', name: 'B1', symbolSize: 50, category: 1, x: 300 },
+                                { id: 'B2', name: 'B2', symbolSize: 50, category: 1, x: 300 },
+                                { id: 'B3', name: 'B3', symbolSize: 50, category: 1, x: 300 }
+                            ],
+                            links: [
+                                { source: 'A1', target: 'B1', value: 1 },
+                                { source: 'A1', target: 'B2', value: 1 },
+                                { source: 'A2', target: 'B2', value: 1 },
+                                { source: 'A2', target: 'B3', value: 1 },
+                                { source: 'A3', target: 'B1', value: 1 },
+                                { source: 'A3', target: 'B3', value: 1 }
+                            ]
+                        },
+                        cycle: {
+                            nodes: [
+                                { id: 'C1', name: 'C1', symbolSize: 50 },
+                                { id: 'C2', name: 'C2', symbolSize: 50 },
+                                { id: 'C3', name: 'C3', symbolSize: 50 },
+                                { id: 'C4', name: 'C4', symbolSize: 50 },
+                                { id: 'C5', name: 'C5', symbolSize: 50 },
+                                { id: 'C6', name: 'C6', symbolSize: 50 }
+                            ],
+                            links: [
+                                { source: 'C1', target: 'C2', value: 1 },
+                                { source: 'C2', target: 'C3', value: 1 },
+                                { source: 'C3', target: 'C4', value: 1 },
+                                { source: 'C4', target: 'C5', value: 1 },
+                                { source: 'C5', target: 'C6', value: 1 },
+                                { source: 'C6', target: 'C1', value: 1 }
+                            ]
+                        }
+                    };
+
+                    // 生成完全图的边
+                    if (scenarioId === 'complete') {
+                        const nodes = scenarios.complete.nodes;
+                        for (let i = 0; i < nodes.length; i++) {
+                            for (let j = i + 1; j < nodes.length; j++) {
+                                scenarios.complete.links.push({
+                                    source: nodes[i].id,
+                                    target: nodes[j].id,
+                                    value: Math.floor(Math.random() * 10) + 1
+                                });
+                            }
+                        }
+                    }
+
+                    const scenario = scenarios[scenarioId];
+                    if (scenario) {
+                        currentGraph.nodes = scenario.nodes;
+                        currentGraph.links = scenario.links;
+                        updateSandboxChart();
+                        showNotification(`已加载${presetScenarios.find(s => s.id === scenarioId).name}场景`, 'success');
+                    }
+                };
+
+                // 开始自动演示
+                const startAutoDemo = async () => {
+                    if (currentGraph.nodes.length === 0) {
+                        loadPresetScenario('social');
+                    }
+
+                    isAutoPlaying.value = true;
+                    const steps = [
+                        '初始化图结构，设置节点位置',
+                        '应用力导向布局算法',
+                        '计算节点间的斥力和引力',
+                        '迭代优化节点位置',
+                        '高亮显示关键路径',
+                        '展示最终优化结果'
+                    ];
+
+                    for (let i = 0; i < steps.length; i++) {
+                        if (!isAutoPlaying.value) break;
+
+                        currentDemoStep.value = steps[i];
+
+                        // 动态更新图的视觉效果
+                        if (chartInstances.sandbox) {
+                            const nodes = currentGraph.nodes.map((node, idx) => ({
+                                ...node,
+                                symbolSize: i === idx ? 60 : 45,
+                                itemStyle: {
+                                    color: i === idx ? '#ef4444' : '#2563eb'
+                                }
+                            }));
+
+                            updateSandboxChart(nodes);
+                        }
+
+                        await new Promise(resolve => setTimeout(resolve, 1000 / demoSpeed.value * 200));
+                    }
+
+                    isAutoPlaying.value = false;
+                    currentDemoStep.value = '演示完成';
+                    showNotification('自动演示完成', 'success');
+                };
+
+                // 暂停自动演示
+                const pauseAutoDemo = () => {
+                    isAutoPlaying.value = false;
+                    showNotification('演示已暂停', 'info');
+                };
+
+                // 重置演示
+                const resetDemo = () => {
+                    isAutoPlaying.value = false;
+                    currentDemoStep.value = '';
+                    currentGraph.nodes = [];
+                    currentGraph.links = [];
+                    updateSandboxChart();
+                    showNotification('场景已重置', 'info');
+                };
+
+                // 居中图表
+                const centerGraph = () => {
+                    if (chartInstances.sandbox) {
+                        chartInstances.sandbox.dispatchAction({
+                            type: 'restore'
+                        });
+                        showNotification('图表已居中', 'info');
+                    }
+                };
+
+                // 切换布局
+                const toggleLayout = () => {
+                    const layouts = ['force', 'circular', 'none'];
+                    const currentIndex = layouts.indexOf(currentGraph.layout);
+                    currentGraph.layout = layouts[(currentIndex + 1) % layouts.length];
+                    updateSandboxChart();
+                    showNotification(`切换到${currentGraph.layout}布局`, 'info');
+                };
+
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                // 📊 图表更新方法 (Chart Update Methods)
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+                const updateTerminologyChart = () => {
+                    if (!chartInstances.terminology || !activeTerm.value) return;
+
+                    const term = activeTerm.value;
+                    const option = {
+                        tooltip: { trigger: 'item' },
+                        animationDurationUpdate: 750,
+                        animationEasingUpdate: 'quinticInOut',
+                        series: [{
+                            type: 'graph',
+                            layout: 'force',
+                            roam: true,
+                            draggable: true,
+                            label: {
+                                show: true,
+                                fontSize: 16,
+                                fontWeight: 'bold'
+                            },
+                            force: {
+                                repulsion: 400,
+                                gravity: 0.1,
+                                edgeLength: 200
+                            },
+                            symbolSize: 50,
+                            data: term.graphData.nodes.map(node => ({
+                                ...node,
+                                itemStyle: {
+                                    color: '#2563eb',
+                                    borderColor: '#fff',
+                                    borderWidth: 3,
+                                    shadowBlur: 10,
+                                    shadowColor: 'rgba(37, 99, 235, 0.5)'
+                                }
+                            })),
+                            links: term.graphData.links,
+                            edgeSymbol: term.graphData.directed ? ['none', 'arrow'] : ['none', 'none'],
+                            edgeSymbolSize: 12,
+                            edgeLabel: {
+                                show: term.id === 'weighted',
+                                formatter: '{c}',
+                                fontSize: 14,
+                                color: '#1e40af'
+                            },
+                            lineStyle: {
+                                width: 3,
+                                curveness: 0.1,
+                                color: '#64748b'
+                            },
+                            emphasis: {
+                                focus: 'adjacency',
+                                itemStyle: {
+                                    borderWidth: 4,
+                                    borderColor: '#fbbf24'
+                                },
+                                lineStyle: {
+                                    width: 5,
+                                    color: '#2563eb'
+                                }
+                            }
+                        }]
+                    };
+                    chartInstances.terminology.setOption(option, { notMerge: true });
+                };
+
+                const updateSandboxChart = (customNodes = null) => {
+                    if (!chartInstances.sandbox) return;
+
+                    const nodes = customNodes || currentGraph.nodes;
+                    const option = {
+                        tooltip: {
+                            trigger: 'item',
+                            formatter: (params) => {
+                                if (params.dataType === 'node') {
+                                    return `节点: ${params.name}`;
+                                }
+                                if (params.dataType === 'edge') {
+                                    return `边: ${params.data.source} → ${params.data.target}<br>权重: ${params.data.value || 1}`;
+                                }
+                            }
+                        },
+                        animationDurationUpdate: 750,
+                        animationEasingUpdate: 'quinticInOut',
+                        series: [{
+                            type: 'graph',
+                            layout: currentGraph.layout,
+                            roam: true,
+                            draggable: true,
+                            label: {
+                                show: true,
+                                position: 'right',
+                                fontSize: 16,
+                                fontWeight: 'bold',
+                                color: '#1e293b'
+                            },
+                            force: {
+                                repulsion: 450,
+                                gravity: 0.08,
+                                edgeLength: 220,
+                                layoutAnimation: true
+                            },
+                            circular: {
+                                rotateLabel: true
+                            },
+                            symbolSize: 45,
+                            data: nodes.map(node => ({
+                                ...node,
+                                symbolSize: node.symbolSize || 45,
+                                itemStyle: {
+                                    color: node.itemStyle?.color || '#2563eb',
+                                    borderColor: '#fff',
+                                    borderWidth: 2,
+                                    shadowBlur: 10,
+                                    shadowColor: 'rgba(0, 0, 0, 0.3)'
+                                }
+                            })),
+                            links: currentGraph.links,
+                            edgeSymbol: ['none', 'none'],
+                            edgeSymbolSize: 12,
+                            edgeLabel: {
+                                show: true,
+                                formatter: '{c}',
+                                fontSize: 14,
+                                color: '#1e40af'
+                            },
+                            lineStyle: {
+                                width: 3,
+                                curveness: 0.1,
+                                color: '#64748b'
+                            },
+                            emphasis: {
+                                focus: 'adjacency',
+                                itemStyle: {
+                                    borderWidth: 3,
+                                    borderColor: '#fbbf24'
+                                },
+                                lineStyle: {
+                                    width: 5,
+                                    color: '#2563eb'
+                                }
+                            }
+                        }]
+                    };
+                    chartInstances.sandbox.setOption(option, { notMerge: true });
+                };
+
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                // 🚀 生命周期钩子 (Lifecycle Hooks)
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+                // 防抖函数
+                const debounce = (func, wait) => {
+                    let timeout;
+                    return function executedFunction(...args) {
+                        const later = () => {
+                            clearTimeout(timeout);
+                            func(...args);
+                        };
+                        clearTimeout(timeout);
+                        timeout = setTimeout(later, wait);
+                    };
+                };
+
+                // 响应式处理
+                const handleResize = debounce(() => {
+                    Object.values(chartInstances).forEach(instance => {
+                        if (instance && typeof instance.resize === 'function') {
+                            instance.resize();
+                        } else if (Array.isArray(instance)) {
+                            instance.forEach(chart => chart && chart.resize());
+                        }
+                    });
+                }, 250);
+
+                // 键盘快捷键
+                const handleKeyboard = (e) => {
+                    // 空格键：播放/暂停
+                    if (e.code === 'Space') {
+                        e.preventDefault();
+                        if (activeTab.value === 'sandbox') {
+                            if (isAutoPlaying.value) {
+                                pauseAutoDemo();
+                            } else {
+                                startAutoDemo();
+                            }
+                        }
+                    }
+
+                    // R键：重置
+                    if (e.key === 'r' || e.key === 'R') {
+                        if (activeTab.value === 'sandbox') {
+                            resetDemo();
+                        }
+                    }
+
+                    // 数字键1-2：切换标签
+                    if (e.key >= '1' && e.key <= '2') {
+                        const tabIndex = parseInt(e.key) - 1;
+                        if (tabIndex < navigationTabs.length) {
+                            switchTab(navigationTabs[tabIndex].id);
+                        }
+                    }
+                };
+
+                onMounted(() => {
+                    console.log('📊 初始化图数据结构教学平台 v3.0');
+
+                    // 延迟初始化确保DOM完全渲染
+                    setTimeout(() => {
+                        // 初始化示例图表
+                        exampleChartRefs.value.forEach((el, index) => {
+                            if (el) {
+                                try {
+                                    const chart = echarts.init(el);
+                                    const example = realWorldExamples[index];
+                                    const option = {
+                                        tooltip: {
+                                            trigger: 'item',
+                                            formatter: (params) => {
+                                                if (params.dataType === 'node') {
+                                                    return `${params.name}<br>值: ${params.data.value || ''}`;
+                                                }
+                                                if (params.dataType === 'edge') {
+                                                    return `${params.data.source} → ${params.data.target}<br>权重: ${params.data.value || 1}`;
+                                                }
+                                            }
+                                        },
+                                        animationDuration: 2000,
+                                        animationEasingUpdate: 'quinticInOut',
+                                        series: [{
+                                            type: 'graph',
+                                            layout: 'force',
+                                            roam: true,
+                                            draggable: true,
+                                            label: {
+                                                show: true,
+                                                fontSize: 14,
+                                                fontWeight: 'bold'
+                                            },
+                                            force: {
+                                                repulsion: example.title === '项目依赖管理' ? 500 : 300,
+                                                gravity: example.title === '项目依赖管理' ? 0.02 : 0.1,
+                                                edgeLength: example.title === '项目依赖管理' ? 250 : 150,
+                                                layoutAnimation: true
+                                            },
+                                            symbolSize: (value, params) => {
+                                                return params.data.symbolSize || 40;
+                                            },
+                                            data: example.graphData.nodes.map(node => ({
+                                                ...node,
+                                                x: node.x || undefined,
+                                                y: node.y || undefined
+                                            })),
+                                            links: example.graphData.links,
+                                            categories: [
+                                                { name: '核心层' },
+                                                { name: '中间层' },
+                                                { name: '应用层' },
+                                                { name: '其他' }
+                                            ],
+                                            edgeSymbol: example.graphData.directed ? ['none', 'arrow'] : ['none', 'none'],
+                                            edgeSymbolSize: 10,
+                                            edgeLabel: {
+                                                show: example.category === '带权图应用',
+                                                formatter: '{c}',
+                                                fontSize: 12
+                                            },
+                                            // 修正后的代码
+                                            lineStyle: {
+                                                width: 2, // 直接设置默认宽度为 2
+                                                curveness: example.graphData.directed ? 0.3 : 0.1,
+                                                color: '#64748b'
+                                            },
+                                            itemStyle: {
+                                                borderColor: '#fff',
+                                                borderWidth: 2,
+                                                shadowBlur: 10,
+                                                shadowColor: 'rgba(0, 0, 0, 0.3)'
+                                            },
+                                            emphasis: {
+                                                focus: 'adjacency',
+                                                lineStyle: { width: 4 }
+                                            }
+                                        }]
+                                    };
+                                    chart.setOption(option);
+                                    chartInstances.examples.push(chart);
+                                    console.log(`✅ 示例图表${index + 1}初始化成功`);
+                                } catch (error) {
+                                    console.error(`❌ 初始化示例图表${index}失败:`, error);
+                                }
+                            }
+                        });
+
+                        // 初始化术语图表
+                        if (terminologyChartRef.value) {
+                            try {
+                                chartInstances.terminology = echarts.init(terminologyChartRef.value);
+                                updateTerminologyChart();
+                                console.log('✅ 术语图表初始化成功');
+                            } catch (error) {
+                                console.error('❌ 初始化术语图表失败:', error);
+                            }
+                        }
+
+                        // 初始化沙箱图表
+                        if (sandboxChartRef.value) {
+                            try {
+                                chartInstances.sandbox = echarts.init(sandboxChartRef.value);
+                                // 默认加载社交网络场景
+                                loadPresetScenario('social');
+                                console.log('✅ 沙箱图表初始化成功');
+                            } catch (error) {
+                                console.error('❌ 初始化沙箱图表失败:', error);
+                            }
+                        }
+                        
+                        // 触发一次resize确保图表正确显示
+                        setTimeout(() => {
+                            handleResize();
+                        }, 500);
+
+                    }, 100);
+
+                    // 添加事件监听
+                    window.addEventListener('resize', handleResize);
+                    document.addEventListener('keydown', handleKeyboard);
+
+                    // 显示欢迎消息
+                    setTimeout(() => {
+                        showNotification('🎉 欢迎使用图数据结构交互式教学平台 v3.0！', 'success');
+                    }, 1500);
+
+                    // 自动开始第一个演示
+                    setTimeout(() => {
+                        if (activeTab.value === 'concepts') {
+                            showNotification('💡 点击左侧术语查看不同类型的图结构', 'info');
+                        }
+                    }, 3500);
+                });
+
+                onUnmounted(() => {
+                    console.log('🔚 清理资源');
+
+                    // 移除事件监听
+                    window.removeEventListener('resize', handleResize);
+                    document.removeEventListener('keydown', handleKeyboard);
+
+                    // 销毁所有图表实例
+                    Object.values(chartInstances).forEach(instance => {
+                        if (instance && typeof instance.dispose === 'function') {
+                            instance.dispose();
+                        } else if (Array.isArray(instance)) {
+                            instance.forEach(chart => {
+                                if (chart && typeof chart.dispose === 'function') {
+                                    chart.dispose();
+                                }
+                            });
+                        }
+                    });
+                });
+
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                // 📤 导出接口 (Export Interface)
+                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+                return {
+                    // 状态
+                    activeTab,
+                    navigationTabs,
+                    notification,
+
+                    // 概念
+                    realWorldExamples,
+                    exampleChartRefs,
+                    terminology,
+                    activeTermId,
+                    activeTerm,
+                    terminologyChartRef,
+
+                    // 沙箱
+                    presetScenarios,
+                    currentGraph,
+                    isAutoPlaying,
+                    demoSpeed,
+                    currentDemoStep,
+                    graphStats,
+                    sandboxChartRef,
+
+                    // 方法
+                    switchTab,
+                    selectTerm,
+                    loadPresetScenario,
+                    startAutoDemo,
+                    pauseAutoDemo,
+                    resetDemo,
+                    centerGraph,
+                    toggleLayout,
+                };
+            }
+        }).mount('#app');
+    </script>
+
+</body>
+
+</html>
