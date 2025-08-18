@@ -1,3 +1,23 @@
+# --- 忽略所有无后缀文件 ---
+# 1. 忽略所有内容
+*
+
+# 2. 但是，不要忽略目录
+!*/
+
+# 3. 并且，不要忽略任何带有后缀名的文件
+!*.*
+
+# --- 例外：以下无后缀文件需要被追踪 ---
+# 不要忽略 Makefile
+!Makefile
+
+# 不要忽略 Dockerfile
+!Dockerfile
+
+# 不要忽略 LICENSE 文件
+!LICENSE
+
 # 用户特定的文件
 *.suo
 *.user
@@ -17,6 +37,12 @@
 *.vssscc
 *.vsix
 *.vsixmanifest
+*.vcxproj
+*.filters
+*.DB
+*.ipch
+*.vsidx
+*.sln
 
 # 构建结果
 [Dd]ebug/
