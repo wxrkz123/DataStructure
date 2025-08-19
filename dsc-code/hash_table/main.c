@@ -1,55 +1,55 @@
-// main.c
-
-#include "hash_table.h"
-#include <stdio.h>
-
-int main() {
-    printf("--- ÏÖ´ú¹şÏ£±í CÓïÑÔÊµÏÖ (À­Á´·¨) ---\n");
-    HashTable* ht = ht_create(10); // ´´½¨ÈİÁ¿Îª10µÄ¹şÏ£±í
-    if (!ht) {
-        printf("´´½¨¹şÏ£±íÊ§°Ü¡£\n");
-        return 1;
-    }
-
-    printf("\n1. ²åÈë³õÊ¼Êı¾İ (°üÀ¨¹şÏ£³åÍ»)...\n");
-    // hash("name") % 10 = (110+97+109+101)%10 = 417%10 = 7 (×¢£ºASCIIÂë²»Í¬»úÆ÷¿ÉÄÜÎ¢µ÷£¬µ«³åÍ»Ô­ÀíÒ»ÖÂ)
-    // hash("mane") % 10 = (109+97+110+101)%10 = 417%10 = 7 
-    ht_set(ht, "name", "Alice");
-    ht_set(ht, "age", "30");
-    ht_set(ht, "city", "New York");
-    ht_set(ht, "mane", "Bob"); // <-- Õâ¸ö¼ü»áÓë "name" ·¢Éú¹şÏ£³åÍ»
-    ht_print(ht);
-
-    printf("2. ²éÕÒÊı¾İ...\n");
-    const char* name = ht_get(ht, "name");
-    const char* city = ht_get(ht, "city");
-    const char* country = ht_get(ht, "country"); // Ò»¸ö²»´æÔÚµÄ¼ü
-    printf("Get 'name': %s\n", name ? name : "Not Found");
-    printf("Get 'city': %s\n", city ? city : "Not Found");
-    printf("Get 'country': %s\n", country ? country : "Not Found");
-
-    // ²éÕÒ³åÍ»Á´ÖĞµÄÁíÒ»¸ö¼ü
-    const char* mane = ht_get(ht, "mane");
-    printf("Get 'mane' (collision key): %s\n", mane ? mane : "Not Found");
-    printf("\n");
-
-    printf("3. ¸üĞÂÊı¾İ...\n");
-    printf("Updating 'name' from 'Alice' to 'Amy'...\n");
-    ht_set(ht, "name", "Amy");
-    ht_print(ht);
-
-    printf("4. É¾³ıÊı¾İ...\n");
-    printf("Removing 'age'...\n");
-    ht_remove(ht, "age");
-    ht_print(ht);
-
-    printf("Removing 'name' (a key in a collision chain)...\n");
-    ht_remove(ht, "name");
-    ht_print(ht);
-
-    printf("5. Ïú»Ù¹şÏ£±í...\n");
-    ht_destroy(&ht);
-    printf("¹şÏ£±íÒÑÏú»Ù£¬Ö¸ÕëÎª: %s\n", ht == NULL ? "NULL" : "OK");
-
-    return 0;
+// main.c
+
+#include "hash_table.h"
+#include <stdio.h>
+
+int main() {
+    printf("--- ç°ä»£å“ˆå¸Œè¡¨ Cè¯­è¨€å®ç° (æ‹‰é“¾æ³•) ---\n");
+    HashTable* ht = ht_create(10); // åˆ›å»ºå®¹é‡ä¸º10çš„å“ˆå¸Œè¡¨
+    if (!ht) {
+        printf("åˆ›å»ºå“ˆå¸Œè¡¨å¤±è´¥ã€‚\n");
+        return 1;
+    }
+
+    printf("\n1. æ’å…¥åˆå§‹æ•°æ® (åŒ…æ‹¬å“ˆå¸Œå†²çª)...\n");
+    // hash("name") % 10 = (110+97+109+101)%10 = 417%10 = 7 (æ³¨ï¼šASCIIç ä¸åŒæœºå™¨å¯èƒ½å¾®è°ƒï¼Œä½†å†²çªåŸç†ä¸€è‡´)
+    // hash("mane") % 10 = (109+97+110+101)%10 = 417%10 = 7 
+    ht_set(ht, "name", "Alice");
+    ht_set(ht, "age", "30");
+    ht_set(ht, "city", "New York");
+    ht_set(ht, "mane", "Bob"); // <-- è¿™ä¸ªé”®ä¼šä¸ "name" å‘ç”Ÿå“ˆå¸Œå†²çª
+    ht_print(ht);
+
+    printf("2. æŸ¥æ‰¾æ•°æ®...\n");
+    const char* name = ht_get(ht, "name");
+    const char* city = ht_get(ht, "city");
+    const char* country = ht_get(ht, "country"); // ä¸€ä¸ªä¸å­˜åœ¨çš„é”®
+    printf("Get 'name': %s\n", name ? name : "Not Found");
+    printf("Get 'city': %s\n", city ? city : "Not Found");
+    printf("Get 'country': %s\n", country ? country : "Not Found");
+
+    // æŸ¥æ‰¾å†²çªé“¾ä¸­çš„å¦ä¸€ä¸ªé”®
+    const char* mane = ht_get(ht, "mane");
+    printf("Get 'mane' (collision key): %s\n", mane ? mane : "Not Found");
+    printf("\n");
+
+    printf("3. æ›´æ–°æ•°æ®...\n");
+    printf("Updating 'name' from 'Alice' to 'Amy'...\n");
+    ht_set(ht, "name", "Amy");
+    ht_print(ht);
+
+    printf("4. åˆ é™¤æ•°æ®...\n");
+    printf("Removing 'age'...\n");
+    ht_remove(ht, "age");
+    ht_print(ht);
+
+    printf("Removing 'name' (a key in a collision chain)...\n");
+    ht_remove(ht, "name");
+    ht_print(ht);
+
+    printf("5. é”€æ¯å“ˆå¸Œè¡¨...\n");
+    ht_destroy(&ht);
+    printf("å“ˆå¸Œè¡¨å·²é”€æ¯ï¼ŒæŒ‡é’ˆä¸º: %s\n", ht == NULL ? "NULL" : "OK");
+
+    return 0;
 }

@@ -1,207 +1,207 @@
-// generic_circular_queue.c
-
-#include "generic_circular_queue.h"
-#include <stdlib.h>
-#include <string.h>
-
-// ÄÚ²¿½á¹¹¶¨Òå±£³Ö²»±ä
-struct CircularQueue {
-    void* data;
-    size_t capacity;
-    size_t element_size;
-    size_t size;
-    int front;
-    int rear;
-};
-
-// --- API Function Implementations ---
-
-Queue* queue_create(size_t capacity, size_t element_size) {
-    // ¹¤Òµ¼¶¼ì²é 1: È·±£ÈÝÁ¿ºÍÔªËØ´óÐ¡²»Îª0¡£
-    // ÕâÊÇÒ»¸ö»ù±¾µÄ²»±äÁ¿£¬´´½¨Ã»ÓÐÈÝÁ¿»òÃ»ÓÐ´óÐ¡µÄ¶ÓÁÐÊÇÎÞÒâÒåµÄ¡£
-    if (capacity == 0 || element_size == 0) {
-        return NULL;
-    }
-
-    // Îª¹ÜÀí½á¹¹Ìå·ÖÅäÄÚ´æ
-    Queue* q = (Queue*)malloc(sizeof(Queue));
-    // ¹¤Òµ¼¶¼ì²é 2: ¼ì²é malloc ÊÇ·ñ³É¹¦¡£
-    // ÔÚÄÚ´æÊÜÏÞµÄÏµÍ³ÖÐ£¬malloc ¿ÉÄÜ»áÊ§°Ü¡£
-    if (!q) {
-        return NULL; // Èç¹ûÊ§°Ü£¬ÎÞ·¨¼ÌÐø£¬·µ»Ø NULL
-    }
-
-    // ÎªÊµ¼Ê´æ´¢Êý¾ÝµÄÊý×é·ÖÅäÄÚ´æ
-    q->data = malloc(capacity * element_size);
-    // ¹¤Òµ¼¶¼ì²é 3: ¼ì²éÎªÊý¾ÝÇø·ÖÅäÄÚ´æÊÇ·ñ³É¹¦¡£
-    if (!q->data) {
-        free(q); // Èç¹ûÊý¾ÝÇø·ÖÅäÊ§°Ü£¬±ØÐëÊÍ·ÅÖ®Ç°ÒÑ·ÖÅäµÄ¹ÜÀí½á¹¹Ìå£¬·ÀÖ¹ÄÚ´æÐ¹Â©¡£
-        return NULL;
-    }
-
-    // ³õÊ¼»¯ËùÓÐ³ÉÔ±±äÁ¿
-    q->capacity = capacity;
-    q->element_size = element_size;
-    q->size = 0;
-    q->front = 0;
-    q->rear = 0;
-
-    return q;
-}
-
-void queue_destroy(Queue** p_queue) {
-    // ¹¤Òµ¼¶¼ì²é: ´«ÈëµÄÖ¸ÕëºÍÖ¸ÕëÖ¸ÏòµÄÄÚÈÝ¶¼±ØÐëÓÐÐ§¡£
-    // *p_queue ¼ì²éÈ·±£ÎÒÃÇ²»»á¶ÔÒ»¸öÒÑ¾­ÊÇ NULL µÄÖ¸Õë½øÐÐ½âÒýÓÃ¡£
-    if (p_queue && *p_queue) {
-        free((*p_queue)->data); // 1. ÏÈÊÍ·ÅÄÚ²¿µÄÊý¾ÝÊý×é
-        free(*p_queue);         // 2. ÔÙÊÍ·Å¶ÓÁÐ¹ÜÀí½á¹¹Ìå±¾Éí
-        *p_queue = NULL;        // 3. ½«Íâ²¿µÄÖ¸ÕëÉèÖÃÎªNULL£¬ÕâÊÇ·ÀÖ¹¡°Ðü¿ÕÖ¸Õë¡±µÄ×î¼ÑÊµ¼ù¡£
-    }
-}
-
-bool queue_enqueue(Queue* queue, const void* element_data) {
-    /*
-     * º¯Êý¹¦ÄÜ: [¹¤Òµ¼¶] ½«Ò»¸öÐÂÔªËØÌí¼Óµ½¶ÓÎ²¡£
-     * ½ÌÑ§°¸Àý: ¼ÙÉèÎÒÃÇÓÐÒ»¸öÈÝÁ¿Îª4µÄ¶ÓÁÐ£¬µ±Ç°×´Ì¬ÈçÏÂ£º
-     * capacity = 4, size = 2, front = 2, rear = 0
-     * Êý×éÄÚÈÝ (Âß¼­ÉÏ): [ (¿Õ) | (¿Õ) | A | B ]
-     * ¶ÓÁÐÖÐµÄÂß¼­Ë³ÐòÊÇ A -> B¡£
-     * ÎÒÃÇÏÖÔÚÒªÈë¶ÓÒ»¸öÐÂµÄÔªËØ 'C'¡£
-    */
-
-    // ²½Öè 1: [·ÀÓùÐÔ±à³Ì] ¼ì²éËùÓÐ´«ÈëµÄÖ¸ÕëÊÇ·ñÓÐÐ§¡£
-    // ¹¤Òµ´úÂë±ØÐë¼ÙÉèÈÎºÎ´«ÈëµÄÖ¸Õë¶¼¿ÉÄÜÊÇÎÞÐ§µÄ(NULL)¡£
-    // Èç¹û¶ÓÁÐ²»´æÔÚ£¬»òÕßÃ»ÓÐÌá¹©ÒªÈë¶ÓµÄÊý¾Ý£¬²Ù×÷ÎÞ·¨½øÐÐ¡£
-    if (!queue || !element_data) {
-        return false;
-    }
-
-    // ²½Öè 2: ¼ì²é¶ÓÁÐÊÇ·ñÒÑÂú¡£
-    // °¸Àý: µ±Ç° size=2, capacity=4£¬Î´Âú£¬¼ì²éÍ¨¹ý¡£
-    if (queue->size == queue->capacity) {
-        return false;
-    }
-
-    // ²½Öè 3: ¼ÆËãÒª²åÈëÔªËØµÄÎïÀíÄÚ´æµØÖ·¡£
-    // `(char*)` ÀàÐÍ×ª»»ÊÇÎªÁË½øÐÐ±ê×¼µÄ×Ö½Ú¼¶Ö¸ÕëËãÊõ¡£
-    // °¸Àý: rear = 0, element_size = sizeof(char) = 1 (¼ÙÉè)¡£
-    //      target_address = (char*)queue->data + (0 * 1) = Êý×éµÄÆðÊ¼µØÖ·¡£
-    void* target_address = (char*)queue->data + (queue->rear * queue->element_size);
-
-    // ²½Öè 4: Ê¹ÓÃmemcpy½«ÓÃ»§Êý¾Ý°²È«µØ¿½±´µ½¼ÆËã³öµÄµØÖ·¡£
-    // °¸Àý: ½« 'C' µÄÊý¾Ý´Ó element_data ¿½±´µ½Êý×éË÷Òý0µÄÎ»ÖÃ¡£
-    //      Êý×é±äÎª: [ C | (¿Õ) | A | B ]
-    memcpy(target_address, element_data, queue->element_size);
-
-    // ²½Öè 5: ¸üÐÂ¶ÓÎ² rear Ö¸Õë£¬ÊµÏÖ¡°Ñ­»·¡±¡£
-    // Ä£ÔËËã(%)ÊÇÑ­»·¶ÓÁÐµÄÁé»ê¡£ËüÄÜ×Ô¶¯´¦Àí¡°ÈÆ»Ø¡±µÄÇé¿ö¡£
-    // °¸Àý: rear Ô­±¾ÊÇ 0¡£
-    //      ÐÂ rear = (0 + 1) % 4 = 1¡£
-    //      rear Ö¸ÕëÏÖÔÚ°²È«µØÖ¸ÏòÁËÏÂÒ»¸ö¿ÕÎ»£¬Ë÷Òý1¡£
-    queue->rear = (queue->rear + 1) % queue->capacity;
-
-    // ²½Öè 6: ¸üÐÂ¶ÓÁÐµÄ´óÐ¡¡£
-    // °¸Àý: size Ô­±¾ÊÇ 2£¬ÏÖÔÚ³É¹¦Ôö¼Óµ½ 3¡£
-    queue->size++;
-
-    return true; // ËùÓÐ²½Öè³É¹¦Íê³É
-}
-
-bool queue_dequeue(Queue* queue, void* output_buffer) {
-    /*
-     * º¯Êý¹¦ÄÜ: [¹¤Òµ¼¶] ´Ó¶ÓÍ·È¡³öÒ»¸öÔªËØ¡£
-     * ½ÌÑ§°¸Àý: ³Ð½ÓÉÏÃæµÄÀý×Ó£¬ÏÖÔÚ¶ÓÁÐ×´Ì¬ÈçÏÂ£º
-     * capacity = 4, size = 3, front = 2, rear = 1
-     * Êý×éÄÚÈÝ (Âß¼­ÉÏ): [ C | (¿Õ) | A | B ]
-     * ¶ÓÁÐÖÐµÄÂß¼­Ë³ÐòÊÇ A -> B -> C¡£
-     * ÎÒÃÇÏÖÔÚÒª³ö¶Ó¶ÓÍ·ÔªËØ 'A'¡£
-    */
-
-    // ²½Öè 1: [·ÀÓùÐÔ±à³Ì] ¼ì²éËùÓÐÖ¸ÕëÊÇ·ñÓÐÐ§¡£
-    // Èç¹û¶ÓÁÐ²»´æÔÚ£¬»òÕßÓÃ»§Ã»ÓÐÌá¹©ÓÃÓÚ½ÓÊÕÊý¾ÝµÄ»º³åÇø£¬²Ù×÷ÎÞ·¨½øÐÐ¡£
-    if (!queue || !output_buffer) {
-        return false;
-    }
-
-    // ²½Öè 2: ¼ì²é¶ÓÁÐÊÇ·ñÎª¿Õ¡£
-    // °¸Àý: µ±Ç° size=3£¬²»Îª¿Õ£¬¼ì²éÍ¨¹ý¡£
-    if (queue->size == 0) {
-        return false;
-    }
-
-    // ²½Öè 3: ¼ÆËã¶ÓÍ·ÔªËØµÄÎïÀíÄÚ´æµØÖ·¡£
-    // °¸Àý: front = 2, element_size = 1 (¼ÙÉè)¡£
-    //      source_address = (char*)queue->data + (2 * 1) = Ö¸ÏòÊý×éË÷Òý2µÄµØÖ·¡£
-    void* source_address = (char*)queue->data + (queue->front * queue->element_size);
-
-    // ²½Öè 4: Ê¹ÓÃmemcpy½«¶ÓÍ·Êý¾Ý°²È«µØ¿½±´µ½ÓÃ»§µÄ»º³åÇø¡£
-    // °¸Àý: ½«Êý×éË÷Òý2Î»ÖÃµÄ 'A' µÄÊý¾Ý¿½±´µ½ output_buffer¡£
-    memcpy(output_buffer, source_address, queue->element_size);
-
-    // ²½Öè 5: ¸üÐÂ¶ÓÍ· front Ö¸Õë£¬ÊµÏÖ¡°Âß¼­É¾³ý¡±ºÍ¡°Ñ­»·¡±¡£
-    // °¸Àý: front Ô­±¾ÊÇ 2¡£
-    //      ÐÂ front = (2 + 1) % 4 = 3¡£
-    //      front Ö¸ÕëÏÖÔÚÖ¸ÏòÁË 'B' (Ë÷Òý3)£¬'A' ÔÚÂß¼­ÉÏÒÑ¾­±»ÒÆ³ýÁË¡£
-    queue->front = (queue->front + 1) % queue->capacity;
-
-    // ²½Öè 6: ¸üÐÂ¶ÓÁÐµÄ´óÐ¡¡£
-    // °¸Àý: size Ô­±¾ÊÇ 3£¬ÏÖÔÚ°²È«µØ¼õÉÙµ½ 2¡£
-    queue->size--;
-
-    return true; // ËùÓÐ²½Öè³É¹¦Íê³É
-}
-
-// void* queue_peek(const Queue* queue, void* output_buffer);
-
-bool queue_peek(const Queue* queue, void* output_buffer) {
-    /*
-     * º¯Êý¹¦ÄÜ: [¹¤Òµ¼¶] ²é¿´¶ÓÍ·ÔªËØ£¬µ«²»ÒÆ¶¯ÈÎºÎÖ¸Õë¡£
-     * ½ÌÑ§°¸Àý: ¶ÓÁÐ×´Ì¬£ºsize = 2, front = 3, rear = 1
-     * Êý×éÄÚÈÝ (Âß¼­ÉÏ): [ C | (¿Õ) | A | B ]
-     * ¶ÓÁÐÂß¼­Ë³Ðò: B -> C
-     * ÎÒÃÇÒª²é¿´¶ÓÍ·µÄ 'B'¡£
-    */
-
-    // ²½Öè 1: [·ÀÓùÐÔ±à³Ì] ¼ì²éËùÓÐÖ¸ÕëÊÇ·ñÓÐÐ§¡£
-    if (!queue || !output_buffer) {
-        return false;
-    }
-
-    // ²½Öè 2: ¼ì²é¶ÓÁÐÊÇ·ñÎª¿Õ¡£
-    if (queue->size == 0) {
-        return false;
-    }
-
-    // ²½Öè 3: ¼ÆËã¶ÓÍ·ÔªËØµÄµØÖ·¡£
-    // °¸Àý: front = 3¡£source_address Ö¸ÏòÊý×éË÷Òý3µÄÎ»ÖÃ¡£
-    void* source_address = (char*)queue->data + (queue->front * queue->element_size);
-
-    // ²½Öè 4: ¿½±´Êý¾Ýµ½ÓÃ»§»º³åÇø¡£
-    // °¸Àý: ½« 'B' µÄÊý¾Ý¿½±´µ½ output_buffer¡£
-    memcpy(output_buffer, source_address, queue->element_size);
-
-    // ** Peek ²Ù×÷µÄºËÐÄ: µ½´Ë½áÊø¡£²»ÐÞ¸Ä queue->front, queue->rear, »ò queue->size¡£**
-
-    return true;
-}
-
-// ÆäÓàµÄ¸¨Öúº¯Êý±È½Ï¼òµ¥£¬µ«Í¬ÑùÐèÒª½øÐÐNULL¼ì²é
-bool queue_is_empty(const Queue* queue) {
-    if (!queue) return true; // Ò»¸ö²»´æÔÚµÄ¶ÓÁÐ¿ÉÒÔÊÓÎª¿Õ
-    return queue->size == 0;
-}
-
-bool queue_is_full(const Queue* queue) {
-    if (!queue) return true; // Ò»¸ö²»´æÔÚµÄ¶ÓÁÐ¿ÉÒÔÊÓ×÷Âú£¬ÒÔ·ÀÖ¹´íÎóµØ¶ÔÆä½øÐÐ²Ù×÷
-    return queue->size == queue->capacity;
-}
-
-size_t queue_get_size(const Queue* queue) {
-    if (!queue) return 0;
-    return queue->size;
-}
-
-size_t queue_get_capacity(const Queue* queue) {
-    if (!queue) return 0;
-    return queue->capacity;
+// generic_circular_queue.c
+
+#include "generic_circular_queue.h"
+#include <stdlib.h>
+#include <string.h>
+
+// å†…éƒ¨ç»“æž„å®šä¹‰ä¿æŒä¸å˜
+struct CircularQueue {
+    void* data;
+    size_t capacity;
+    size_t element_size;
+    size_t size;
+    int front;
+    int rear;
+};
+
+// --- API Function Implementations ---
+
+Queue* queue_create(size_t capacity, size_t element_size) {
+    // å·¥ä¸šçº§æ£€æŸ¥ 1: ç¡®ä¿å®¹é‡å’Œå…ƒç´ å¤§å°ä¸ä¸º0ã€‚
+    // è¿™æ˜¯ä¸€ä¸ªåŸºæœ¬çš„ä¸å˜é‡ï¼Œåˆ›å»ºæ²¡æœ‰å®¹é‡æˆ–æ²¡æœ‰å¤§å°çš„é˜Ÿåˆ—æ˜¯æ— æ„ä¹‰çš„ã€‚
+    if (capacity == 0 || element_size == 0) {
+        return NULL;
+    }
+
+    // ä¸ºç®¡ç†ç»“æž„ä½“åˆ†é…å†…å­˜
+    Queue* q = (Queue*)malloc(sizeof(Queue));
+    // å·¥ä¸šçº§æ£€æŸ¥ 2: æ£€æŸ¥ malloc æ˜¯å¦æˆåŠŸã€‚
+    // åœ¨å†…å­˜å—é™çš„ç³»ç»Ÿä¸­ï¼Œmalloc å¯èƒ½ä¼šå¤±è´¥ã€‚
+    if (!q) {
+        return NULL; // å¦‚æžœå¤±è´¥ï¼Œæ— æ³•ç»§ç»­ï¼Œè¿”å›ž NULL
+    }
+
+    // ä¸ºå®žé™…å­˜å‚¨æ•°æ®çš„æ•°ç»„åˆ†é…å†…å­˜
+    q->data = malloc(capacity * element_size);
+    // å·¥ä¸šçº§æ£€æŸ¥ 3: æ£€æŸ¥ä¸ºæ•°æ®åŒºåˆ†é…å†…å­˜æ˜¯å¦æˆåŠŸã€‚
+    if (!q->data) {
+        free(q); // å¦‚æžœæ•°æ®åŒºåˆ†é…å¤±è´¥ï¼Œå¿…é¡»é‡Šæ”¾ä¹‹å‰å·²åˆ†é…çš„ç®¡ç†ç»“æž„ä½“ï¼Œé˜²æ­¢å†…å­˜æ³„æ¼ã€‚
+        return NULL;
+    }
+
+    // åˆå§‹åŒ–æ‰€æœ‰æˆå‘˜å˜é‡
+    q->capacity = capacity;
+    q->element_size = element_size;
+    q->size = 0;
+    q->front = 0;
+    q->rear = 0;
+
+    return q;
+}
+
+void queue_destroy(Queue** p_queue) {
+    // å·¥ä¸šçº§æ£€æŸ¥: ä¼ å…¥çš„æŒ‡é’ˆå’ŒæŒ‡é’ˆæŒ‡å‘çš„å†…å®¹éƒ½å¿…é¡»æœ‰æ•ˆã€‚
+    // *p_queue æ£€æŸ¥ç¡®ä¿æˆ‘ä»¬ä¸ä¼šå¯¹ä¸€ä¸ªå·²ç»æ˜¯ NULL çš„æŒ‡é’ˆè¿›è¡Œè§£å¼•ç”¨ã€‚
+    if (p_queue && *p_queue) {
+        free((*p_queue)->data); // 1. å…ˆé‡Šæ”¾å†…éƒ¨çš„æ•°æ®æ•°ç»„
+        free(*p_queue);         // 2. å†é‡Šæ”¾é˜Ÿåˆ—ç®¡ç†ç»“æž„ä½“æœ¬èº«
+        *p_queue = NULL;        // 3. å°†å¤–éƒ¨çš„æŒ‡é’ˆè®¾ç½®ä¸ºNULLï¼Œè¿™æ˜¯é˜²æ­¢â€œæ‚¬ç©ºæŒ‡é’ˆâ€çš„æœ€ä½³å®žè·µã€‚
+    }
+}
+
+bool queue_enqueue(Queue* queue, const void* element_data) {
+    /*
+     * å‡½æ•°åŠŸèƒ½: [å·¥ä¸šçº§] å°†ä¸€ä¸ªæ–°å…ƒç´ æ·»åŠ åˆ°é˜Ÿå°¾ã€‚
+     * æ•™å­¦æ¡ˆä¾‹: å‡è®¾æˆ‘ä»¬æœ‰ä¸€ä¸ªå®¹é‡ä¸º4çš„é˜Ÿåˆ—ï¼Œå½“å‰çŠ¶æ€å¦‚ä¸‹ï¼š
+     * capacity = 4, size = 2, front = 2, rear = 0
+     * æ•°ç»„å†…å®¹ (é€»è¾‘ä¸Š): [ (ç©º) | (ç©º) | A | B ]
+     * é˜Ÿåˆ—ä¸­çš„é€»è¾‘é¡ºåºæ˜¯ A -> Bã€‚
+     * æˆ‘ä»¬çŽ°åœ¨è¦å…¥é˜Ÿä¸€ä¸ªæ–°çš„å…ƒç´  'C'ã€‚
+    */
+
+    // æ­¥éª¤ 1: [é˜²å¾¡æ€§ç¼–ç¨‹] æ£€æŸ¥æ‰€æœ‰ä¼ å…¥çš„æŒ‡é’ˆæ˜¯å¦æœ‰æ•ˆã€‚
+    // å·¥ä¸šä»£ç å¿…é¡»å‡è®¾ä»»ä½•ä¼ å…¥çš„æŒ‡é’ˆéƒ½å¯èƒ½æ˜¯æ— æ•ˆçš„(NULL)ã€‚
+    // å¦‚æžœé˜Ÿåˆ—ä¸å­˜åœ¨ï¼Œæˆ–è€…æ²¡æœ‰æä¾›è¦å…¥é˜Ÿçš„æ•°æ®ï¼Œæ“ä½œæ— æ³•è¿›è¡Œã€‚
+    if (!queue || !element_data) {
+        return false;
+    }
+
+    // æ­¥éª¤ 2: æ£€æŸ¥é˜Ÿåˆ—æ˜¯å¦å·²æ»¡ã€‚
+    // æ¡ˆä¾‹: å½“å‰ size=2, capacity=4ï¼Œæœªæ»¡ï¼Œæ£€æŸ¥é€šè¿‡ã€‚
+    if (queue->size == queue->capacity) {
+        return false;
+    }
+
+    // æ­¥éª¤ 3: è®¡ç®—è¦æ’å…¥å…ƒç´ çš„ç‰©ç†å†…å­˜åœ°å€ã€‚
+    // `(char*)` ç±»åž‹è½¬æ¢æ˜¯ä¸ºäº†è¿›è¡Œæ ‡å‡†çš„å­—èŠ‚çº§æŒ‡é’ˆç®—æœ¯ã€‚
+    // æ¡ˆä¾‹: rear = 0, element_size = sizeof(char) = 1 (å‡è®¾)ã€‚
+    //      target_address = (char*)queue->data + (0 * 1) = æ•°ç»„çš„èµ·å§‹åœ°å€ã€‚
+    void* target_address = (char*)queue->data + (queue->rear * queue->element_size);
+
+    // æ­¥éª¤ 4: ä½¿ç”¨memcpyå°†ç”¨æˆ·æ•°æ®å®‰å…¨åœ°æ‹·è´åˆ°è®¡ç®—å‡ºçš„åœ°å€ã€‚
+    // æ¡ˆä¾‹: å°† 'C' çš„æ•°æ®ä»Ž element_data æ‹·è´åˆ°æ•°ç»„ç´¢å¼•0çš„ä½ç½®ã€‚
+    //      æ•°ç»„å˜ä¸º: [ C | (ç©º) | A | B ]
+    memcpy(target_address, element_data, queue->element_size);
+
+    // æ­¥éª¤ 5: æ›´æ–°é˜Ÿå°¾ rear æŒ‡é’ˆï¼Œå®žçŽ°â€œå¾ªçŽ¯â€ã€‚
+    // æ¨¡è¿ç®—(%)æ˜¯å¾ªçŽ¯é˜Ÿåˆ—çš„çµé­‚ã€‚å®ƒèƒ½è‡ªåŠ¨å¤„ç†â€œç»•å›žâ€çš„æƒ…å†µã€‚
+    // æ¡ˆä¾‹: rear åŽŸæœ¬æ˜¯ 0ã€‚
+    //      æ–° rear = (0 + 1) % 4 = 1ã€‚
+    //      rear æŒ‡é’ˆçŽ°åœ¨å®‰å…¨åœ°æŒ‡å‘äº†ä¸‹ä¸€ä¸ªç©ºä½ï¼Œç´¢å¼•1ã€‚
+    queue->rear = (queue->rear + 1) % queue->capacity;
+
+    // æ­¥éª¤ 6: æ›´æ–°é˜Ÿåˆ—çš„å¤§å°ã€‚
+    // æ¡ˆä¾‹: size åŽŸæœ¬æ˜¯ 2ï¼ŒçŽ°åœ¨æˆåŠŸå¢žåŠ åˆ° 3ã€‚
+    queue->size++;
+
+    return true; // æ‰€æœ‰æ­¥éª¤æˆåŠŸå®Œæˆ
+}
+
+bool queue_dequeue(Queue* queue, void* output_buffer) {
+    /*
+     * å‡½æ•°åŠŸèƒ½: [å·¥ä¸šçº§] ä»Žé˜Ÿå¤´å–å‡ºä¸€ä¸ªå…ƒç´ ã€‚
+     * æ•™å­¦æ¡ˆä¾‹: æ‰¿æŽ¥ä¸Šé¢çš„ä¾‹å­ï¼ŒçŽ°åœ¨é˜Ÿåˆ—çŠ¶æ€å¦‚ä¸‹ï¼š
+     * capacity = 4, size = 3, front = 2, rear = 1
+     * æ•°ç»„å†…å®¹ (é€»è¾‘ä¸Š): [ C | (ç©º) | A | B ]
+     * é˜Ÿåˆ—ä¸­çš„é€»è¾‘é¡ºåºæ˜¯ A -> B -> Cã€‚
+     * æˆ‘ä»¬çŽ°åœ¨è¦å‡ºé˜Ÿé˜Ÿå¤´å…ƒç´  'A'ã€‚
+    */
+
+    // æ­¥éª¤ 1: [é˜²å¾¡æ€§ç¼–ç¨‹] æ£€æŸ¥æ‰€æœ‰æŒ‡é’ˆæ˜¯å¦æœ‰æ•ˆã€‚
+    // å¦‚æžœé˜Ÿåˆ—ä¸å­˜åœ¨ï¼Œæˆ–è€…ç”¨æˆ·æ²¡æœ‰æä¾›ç”¨äºŽæŽ¥æ”¶æ•°æ®çš„ç¼“å†²åŒºï¼Œæ“ä½œæ— æ³•è¿›è¡Œã€‚
+    if (!queue || !output_buffer) {
+        return false;
+    }
+
+    // æ­¥éª¤ 2: æ£€æŸ¥é˜Ÿåˆ—æ˜¯å¦ä¸ºç©ºã€‚
+    // æ¡ˆä¾‹: å½“å‰ size=3ï¼Œä¸ä¸ºç©ºï¼Œæ£€æŸ¥é€šè¿‡ã€‚
+    if (queue->size == 0) {
+        return false;
+    }
+
+    // æ­¥éª¤ 3: è®¡ç®—é˜Ÿå¤´å…ƒç´ çš„ç‰©ç†å†…å­˜åœ°å€ã€‚
+    // æ¡ˆä¾‹: front = 2, element_size = 1 (å‡è®¾)ã€‚
+    //      source_address = (char*)queue->data + (2 * 1) = æŒ‡å‘æ•°ç»„ç´¢å¼•2çš„åœ°å€ã€‚
+    void* source_address = (char*)queue->data + (queue->front * queue->element_size);
+
+    // æ­¥éª¤ 4: ä½¿ç”¨memcpyå°†é˜Ÿå¤´æ•°æ®å®‰å…¨åœ°æ‹·è´åˆ°ç”¨æˆ·çš„ç¼“å†²åŒºã€‚
+    // æ¡ˆä¾‹: å°†æ•°ç»„ç´¢å¼•2ä½ç½®çš„ 'A' çš„æ•°æ®æ‹·è´åˆ° output_bufferã€‚
+    memcpy(output_buffer, source_address, queue->element_size);
+
+    // æ­¥éª¤ 5: æ›´æ–°é˜Ÿå¤´ front æŒ‡é’ˆï¼Œå®žçŽ°â€œé€»è¾‘åˆ é™¤â€å’Œâ€œå¾ªçŽ¯â€ã€‚
+    // æ¡ˆä¾‹: front åŽŸæœ¬æ˜¯ 2ã€‚
+    //      æ–° front = (2 + 1) % 4 = 3ã€‚
+    //      front æŒ‡é’ˆçŽ°åœ¨æŒ‡å‘äº† 'B' (ç´¢å¼•3)ï¼Œ'A' åœ¨é€»è¾‘ä¸Šå·²ç»è¢«ç§»é™¤äº†ã€‚
+    queue->front = (queue->front + 1) % queue->capacity;
+
+    // æ­¥éª¤ 6: æ›´æ–°é˜Ÿåˆ—çš„å¤§å°ã€‚
+    // æ¡ˆä¾‹: size åŽŸæœ¬æ˜¯ 3ï¼ŒçŽ°åœ¨å®‰å…¨åœ°å‡å°‘åˆ° 2ã€‚
+    queue->size--;
+
+    return true; // æ‰€æœ‰æ­¥éª¤æˆåŠŸå®Œæˆ
+}
+
+// void* queue_peek(const Queue* queue, void* output_buffer);
+
+bool queue_peek(const Queue* queue, void* output_buffer) {
+    /*
+     * å‡½æ•°åŠŸèƒ½: [å·¥ä¸šçº§] æŸ¥çœ‹é˜Ÿå¤´å…ƒç´ ï¼Œä½†ä¸ç§»åŠ¨ä»»ä½•æŒ‡é’ˆã€‚
+     * æ•™å­¦æ¡ˆä¾‹: é˜Ÿåˆ—çŠ¶æ€ï¼šsize = 2, front = 3, rear = 1
+     * æ•°ç»„å†…å®¹ (é€»è¾‘ä¸Š): [ C | (ç©º) | A | B ]
+     * é˜Ÿåˆ—é€»è¾‘é¡ºåº: B -> C
+     * æˆ‘ä»¬è¦æŸ¥çœ‹é˜Ÿå¤´çš„ 'B'ã€‚
+    */
+
+    // æ­¥éª¤ 1: [é˜²å¾¡æ€§ç¼–ç¨‹] æ£€æŸ¥æ‰€æœ‰æŒ‡é’ˆæ˜¯å¦æœ‰æ•ˆã€‚
+    if (!queue || !output_buffer) {
+        return false;
+    }
+
+    // æ­¥éª¤ 2: æ£€æŸ¥é˜Ÿåˆ—æ˜¯å¦ä¸ºç©ºã€‚
+    if (queue->size == 0) {
+        return false;
+    }
+
+    // æ­¥éª¤ 3: è®¡ç®—é˜Ÿå¤´å…ƒç´ çš„åœ°å€ã€‚
+    // æ¡ˆä¾‹: front = 3ã€‚source_address æŒ‡å‘æ•°ç»„ç´¢å¼•3çš„ä½ç½®ã€‚
+    void* source_address = (char*)queue->data + (queue->front * queue->element_size);
+
+    // æ­¥éª¤ 4: æ‹·è´æ•°æ®åˆ°ç”¨æˆ·ç¼“å†²åŒºã€‚
+    // æ¡ˆä¾‹: å°† 'B' çš„æ•°æ®æ‹·è´åˆ° output_bufferã€‚
+    memcpy(output_buffer, source_address, queue->element_size);
+
+    // ** Peek æ“ä½œçš„æ ¸å¿ƒ: åˆ°æ­¤ç»“æŸã€‚ä¸ä¿®æ”¹ queue->front, queue->rear, æˆ– queue->sizeã€‚**
+
+    return true;
+}
+
+// å…¶ä½™çš„è¾…åŠ©å‡½æ•°æ¯”è¾ƒç®€å•ï¼Œä½†åŒæ ·éœ€è¦è¿›è¡ŒNULLæ£€æŸ¥
+bool queue_is_empty(const Queue* queue) {
+    if (!queue) return true; // ä¸€ä¸ªä¸å­˜åœ¨çš„é˜Ÿåˆ—å¯ä»¥è§†ä¸ºç©º
+    return queue->size == 0;
+}
+
+bool queue_is_full(const Queue* queue) {
+    if (!queue) return true; // ä¸€ä¸ªä¸å­˜åœ¨çš„é˜Ÿåˆ—å¯ä»¥è§†ä½œæ»¡ï¼Œä»¥é˜²æ­¢é”™è¯¯åœ°å¯¹å…¶è¿›è¡Œæ“ä½œ
+    return queue->size == queue->capacity;
+}
+
+size_t queue_get_size(const Queue* queue) {
+    if (!queue) return 0;
+    return queue->size;
+}
+
+size_t queue_get_capacity(const Queue* queue) {
+    if (!queue) return 0;
+    return queue->capacity;
 }

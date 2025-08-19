@@ -1,55 +1,55 @@
-#pragma once
-#include <stdbool.h>
-#include <stddef.h>
-
-// --- Opaque Pointer Type ---
-// ÓÃ»§Ö»ÄÜ¿´µ½ÕâĞ©ÀàĞÍµÄÖ¸Õë£¬²»ÄÜÖ±½Ó·ÃÎÊÆäÄÚ²¿½á¹¹ ¡ª¡ª OOP·â×°
-
-typedef struct DoublyLinkedList DoublyLinkedList;
-typedef struct DListNode DListNode;
-
-// --- Callback Function Pointer Typedefs ---
-
-// ¶¨ÒåÓÃ»§ĞèÒªÌá¹©µÄ»Øµ÷º¯ÊıÀàĞÍ£¬ÔöÇ¿´úÂë¿É¶ÁĞÔ
-
-typedef int (*CompareFunc)(const void* data1, const void* data2);
-typedef void (*PrintFunc)(const void* data);
-typedef void (*FreeFunc)(void* data);
-typedef void (*ActionFunc)(void* data, void* context);
-
-// MemoryPool Ïà¹Øº¯ÊıÖ¸ÕëÀàĞÍ
-// ÄÚ´æ³Ø½á¹¹¡£ËüÔ¤ÏÈ·ÖÅäÒ»¿éÄÚ´æ£¬ÓÃÓÚ´æ´¢Á´±í½Úµã£¬¼õÉÙÆµ·±µÄÄÚ´æ·ÖÅäºÍÊÍ·Å²Ù×÷¡£
-// ²¢ÇÒ½«Æä»®·ÖÎª¶à¸ö¹Ì¶¨´óĞ¡µÄ¿é£¬ÒÔ±ã¿ìËÙ·ÖÅäºÍÊÍ·Å¡£ÄÚ²¿Í¨¹ıÒ»¸öµ¥ÏòÁ´±íÀ´¹ÜÀíÕâĞ©ÄÚ´æ¿é¡£
-
-
-
-// API FUNCTION DECLARATIONS
-
-/**
- * @brief ´´½¨Ò»¸öĞÂµÄË«ÏòÁ´±í
- * 
- * @param initial_capacity ÄÚ´æ³Ø³õÊ¼ÈİÁ¿£¨¿ÉÓÃÓÚÔ¤·ÖÅä½Úµã»òÄÚ²¿½á¹¹£©
- * @param free_func ÓÃ»§×Ô¶¨ÒåµÄÊÍ·ÅÊı¾İµÄ»Øµ÷º¯Êı£¬Á´±íÏú»Ù»ò½ÚµãÉ¾³ıÊ±µ÷ÓÃ
- * @return DoublyLinkedList* ĞÂ´´½¨µÄÁ´±íÖ¸Õë£¬Ê§°ÜÊ±·µ»ØNULL
- * 
- * @note ´´½¨ºóĞèµ÷ÓÃÏàÓ¦µÄÏú»Ùº¯ÊıÊÍ·ÅÁ´±í×ÊÔ´
- */
-DoublyLinkedList* List_Create(size_t initial_capacity, FreeFunc free_func);
-
-void List_Destroy(DoublyLinkedList** list);
-
-bool List_Append(DoublyLinkedList* list, const void* data);
-
-bool List_Prepend(DoublyLinkedList* list, const void* data);
-
-bool List_InsertAfter(DoublyLinkedList* list, DListNode* node, const void* data);
-
-void List_DeleteNode(DoublyLinkedList* list, DListNode* node);
-
-DListNode* List_Find(DoublyLinkedList* list, const void* data_to_find, CompareFunc compare_func);
-
-size_t List_GetSize(const DoublyLinkedList* list);
-
-void List_ForEach(const DoublyLinkedList* list, ActionFunc action_func, void* context);
-
+#pragma once
+#include <stdbool.h>
+#include <stddef.h>
+
+// --- Opaque Pointer Type ---
+// ç”¨æˆ·åªèƒ½çœ‹åˆ°è¿™äº›ç±»å‹çš„æŒ‡é’ˆï¼Œä¸èƒ½ç›´æ¥è®¿é—®å…¶å†…éƒ¨ç»“æ„ â€•â€• OOPå°è£…
+
+typedef struct DoublyLinkedList DoublyLinkedList;
+typedef struct DListNode DListNode;
+
+// --- Callback Function Pointer Typedefs ---
+
+// å®šä¹‰ç”¨æˆ·éœ€è¦æä¾›çš„å›è°ƒå‡½æ•°ç±»å‹ï¼Œå¢å¼ºä»£ç å¯è¯»æ€§
+
+typedef int (*CompareFunc)(const void* data1, const void* data2);
+typedef void (*PrintFunc)(const void* data);
+typedef void (*FreeFunc)(void* data);
+typedef void (*ActionFunc)(void* data, void* context);
+
+// MemoryPool ç›¸å…³å‡½æ•°æŒ‡é’ˆç±»å‹
+// å†…å­˜æ± ç»“æ„ã€‚å®ƒé¢„å…ˆåˆ†é…ä¸€å—å†…å­˜ï¼Œç”¨äºå­˜å‚¨é“¾è¡¨èŠ‚ç‚¹ï¼Œå‡å°‘é¢‘ç¹çš„å†…å­˜åˆ†é…å’Œé‡Šæ”¾æ“ä½œã€‚
+// å¹¶ä¸”å°†å…¶åˆ’åˆ†ä¸ºå¤šä¸ªå›ºå®šå¤§å°çš„å—ï¼Œä»¥ä¾¿å¿«é€Ÿåˆ†é…å’Œé‡Šæ”¾ã€‚å†…éƒ¨é€šè¿‡ä¸€ä¸ªå•å‘é“¾è¡¨æ¥ç®¡ç†è¿™äº›å†…å­˜å—ã€‚
+
+
+
+// API FUNCTION DECLARATIONS
+
+/**
+ * @brief åˆ›å»ºä¸€ä¸ªæ–°çš„åŒå‘é“¾è¡¨
+ * 
+ * @param initial_capacity å†…å­˜æ± åˆå§‹å®¹é‡ï¼ˆå¯ç”¨äºé¢„åˆ†é…èŠ‚ç‚¹æˆ–å†…éƒ¨ç»“æ„ï¼‰
+ * @param free_func ç”¨æˆ·è‡ªå®šä¹‰çš„é‡Šæ”¾æ•°æ®çš„å›è°ƒå‡½æ•°ï¼Œé“¾è¡¨é”€æ¯æˆ–èŠ‚ç‚¹åˆ é™¤æ—¶è°ƒç”¨
+ * @return DoublyLinkedList* æ–°åˆ›å»ºçš„é“¾è¡¨æŒ‡é’ˆï¼Œå¤±è´¥æ—¶è¿”å›NULL
+ * 
+ * @note åˆ›å»ºåéœ€è°ƒç”¨ç›¸åº”çš„é”€æ¯å‡½æ•°é‡Šæ”¾é“¾è¡¨èµ„æº
+ */
+DoublyLinkedList* List_Create(size_t initial_capacity, FreeFunc free_func);
+
+void List_Destroy(DoublyLinkedList** list);
+
+bool List_Append(DoublyLinkedList* list, const void* data);
+
+bool List_Prepend(DoublyLinkedList* list, const void* data);
+
+bool List_InsertAfter(DoublyLinkedList* list, DListNode* node, const void* data);
+
+void List_DeleteNode(DoublyLinkedList* list, DListNode* node);
+
+DListNode* List_Find(DoublyLinkedList* list, const void* data_to_find, CompareFunc compare_func);
+
+size_t List_GetSize(const DoublyLinkedList* list);
+
+void List_ForEach(const DoublyLinkedList* list, ActionFunc action_func, void* context);
+
 void* List_GetData(const DListNode* node);

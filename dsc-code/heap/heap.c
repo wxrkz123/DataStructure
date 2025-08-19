@@ -1,186 +1,186 @@
-#include "heap.h"
-#include <stdio.h>
-#include <string.h> // For memcpy
-
-// ========== ÄÚ²¿¸¨Öúº¯Êı (²»¶ÔÍâ±©Â¶) ==========
-
-// ½»»»Á½¸öItemÀàĞÍµÄÖµ
-static void swap(Item* a, Item* b) {
-    Item temp = *a;
-    *a = *b;
-    *b = temp;
-}
-
-// "ÉÏ¸¡"²Ù×÷£º½«Ö¸¶¨Ë÷ÒıµÄ½ÚµãÏòÉÏµ÷Õû£¬ÒÔÎ¬³Ö×î´ó¶ÑĞÔÖÊ
-static void heapify_up(Heap* h, size_t index) {
-    if (index == 0) return; // ¸ù½ÚµãÎŞ·¨ÉÏ¸¡
-
-    size_t parent_index = (index - 1) / 2;
-
-	// ¶ÔÓÚÈÎÒâË÷ÒıÎªindexµÄ½Úµã£º
-	// ËüµÄ×ó×Ó½ÚµãË÷ÒıÎª 2 * index + 1
-	// ËüµÄÓÒ×Ó½ÚµãË÷ÒıÎª 2 * index + 2
-	// Èç¹ûµ±Ç°½ÚµãÊÇ×ó×Ó½Úµã£¬ÔòÆä¸¸½ÚµãË÷ÒıÎª (index - 1) / 2
-	// Èç¹ûµ±Ç°½ÚµãÊÇÓÒ×Ó½Úµã£¬ÔòÆä¸¸½ÚµãË÷ÒıÎª (index - 2) / 2
-	// CÓïÑÔµÄÕûÊı³ı·¨»á×Ô¶¯ÏòÏÂÈ¡Õû£¬ËùÒÔÎÒÃÇ¿ÉÒÔÖ±½ÓÊ¹ÓÃ (index - 1) / 2 À´¼ÆËã¸¸½ÚµãË÷Òı¡£
-	// parent_index = 3
-	// left child_index = 2 * parent_index + 1; // ×ó×Ó½ÚµãË÷Òı 7
-	//  => parent_index = (index - 1) / 2; // ¸¸½ÚµãË÷Òı 3
-	// right child_index = 2 * parent_index + 2; // ÓÒ×Ó½ÚµãË÷Òı 8
-	//  => parent_index = (index - 1) / 2; // ¸¸½ÚµãË÷Òı 3
-
-	// 100  90  80  70  60  50  40 
-	// 0    1    2   3   4   5   6
-
-
-    // Èç¹ûµ±Ç°½Úµã±È¸¸½Úµã´ó£¬Ôò½»»»²¢¼ÌĞøÏòÉÏµ÷Õû
-    if (h->data[index] > h->data[parent_index]) {
-        swap(&h->data[index], &h->data[parent_index]);
-        heapify_up(h, parent_index);
-    }
-}
-
-// "ÏÂ³Á"²Ù×÷£º½«Ö¸¶¨Ë÷ÒıµÄ½ÚµãÏòÏÂµ÷Õû£¬ÒÔÎ¬³Ö×î´ó¶ÑĞÔÖÊ
-static void heapify_down(Heap* h, size_t index) {
-    size_t left_child_index = 2 * index + 1;
-    size_t right_child_index = 2 * index + 2;
-    size_t largest_index = index;
-
-    // ÕÒ³öµ±Ç°½Úµã¡¢×ó×Ó½Úµã¡¢ÓÒ×Ó½ÚµãÖĞµÄ×î´óÖµË÷Òı
-    if (left_child_index < h->size && h->data[left_child_index] > h->data[largest_index]) {
-        largest_index = left_child_index;
-    }
-    if (right_child_index < h->size && h->data[right_child_index] > h->data[largest_index]) {
-        largest_index = right_child_index;
-    }
-
-    // Èç¹û×î´óÖµ²»ÊÇµ±Ç°½Úµã£¬Ôò½»»»²¢¼ÌĞøÏòÏÂµ÷Õû
-    if (largest_index != index) {
-        swap(&h->data[index], &h->data[largest_index]);
-        heapify_down(h, largest_index);
-    }
-}
-
-// ¶¯Ì¬À©Èİ¶ÑµÄÄÚ²¿´æ´¢
-static int heap_resize(Heap* h) {
-    size_t new_capacity = h->capacity * 2;
-    Item* new_data = (Item*)realloc(h->data, new_capacity * sizeof(Item));
-    if (!new_data) {
-        perror("Failed to resize heap");
-        return -1;
-    }
-    h->data = new_data;
-    h->capacity = new_capacity;
-    printf("[DEBUG] Heap resized to capacity %zu\n", new_capacity);
-    return 0;
-}
-
-
-// ========== ADT ½Ó¿Úº¯ÊıÊµÏÖ ==========
-
-Heap* heap_create(size_t initial_capacity) {
-    if (initial_capacity == 0) {
-        initial_capacity = 8; // Ä¬ÈÏÒ»¸ö½ÏĞ¡µÄ³õÊ¼ÈİÁ¿
-    }
-
-    Heap* h = (Heap*)malloc(sizeof(Heap));
-    if (!h) {
-        perror("Failed to allocate memory for heap structure");
-        return NULL;
-    }
-
-    h->data = (Item*)malloc(initial_capacity * sizeof(Item));
-    if (!h->data) {
-        perror("Failed to allocate memory for heap data");
-        free(h);
-        return NULL;
-    }
-
-    h->size = 0;
-    h->capacity = initial_capacity;
-
-    return h;
-}
-
-void heap_destroy(Heap** h) {
-    if (h && *h) {
-        free((*h)->data); // ÊÍ·ÅÊı¾İÊı×é
-        (*h)->data = NULL;
-        free(*h);         // ÊÍ·Å¶Ñ½á¹¹Ìå
-        *h = NULL;        // ½«Íâ²¿Ö¸ÕëÖÃÎªNULL£¬·ÀÖ¹Ò°Ö¸Õë
-    }
-}
-
-int heap_insert(Heap* h, Item value) {
-    if (!h) return -1;
-
-    // Èç¹û¶ÑÂúÁË£¬½øĞĞÀ©Èİ
-    if (h->size == h->capacity) {
-        if (heap_resize(h) != 0) {
-            return -1; // À©ÈİÊ§°Ü
-        }
-    }
-
-    // 1. ½«ĞÂÔªËØÌí¼Óµ½Êı×éÄ©Î²
-    h->data[h->size] = value;
-    // 2. ¶ÔĞÂÔªËØÖ´ĞĞ "ÉÏ¸¡" ²Ù×÷
-    heapify_up(h, h->size);
-    // 3. Ôö¼Ó¶ÑµÄ´óĞ¡
-    h->size++;
-
-    return 0;
-}
-
-int heap_extract_max(Heap* h, Item* p_max_value) {
-    if (!h || is_heap_empty(h)) {
-        return -1; // ¶ÑÎª¿Õ»òÎŞĞ§
-    }
-
-    // 1. ¶Ñ¶¥ÔªËØ¼´Îª×î´óÖµ
-    *p_max_value = h->data[0];
-
-    // 2. ½«×îºóÒ»¸öÔªËØÒÆµ½¶Ñ¶¥
-    h->data[0] = h->data[h->size - 1];
-    h->size--;
-
-    // 3. ¶ÔĞÂµÄ¶Ñ¶¥ÔªËØÖ´ĞĞ "ÏÂ³Á" ²Ù×÷
-    if (h->size > 0) {
-        heapify_down(h, 0);
-    }
-
-    return 0;
-}
-
-int heap_peek(const Heap* h, Item* p_peek_value) {
-    if (!h || is_heap_empty(h)) {
-        return -1;
-    }
-    *p_peek_value = h->data[0];
-    return 0;
-}
-
-int is_heap_empty(const Heap* h) {
-    return (h == NULL || h->size == 0);
-}
-
-size_t heap_size(const Heap* h) {
-    if (!h) return 0;
-    return h->size;
-}
-
-void heap_print_debug(const Heap* h) {
-    if (!h) {
-        printf("Heap is NULL.\n");
-        return;
-    }
-    if (is_heap_empty(h)) {
-        printf("Heap is empty.\n");
-        return;
-    }
-
-    printf("Heap (size=%zu, capacity=%zu): [ ", h->size, h->capacity);
-    for (size_t i = 0; i < h->size; ++i) {
-        printf("%d ", h->data[i]);
-    }
-    printf("]\n");
+#include "heap.h"
+#include <stdio.h>
+#include <string.h> // For memcpy
+
+// ========== å†…éƒ¨è¾…åŠ©å‡½æ•° (ä¸å¯¹å¤–æš´éœ²) ==========
+
+// äº¤æ¢ä¸¤ä¸ªItemç±»å‹çš„å€¼
+static void swap(Item* a, Item* b) {
+    Item temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+// "ä¸Šæµ®"æ“ä½œï¼šå°†æŒ‡å®šç´¢å¼•çš„èŠ‚ç‚¹å‘ä¸Šè°ƒæ•´ï¼Œä»¥ç»´æŒæœ€å¤§å †æ€§è´¨
+static void heapify_up(Heap* h, size_t index) {
+    if (index == 0) return; // æ ¹èŠ‚ç‚¹æ— æ³•ä¸Šæµ®
+
+    size_t parent_index = (index - 1) / 2;
+
+	// å¯¹äºä»»æ„ç´¢å¼•ä¸ºindexçš„èŠ‚ç‚¹ï¼š
+	// å®ƒçš„å·¦å­èŠ‚ç‚¹ç´¢å¼•ä¸º 2 * index + 1
+	// å®ƒçš„å³å­èŠ‚ç‚¹ç´¢å¼•ä¸º 2 * index + 2
+	// å¦‚æœå½“å‰èŠ‚ç‚¹æ˜¯å·¦å­èŠ‚ç‚¹ï¼Œåˆ™å…¶çˆ¶èŠ‚ç‚¹ç´¢å¼•ä¸º (index - 1) / 2
+	// å¦‚æœå½“å‰èŠ‚ç‚¹æ˜¯å³å­èŠ‚ç‚¹ï¼Œåˆ™å…¶çˆ¶èŠ‚ç‚¹ç´¢å¼•ä¸º (index - 2) / 2
+	// Cè¯­è¨€çš„æ•´æ•°é™¤æ³•ä¼šè‡ªåŠ¨å‘ä¸‹å–æ•´ï¼Œæ‰€ä»¥æˆ‘ä»¬å¯ä»¥ç›´æ¥ä½¿ç”¨ (index - 1) / 2 æ¥è®¡ç®—çˆ¶èŠ‚ç‚¹ç´¢å¼•ã€‚
+	// parent_index = 3
+	// left child_index = 2 * parent_index + 1; // å·¦å­èŠ‚ç‚¹ç´¢å¼• 7
+	//  => parent_index = (index - 1) / 2; // çˆ¶èŠ‚ç‚¹ç´¢å¼• 3
+	// right child_index = 2 * parent_index + 2; // å³å­èŠ‚ç‚¹ç´¢å¼• 8
+	//  => parent_index = (index - 1) / 2; // çˆ¶èŠ‚ç‚¹ç´¢å¼• 3
+
+	// 100  90  80  70  60  50  40 
+	// 0    1    2   3   4   5   6
+
+
+    // å¦‚æœå½“å‰èŠ‚ç‚¹æ¯”çˆ¶èŠ‚ç‚¹å¤§ï¼Œåˆ™äº¤æ¢å¹¶ç»§ç»­å‘ä¸Šè°ƒæ•´
+    if (h->data[index] > h->data[parent_index]) {
+        swap(&h->data[index], &h->data[parent_index]);
+        heapify_up(h, parent_index);
+    }
+}
+
+// "ä¸‹æ²‰"æ“ä½œï¼šå°†æŒ‡å®šç´¢å¼•çš„èŠ‚ç‚¹å‘ä¸‹è°ƒæ•´ï¼Œä»¥ç»´æŒæœ€å¤§å †æ€§è´¨
+static void heapify_down(Heap* h, size_t index) {
+    size_t left_child_index = 2 * index + 1;
+    size_t right_child_index = 2 * index + 2;
+    size_t largest_index = index;
+
+    // æ‰¾å‡ºå½“å‰èŠ‚ç‚¹ã€å·¦å­èŠ‚ç‚¹ã€å³å­èŠ‚ç‚¹ä¸­çš„æœ€å¤§å€¼ç´¢å¼•
+    if (left_child_index < h->size && h->data[left_child_index] > h->data[largest_index]) {
+        largest_index = left_child_index;
+    }
+    if (right_child_index < h->size && h->data[right_child_index] > h->data[largest_index]) {
+        largest_index = right_child_index;
+    }
+
+    // å¦‚æœæœ€å¤§å€¼ä¸æ˜¯å½“å‰èŠ‚ç‚¹ï¼Œåˆ™äº¤æ¢å¹¶ç»§ç»­å‘ä¸‹è°ƒæ•´
+    if (largest_index != index) {
+        swap(&h->data[index], &h->data[largest_index]);
+        heapify_down(h, largest_index);
+    }
+}
+
+// åŠ¨æ€æ‰©å®¹å †çš„å†…éƒ¨å­˜å‚¨
+static int heap_resize(Heap* h) {
+    size_t new_capacity = h->capacity * 2;
+    Item* new_data = (Item*)realloc(h->data, new_capacity * sizeof(Item));
+    if (!new_data) {
+        perror("Failed to resize heap");
+        return -1;
+    }
+    h->data = new_data;
+    h->capacity = new_capacity;
+    printf("[DEBUG] Heap resized to capacity %zu\n", new_capacity);
+    return 0;
+}
+
+
+// ========== ADT æ¥å£å‡½æ•°å®ç° ==========
+
+Heap* heap_create(size_t initial_capacity) {
+    if (initial_capacity == 0) {
+        initial_capacity = 8; // é»˜è®¤ä¸€ä¸ªè¾ƒå°çš„åˆå§‹å®¹é‡
+    }
+
+    Heap* h = (Heap*)malloc(sizeof(Heap));
+    if (!h) {
+        perror("Failed to allocate memory for heap structure");
+        return NULL;
+    }
+
+    h->data = (Item*)malloc(initial_capacity * sizeof(Item));
+    if (!h->data) {
+        perror("Failed to allocate memory for heap data");
+        free(h);
+        return NULL;
+    }
+
+    h->size = 0;
+    h->capacity = initial_capacity;
+
+    return h;
+}
+
+void heap_destroy(Heap** h) {
+    if (h && *h) {
+        free((*h)->data); // é‡Šæ”¾æ•°æ®æ•°ç»„
+        (*h)->data = NULL;
+        free(*h);         // é‡Šæ”¾å †ç»“æ„ä½“
+        *h = NULL;        // å°†å¤–éƒ¨æŒ‡é’ˆç½®ä¸ºNULLï¼Œé˜²æ­¢é‡æŒ‡é’ˆ
+    }
+}
+
+int heap_insert(Heap* h, Item value) {
+    if (!h) return -1;
+
+    // å¦‚æœå †æ»¡äº†ï¼Œè¿›è¡Œæ‰©å®¹
+    if (h->size == h->capacity) {
+        if (heap_resize(h) != 0) {
+            return -1; // æ‰©å®¹å¤±è´¥
+        }
+    }
+
+    // 1. å°†æ–°å…ƒç´ æ·»åŠ åˆ°æ•°ç»„æœ«å°¾
+    h->data[h->size] = value;
+    // 2. å¯¹æ–°å…ƒç´ æ‰§è¡Œ "ä¸Šæµ®" æ“ä½œ
+    heapify_up(h, h->size);
+    // 3. å¢åŠ å †çš„å¤§å°
+    h->size++;
+
+    return 0;
+}
+
+int heap_extract_max(Heap* h, Item* p_max_value) {
+    if (!h || is_heap_empty(h)) {
+        return -1; // å †ä¸ºç©ºæˆ–æ— æ•ˆ
+    }
+
+    // 1. å †é¡¶å…ƒç´ å³ä¸ºæœ€å¤§å€¼
+    *p_max_value = h->data[0];
+
+    // 2. å°†æœ€åä¸€ä¸ªå…ƒç´ ç§»åˆ°å †é¡¶
+    h->data[0] = h->data[h->size - 1];
+    h->size--;
+
+    // 3. å¯¹æ–°çš„å †é¡¶å…ƒç´ æ‰§è¡Œ "ä¸‹æ²‰" æ“ä½œ
+    if (h->size > 0) {
+        heapify_down(h, 0);
+    }
+
+    return 0;
+}
+
+int heap_peek(const Heap* h, Item* p_peek_value) {
+    if (!h || is_heap_empty(h)) {
+        return -1;
+    }
+    *p_peek_value = h->data[0];
+    return 0;
+}
+
+int is_heap_empty(const Heap* h) {
+    return (h == NULL || h->size == 0);
+}
+
+size_t heap_size(const Heap* h) {
+    if (!h) return 0;
+    return h->size;
+}
+
+void heap_print_debug(const Heap* h) {
+    if (!h) {
+        printf("Heap is NULL.\n");
+        return;
+    }
+    if (is_heap_empty(h)) {
+        printf("Heap is empty.\n");
+        return;
+    }
+
+    printf("Heap (size=%zu, capacity=%zu): [ ", h->size, h->capacity);
+    for (size_t i = 0; i < h->size; ++i) {
+        printf("%d ", h->data[i]);
+    }
+    printf("]\n");
 }

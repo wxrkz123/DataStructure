@@ -1,55 +1,55 @@
-#pragma once
-#include <stddef.h>
-#include <stdbool.h>
-
-// Ç°ÏòÉùÃ÷
-typedef struct AVLNode AVLNode;
-typedef struct AVLTree AVLTree;
-
-// ±È½Ïº¯ÊıÀàĞÍ£º·µ»ØÖµ < 0 ±íÊ¾ a < b£¬= 0 ±íÊ¾ a = b£¬> 0 ±íÊ¾ a > b
-typedef int (*AVLCompareFunc)(const void* a, const void* b, void* context);
-
-// ±éÀú»Øµ÷º¯ÊıÀàĞÍ
-typedef void (*AVLTraverseFunc)(void* data, void* context);
-
-// ÊÍ·ÅÊı¾İµÄ»Øµ÷º¯ÊıÀàĞÍ
-typedef void (*AVLFreeFunc)(void* data, void* context);
-
-// ´´½¨AVLÊ÷
-AVLTree* avl_create(AVLCompareFunc compare, AVLFreeFunc free_func, void* context);
-
-// Ïú»ÙAVLÊ÷
-void avl_destroy(AVLTree* tree);
-
-// ²åÈëÔªËØ£¨Èç¹ûÒÑ´æÔÚÔò·µ»Øfalse£©
-bool avl_insert(AVLTree* tree, void* data);
-
-// É¾³ıÔªËØ£¨·µ»ØÊÇ·ñ³É¹¦É¾³ı£©
-bool avl_delete(AVLTree* tree, const void* data);
-
-// ²éÕÒÔªËØ
-void* avl_find(const AVLTree* tree, const void* data);
-
-// ¸üĞÂÔªËØ£¨ÏÈÉ¾³ı¾ÉµÄ£¬ÔÙ²åÈëĞÂµÄ£©
-bool avl_update(AVLTree* tree, const void* old_data, void* new_data);
-
-// »ñÈ¡Ê÷µÄ´óĞ¡
-size_t avl_size(const AVLTree* tree);
-
-// ¼ì²éÊ÷ÊÇ·ñÎª¿Õ
-bool avl_is_empty(const AVLTree* tree);
-
-// ÖĞĞò±éÀú
-void avl_traverse_inorder(const AVLTree* tree, AVLTraverseFunc func, void* context);
-
-// Ç°Ğò±éÀú
-void avl_traverse_preorder(const AVLTree* tree, AVLTraverseFunc func, void* context);
-
-// ºóĞò±éÀú
-void avl_traverse_postorder(const AVLTree* tree, AVLTraverseFunc func, void* context);
-
-// »ñÈ¡Ê÷µÄ¸ß¶È
-int avl_height(const AVLTree* tree);
-
-// ÑéÖ¤AVLÊ÷µÄÆ½ºâĞÔ£¨ÓÃÓÚµ÷ÊÔ£©
-bool avl_validate(const AVLTree* tree);
+#pragma once
+#include <stddef.h>
+#include <stdbool.h>
+
+// å‰å‘å£°æ˜
+typedef struct AVLNode AVLNode;
+typedef struct AVLTree AVLTree;
+
+// æ¯”è¾ƒå‡½æ•°ç±»å‹ï¼šè¿”å›å€¼ < 0 è¡¨ç¤º a < bï¼Œ= 0 è¡¨ç¤º a = bï¼Œ> 0 è¡¨ç¤º a > b
+typedef int (*AVLCompareFunc)(const void* a, const void* b, void* context);
+
+// éå†å›è°ƒå‡½æ•°ç±»å‹
+typedef void (*AVLTraverseFunc)(void* data, void* context);
+
+// é‡Šæ”¾æ•°æ®çš„å›è°ƒå‡½æ•°ç±»å‹
+typedef void (*AVLFreeFunc)(void* data, void* context);
+
+// åˆ›å»ºAVLæ ‘
+AVLTree* avl_create(AVLCompareFunc compare, AVLFreeFunc free_func, void* context);
+
+// é”€æ¯AVLæ ‘
+void avl_destroy(AVLTree* tree);
+
+// æ’å…¥å…ƒç´ ï¼ˆå¦‚æœå·²å­˜åœ¨åˆ™è¿”å›falseï¼‰
+bool avl_insert(AVLTree* tree, void* data);
+
+// åˆ é™¤å…ƒç´ ï¼ˆè¿”å›æ˜¯å¦æˆåŠŸåˆ é™¤ï¼‰
+bool avl_delete(AVLTree* tree, const void* data);
+
+// æŸ¥æ‰¾å…ƒç´ 
+void* avl_find(const AVLTree* tree, const void* data);
+
+// æ›´æ–°å…ƒç´ ï¼ˆå…ˆåˆ é™¤æ—§çš„ï¼Œå†æ’å…¥æ–°çš„ï¼‰
+bool avl_update(AVLTree* tree, const void* old_data, void* new_data);
+
+// è·å–æ ‘çš„å¤§å°
+size_t avl_size(const AVLTree* tree);
+
+// æ£€æŸ¥æ ‘æ˜¯å¦ä¸ºç©º
+bool avl_is_empty(const AVLTree* tree);
+
+// ä¸­åºéå†
+void avl_traverse_inorder(const AVLTree* tree, AVLTraverseFunc func, void* context);
+
+// å‰åºéå†
+void avl_traverse_preorder(const AVLTree* tree, AVLTraverseFunc func, void* context);
+
+// ååºéå†
+void avl_traverse_postorder(const AVLTree* tree, AVLTraverseFunc func, void* context);
+
+// è·å–æ ‘çš„é«˜åº¦
+int avl_height(const AVLTree* tree);
+
+// éªŒè¯AVLæ ‘çš„å¹³è¡¡æ€§ï¼ˆç”¨äºè°ƒè¯•ï¼‰
+bool avl_validate(const AVLTree* tree);

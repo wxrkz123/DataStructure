@@ -1,278 +1,278 @@
-#define _CRT_SECURE_NO_WARNINGS
-#include "DoublyLinkedList.h"
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-
-/**
-* ´´½¨Ò»¸öÐÂµÄ½Úµã²¢³õÊ¼»¯ÆäÊý¾Ý¡£
-* @note ÕâÊÇÒ»¸öÄÚ²¿º¯Êý£¬Í¨³£²»Ö±½Óµ÷ÓÃ¡£
-* @param songData °üº¬¸èÇúÐÅÏ¢µÄ½á¹¹Ìå¡£
-* @return ·µ»ØÖ¸ÏòÐÂ´´½¨½ÚµãµÄÖ¸Õë£¬Èç¹ûÄÚ´æ·ÖÅäÊ§°ÜÔò·µ»Ø NULL¡£
-*/
-static Node* _createNode(Song songData) {
-
-	// 1.Îª½Úµã·ÖÅäÄÚ´æ
-	Node* newNode = (Node*)malloc(sizeof(Node));
-
-	if (!newNode) {
-		perror("Failed to allocate memory for new node");
-		return NULL; // ÄÚ´æ·ÖÅäÊ§°Ü
-	}
-
-	// 2.³õÊ¼»¯½ÚµãÊý¾Ý£¬Îª½ÚµãÊý¾ÝÖÐµÄ×Ö·û´®³ÉÔ±·ÖÅäÄÚ´æ²¢ÇÒ¸´ÖÆÄÚÈÝ¡£
-	// why?
-	// ÒòÎª songData ÖÐµÄ×Ö·û´®³ÉÔ±ÊÇÖ¸Ïò×Ö·û´®×ÖÃæÁ¿µÄÖ¸Õë£¬
-	// Ö±½Ó¸³Öµ»áµ¼ÖÂ¶à¸ö½ÚµãÖ¸ÏòÍ¬Ò»ÄÚ´æµØÖ·£¬
-	newNode->data.title = (char*)malloc(strlen(songData.title) + 1);
-	newNode->data.artist = (char*)malloc(strlen(songData.artist) + 1);
-
-	// ½²½âÎªÊ²Ã´Òª +1£¿
-	// "Hello" ºÍÕûÊý 99 ÔÚÄÚ´æÖÐ...
-	// ... [H] [e] [l] [l] [o] [\0] [99µÄ¶þ½øÖÆÊý] ...
-	// ¿Õ×Ö·û '\0' ÊÇ×Ö·û´®µÄ½áÊø±êÖ¾
-	// Null terminator
-	// [H] [e] [l] [l] [o] [\0]
-	// strlen ¼ÆËã×Ö·û´®µÄ¿É¼û×Ö·ûÊý
-	// strlen("Hello")  -> return 5; Ã»ÓÐ¼ÆËã '\0' µÄ³¤¶È 5+1;
-
-	if (!newNode->data.title || !newNode->data.artist) {
-		perror("Failed to allocate memory for song data");
-		free(newNode->data.title);
-		free(newNode->data.artist);
-		free(newNode);
-		return NULL; // ÄÚ´æ·ÖÅäÊ§°Ü
-	}
-
-	// strcpy »á°Ñ×Ö·û´®´ÓÔ´¸´ÖÆµ½Ä¿±ê£¬°üÀ¨ '\0' ×Ö·û
-	// [H] [e] [l] [l] [o] 
-	strcpy(newNode->data.title, songData.title);
-	strcpy(newNode->data.artist, songData.artist);
-	newNode->data.duration = songData.duration;
-
-	// 3.³õÊ¼»¯Ö¸Õë
-	newNode->next = NULL;
-	newNode->prev = NULL;
-
-	return newNode;
-}
-
-
-DoublyLinkedList* createList() {
-	DoublyLinkedList* list = (DoublyLinkedList*)malloc(sizeof(DoublyLinkedList));
-	if (!list) {
-		perror("Failed to allocate memory for the list");
-		return NULL; // ÄÚ´æ·ÖÅäÊ§°Ü
-	}
-	// ³õÊ¼»¯Á´±í
-	list->head = NULL;
-	list->tail = NULL;
-	list->size = 0;
-
-	return list;
-}
-
-void freeList(DoublyLinkedList* list) {
-	if (!list)
-	{
-		perror("List is NULL, nothing to free.\n");
-		return;
-	}
-
-	// ±éÀúÁ´±í²¢ÊÍ·ÅÃ¿¸ö½Úµã
-	// current Ö¸ÏòÁ´±íµÄÍ·½Úµã
-	// current ÊÇÒ»¸öÁÙÊ±µÄÖ¸Õë
-	Node* current = list->head;
-
-	while (current != NULL) {
-		Node* nextNode = current->next; // ±£´æÏÂÒ»¸ö½ÚµãµÄÖ¸Õë
-		free(current->data.title); // ÊÍ·Å¸èÇú±êÌâÄÚ´æ
-		free(current->data.artist); // ÊÍ·ÅÒÕÊõ¼ÒÃû³ÆÄÚ´æ
-		free(current); // ÊÍ·Åµ±Ç°½ÚµãÄÚ´æ
-		current = nextNode; // ÒÆ¶¯µ½ÏÂÒ»¸ö½Úµã
-	}
-
-	free(list); // ÊÍ·ÅÁ´±í¹ÜÀíÆ÷±¾ÉíµÄÄÚ´æ
-}
-
-bool append(DoublyLinkedList* list, Song songData) {
-	if (!list) {
-		perror("List is NULL, cannot append.");
-		return false; // Á´±íÎª¿Õ
-	}
-
-	Node* newNode = _createNode(songData);
-	if (!newNode) {
-		return false; // ½Úµã´´½¨Ê§°Ü
-	}
-
-	if (list->head == NULL) {
-		// Á´±íÎª¿ÕÊ±£¬ÉèÖÃÍ·½ÚµãºÍÎ²½Úµã
-		list->head = newNode;
-		list->tail = newNode;
-	}
-	else {
-		// Á´±í·Ç¿ÕÊ±£¬½«ÐÂ½ÚµãÌí¼Óµ½Î²²¿
-		list->tail->next = newNode; // ½«µ±Ç°Î²½ÚµãµÄ next Ö¸ÏòÐÂ½Úµã
-
-		// Á½¸ö¼ýÍ·
-		// list ÊÇÒ»¸öÖ¸Õë£¬ËüÖ¸ÏòÒ»¸öDoublyLinkedList½á¹¹Ìå
-		// Õâ¸ö½á¹¹ÌåÊÇÊ²Ã´£¬Õû¸öÁ´±íµÄ¹ÜÀíÆ÷ head, tail, size
-
-		// list->tail ÊÇÒ»¸öÖ¸Õë£¬ËüÖ¸ÏòÁ´±íµÄÎ²½Úµã 
-		// -> Ò»¸ö¼ýÍ·ÔËËã·û Ö¸Õë³ÉÔ±·ÃÎÊÔËËã·û
-
-	// list->tail Í¨¹ýlistÖ¸Õë£¬ÕÒµ½ËüËùÖ¸ÏòµÄÄÇ¸öDoublyLinkedList½á¹¹Ìå£¬ »ñµÃËüµÄtail³ÉÔ±
-		// tail £¬¸Ã³ÉÔ±Ò²ÊÇÒ»¸öÖ¸Õë£¬ËüµÄÀàÐÍÊÇ Node*£¬Ö¸ÏòÁ´±íµÄ×îºóÒ»¸ö½ÚµãµÄÄÚ´æµØÖ·¡£
-
-		// list->tail->next ÊÇÒ»¸öÖ¸Õë£¬ËüÖ¸ÏòÁ´±íµÄ×îºóÒ»¸ö½ÚµãµÄ next ³ÉÔ±
-		// (list->tail)->next;
-		// »ñÈ¡Õû¸öÁ´±í(list)µÄÎ²½Úµã(tail)µÄ next Ö¸Õë
-		newNode->prev = list->tail; // ÐÂ½ÚµãµÄ prev Ö¸Ïòµ±Ç°Î²½Úµã
-		list->tail = newNode; // ¸üÐÂÎ²½ÚµãÎªÐÂ½Úµã
-	}
-
-	list->size++; // Ôö¼ÓÁ´±íµÄ´óÐ¡¼ÆÊý
-	return true; // ³É¹¦Ìí¼Ó½Úµã
-}
-
-bool prepend(DoublyLinkedList* list, Song songData) {
-	if (!list) {
-		perror("List is NULL, cannot prepend.");
-		return false; // Á´±íÎª¿Õ
-	}
-
-	Node* newNode = _createNode(songData);
-	if (!newNode) {
-		return false; // ½Úµã´´½¨Ê§°Ü
-	}
-
-	if (list->head == NULL) {
-		// Á´±íÎª¿ÕÊ±£¬ÉèÖÃÍ·½ÚµãºÍÎ²½Úµã
-		list->head = newNode;
-		list->tail = newNode;
-	}
-	else {
-		// Á´±í·Ç¿ÕÊ±£¬½«ÐÂ½ÚµãÌí¼Óµ½Í·²¿
-		newNode->next = list->head; // ÐÂ½ÚµãµÄ next Ö¸Ïòµ±Ç°Í·½Úµã
-		list->head->prev = newNode; // µ±Ç°Í·½ÚµãµÄ prev Ö¸ÏòÐÂ½Úµã
-		list->head = newNode; // ¸üÐÂÍ·½ÚµãÎªÐÂ½Úµã
-	}
-
-	list->size++;
-	return true; // ³É¹¦Ìí¼Ó½Úµã
-}
-
-bool insertAfter(DoublyLinkedList* list, Node* targetNode, Song songData) {
-	if (!list || !targetNode) {
-		perror("List or target node is NULL, cannot insert.");
-		return false; // Á´±í»òÄ¿±ê½ÚµãÎª¿Õ
-	}
-	
-	// ´´½¨ÐÂµÄ½Úµã
-	Node* newNode = _createNode(songData);
-	// JS
-
-
-	if (!newNode) {
-		return false; // ½Úµã´´½¨Ê§°Ü
-	}
-
-
-	newNode->next = targetNode->next; // ÐÂ½ÚµãµÄ next Ö¸ÏòÄ¿±ê½ÚµãµÄÏÂÒ»¸ö½Úµã
-	newNode->prev = targetNode; // ÐÂ½ÚµãµÄ prev Ö¸ÏòÄ¿±ê½Úµã
-
-	if (targetNode->next != NULL) {
-		targetNode->next->prev = newNode; // È·±£²»ÊÇÔÚÎ²²¿²åÈë
-	}
-	else {
-		list->tail = newNode; // Èç¹ûÄ¿±ê½ÚµãÊÇÎ²½Úµã£¬¸üÐÂÎ²½ÚµãÎªÐÂ½Úµã
-	}
-	targetNode->next = newNode; // Ä¿±ê½ÚµãµÄ next Ö¸ÏòÐÂ½Úµã
-	list->size++; // Ôö¼ÓÁ´±íµÄ´óÐ¡¼ÆÊý
-	return true; // ³É¹¦²åÈë½Úµã
-}
-
-// list Ö¸ÏòÁ´±íµÄÖ¸Õë£¬ nodeToDeleteÊÇÖ¸ÏòÒªÉ¾³ýµÄ½ÚµãµÄÖ¸Õë
-bool deleteNode(DoublyLinkedList* list, Node* nodeToDelete) {
-	if (!list || !nodeToDelete) {
-		perror("List or node to delete is NULL.");
-		return false; // Á´±í»ò½ÚµãÎª¿Õ
-	}
-
-	if (nodeToDelete->prev != NULL) {
-		nodeToDelete->prev->next = nodeToDelete->next;
-	}
-	else {
-		list->head = nodeToDelete->next;
-	}
-
-	if (nodeToDelete->next != NULL) {
-		nodeToDelete->next->prev = nodeToDelete->prev;
-	}
-	else {
-		list->tail = nodeToDelete->prev;
-	}
-
-	free(nodeToDelete->data.title);
-	free(nodeToDelete->data.artist);
-	free(nodeToDelete); // ÊÍ·Å½ÚµãÄÚ´æ	
-
-	list->size--; // ¼õÉÙÁ´±íµÄ´óÐ¡¼ÆÊý
-
-	return true;
-}
-
-Node* findByTitle(const DoublyLinkedList* list, const char* title) {
-	if (!list || !title) {
-		perror("List or title is NULL, cannot find.");
-		return NULL; // Á´±í»ò±êÌâÎª¿Õ
-	}
-
-	Node* current = list->head;
-
-	while (current != NULL) {
-		if (strcmp(current->data.title, title) == 0) {
-			return current; // ÕÒµ½Æ¥ÅäµÄ½Úµã
-		}
-		current = current->next; // ÒÆ¶¯µ½ÏÂÒ»¸ö½Úµã
-	}
-
-	return NULL; // Ã»ÓÐÕÒµ½Æ¥ÅäµÄ½Úµã
-}
-
-void printListForward(const DoublyLinkedList* list) {
-	if (!list || !list->head) {
-		printf("List is empty.\n");
-		return; // Á´±íÎª¿Õ
-	}
-
-	printf("---Playlist (Size: %d, Forword) ---\n", list->size);
-	Node* current = list->head;
-	int index = 1;
-	while (current != NULL) {
-		printf("%d. Title: %s, Artist: %s, Duration: %d seconds\n",
-			index++, current->data.title, current->data.artist, current->data.duration);
-		current = current->next; // ÒÆ¶¯µ½ÏÂÒ»¸ö½Úµã
-	}
-	printf("--- End of Playlist ---\n");
-}
-
-void printListBackward(const DoublyLinkedList* list) {
-	if (!list || !list->tail) {
-		printf("List is empty.\n");
-		return; // Á´±íÎª¿Õ
-	}
-
-	printf("---Playlist (Size: %d, Forword) ---\n", list->size);
-	Node* current = list->tail;
-	int index = list->size;
-	while (current != NULL) {
-		printf("%d. Title: %s, Artist: %s, Duration: %d seconds\n",
-			index--, current->data.title, current->data.artist, current->data.duration);
-		current = current->prev; // ÒÆ¶¯µ½ÏÂÒ»¸ö½Úµã
-	}
-	printf("--- End of Playlist ---\n");
+#define _CRT_SECURE_NO_WARNINGS
+#include "DoublyLinkedList.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+
+/**
+* åˆ›å»ºä¸€ä¸ªæ–°çš„èŠ‚ç‚¹å¹¶åˆå§‹åŒ–å…¶æ•°æ®ã€‚
+* @note è¿™æ˜¯ä¸€ä¸ªå†…éƒ¨å‡½æ•°ï¼Œé€šå¸¸ä¸ç›´æŽ¥è°ƒç”¨ã€‚
+* @param songData åŒ…å«æ­Œæ›²ä¿¡æ¯çš„ç»“æž„ä½“ã€‚
+* @return è¿”å›žæŒ‡å‘æ–°åˆ›å»ºèŠ‚ç‚¹çš„æŒ‡é’ˆï¼Œå¦‚æžœå†…å­˜åˆ†é…å¤±è´¥åˆ™è¿”å›ž NULLã€‚
+*/
+static Node* _createNode(Song songData) {
+
+	// 1.ä¸ºèŠ‚ç‚¹åˆ†é…å†…å­˜
+	Node* newNode = (Node*)malloc(sizeof(Node));
+
+	if (!newNode) {
+		perror("Failed to allocate memory for new node");
+		return NULL; // å†…å­˜åˆ†é…å¤±è´¥
+	}
+
+	// 2.åˆå§‹åŒ–èŠ‚ç‚¹æ•°æ®ï¼Œä¸ºèŠ‚ç‚¹æ•°æ®ä¸­çš„å­—ç¬¦ä¸²æˆå‘˜åˆ†é…å†…å­˜å¹¶ä¸”å¤åˆ¶å†…å®¹ã€‚
+	// why?
+	// å› ä¸º songData ä¸­çš„å­—ç¬¦ä¸²æˆå‘˜æ˜¯æŒ‡å‘å­—ç¬¦ä¸²å­—é¢é‡çš„æŒ‡é’ˆï¼Œ
+	// ç›´æŽ¥èµ‹å€¼ä¼šå¯¼è‡´å¤šä¸ªèŠ‚ç‚¹æŒ‡å‘åŒä¸€å†…å­˜åœ°å€ï¼Œ
+	newNode->data.title = (char*)malloc(strlen(songData.title) + 1);
+	newNode->data.artist = (char*)malloc(strlen(songData.artist) + 1);
+
+	// è®²è§£ä¸ºä»€ä¹ˆè¦ +1ï¼Ÿ
+	// "Hello" å’Œæ•´æ•° 99 åœ¨å†…å­˜ä¸­...
+	// ... [H] [e] [l] [l] [o] [\0] [99çš„äºŒè¿›åˆ¶æ•°] ...
+	// ç©ºå­—ç¬¦ '\0' æ˜¯å­—ç¬¦ä¸²çš„ç»“æŸæ ‡å¿—
+	// Null terminator
+	// [H] [e] [l] [l] [o] [\0]
+	// strlen è®¡ç®—å­—ç¬¦ä¸²çš„å¯è§å­—ç¬¦æ•°
+	// strlen("Hello")  -> return 5; æ²¡æœ‰è®¡ç®— '\0' çš„é•¿åº¦ 5+1;
+
+	if (!newNode->data.title || !newNode->data.artist) {
+		perror("Failed to allocate memory for song data");
+		free(newNode->data.title);
+		free(newNode->data.artist);
+		free(newNode);
+		return NULL; // å†…å­˜åˆ†é…å¤±è´¥
+	}
+
+	// strcpy ä¼šæŠŠå­—ç¬¦ä¸²ä»Žæºå¤åˆ¶åˆ°ç›®æ ‡ï¼ŒåŒ…æ‹¬ '\0' å­—ç¬¦
+	// [H] [e] [l] [l] [o] 
+	strcpy(newNode->data.title, songData.title);
+	strcpy(newNode->data.artist, songData.artist);
+	newNode->data.duration = songData.duration;
+
+	// 3.åˆå§‹åŒ–æŒ‡é’ˆ
+	newNode->next = NULL;
+	newNode->prev = NULL;
+
+	return newNode;
+}
+
+
+DoublyLinkedList* createList() {
+	DoublyLinkedList* list = (DoublyLinkedList*)malloc(sizeof(DoublyLinkedList));
+	if (!list) {
+		perror("Failed to allocate memory for the list");
+		return NULL; // å†…å­˜åˆ†é…å¤±è´¥
+	}
+	// åˆå§‹åŒ–é“¾è¡¨
+	list->head = NULL;
+	list->tail = NULL;
+	list->size = 0;
+
+	return list;
+}
+
+void freeList(DoublyLinkedList* list) {
+	if (!list)
+	{
+		perror("List is NULL, nothing to free.\n");
+		return;
+	}
+
+	// éåŽ†é“¾è¡¨å¹¶é‡Šæ”¾æ¯ä¸ªèŠ‚ç‚¹
+	// current æŒ‡å‘é“¾è¡¨çš„å¤´èŠ‚ç‚¹
+	// current æ˜¯ä¸€ä¸ªä¸´æ—¶çš„æŒ‡é’ˆ
+	Node* current = list->head;
+
+	while (current != NULL) {
+		Node* nextNode = current->next; // ä¿å­˜ä¸‹ä¸€ä¸ªèŠ‚ç‚¹çš„æŒ‡é’ˆ
+		free(current->data.title); // é‡Šæ”¾æ­Œæ›²æ ‡é¢˜å†…å­˜
+		free(current->data.artist); // é‡Šæ”¾è‰ºæœ¯å®¶åç§°å†…å­˜
+		free(current); // é‡Šæ”¾å½“å‰èŠ‚ç‚¹å†…å­˜
+		current = nextNode; // ç§»åŠ¨åˆ°ä¸‹ä¸€ä¸ªèŠ‚ç‚¹
+	}
+
+	free(list); // é‡Šæ”¾é“¾è¡¨ç®¡ç†å™¨æœ¬èº«çš„å†…å­˜
+}
+
+bool append(DoublyLinkedList* list, Song songData) {
+	if (!list) {
+		perror("List is NULL, cannot append.");
+		return false; // é“¾è¡¨ä¸ºç©º
+	}
+
+	Node* newNode = _createNode(songData);
+	if (!newNode) {
+		return false; // èŠ‚ç‚¹åˆ›å»ºå¤±è´¥
+	}
+
+	if (list->head == NULL) {
+		// é“¾è¡¨ä¸ºç©ºæ—¶ï¼Œè®¾ç½®å¤´èŠ‚ç‚¹å’Œå°¾èŠ‚ç‚¹
+		list->head = newNode;
+		list->tail = newNode;
+	}
+	else {
+		// é“¾è¡¨éžç©ºæ—¶ï¼Œå°†æ–°èŠ‚ç‚¹æ·»åŠ åˆ°å°¾éƒ¨
+		list->tail->next = newNode; // å°†å½“å‰å°¾èŠ‚ç‚¹çš„ next æŒ‡å‘æ–°èŠ‚ç‚¹
+
+		// ä¸¤ä¸ªç®­å¤´
+		// list æ˜¯ä¸€ä¸ªæŒ‡é’ˆï¼Œå®ƒæŒ‡å‘ä¸€ä¸ªDoublyLinkedListç»“æž„ä½“
+		// è¿™ä¸ªç»“æž„ä½“æ˜¯ä»€ä¹ˆï¼Œæ•´ä¸ªé“¾è¡¨çš„ç®¡ç†å™¨ head, tail, size
+
+		// list->tail æ˜¯ä¸€ä¸ªæŒ‡é’ˆï¼Œå®ƒæŒ‡å‘é“¾è¡¨çš„å°¾èŠ‚ç‚¹ 
+		// -> ä¸€ä¸ªç®­å¤´è¿ç®—ç¬¦ æŒ‡é’ˆæˆå‘˜è®¿é—®è¿ç®—ç¬¦
+
+	// list->tail é€šè¿‡listæŒ‡é’ˆï¼Œæ‰¾åˆ°å®ƒæ‰€æŒ‡å‘çš„é‚£ä¸ªDoublyLinkedListç»“æž„ä½“ï¼Œ èŽ·å¾—å®ƒçš„tailæˆå‘˜
+		// tail ï¼Œè¯¥æˆå‘˜ä¹Ÿæ˜¯ä¸€ä¸ªæŒ‡é’ˆï¼Œå®ƒçš„ç±»åž‹æ˜¯ Node*ï¼ŒæŒ‡å‘é“¾è¡¨çš„æœ€åŽä¸€ä¸ªèŠ‚ç‚¹çš„å†…å­˜åœ°å€ã€‚
+
+		// list->tail->next æ˜¯ä¸€ä¸ªæŒ‡é’ˆï¼Œå®ƒæŒ‡å‘é“¾è¡¨çš„æœ€åŽä¸€ä¸ªèŠ‚ç‚¹çš„ next æˆå‘˜
+		// (list->tail)->next;
+		// èŽ·å–æ•´ä¸ªé“¾è¡¨(list)çš„å°¾èŠ‚ç‚¹(tail)çš„ next æŒ‡é’ˆ
+		newNode->prev = list->tail; // æ–°èŠ‚ç‚¹çš„ prev æŒ‡å‘å½“å‰å°¾èŠ‚ç‚¹
+		list->tail = newNode; // æ›´æ–°å°¾èŠ‚ç‚¹ä¸ºæ–°èŠ‚ç‚¹
+	}
+
+	list->size++; // å¢žåŠ é“¾è¡¨çš„å¤§å°è®¡æ•°
+	return true; // æˆåŠŸæ·»åŠ èŠ‚ç‚¹
+}
+
+bool prepend(DoublyLinkedList* list, Song songData) {
+	if (!list) {
+		perror("List is NULL, cannot prepend.");
+		return false; // é“¾è¡¨ä¸ºç©º
+	}
+
+	Node* newNode = _createNode(songData);
+	if (!newNode) {
+		return false; // èŠ‚ç‚¹åˆ›å»ºå¤±è´¥
+	}
+
+	if (list->head == NULL) {
+		// é“¾è¡¨ä¸ºç©ºæ—¶ï¼Œè®¾ç½®å¤´èŠ‚ç‚¹å’Œå°¾èŠ‚ç‚¹
+		list->head = newNode;
+		list->tail = newNode;
+	}
+	else {
+		// é“¾è¡¨éžç©ºæ—¶ï¼Œå°†æ–°èŠ‚ç‚¹æ·»åŠ åˆ°å¤´éƒ¨
+		newNode->next = list->head; // æ–°èŠ‚ç‚¹çš„ next æŒ‡å‘å½“å‰å¤´èŠ‚ç‚¹
+		list->head->prev = newNode; // å½“å‰å¤´èŠ‚ç‚¹çš„ prev æŒ‡å‘æ–°èŠ‚ç‚¹
+		list->head = newNode; // æ›´æ–°å¤´èŠ‚ç‚¹ä¸ºæ–°èŠ‚ç‚¹
+	}
+
+	list->size++;
+	return true; // æˆåŠŸæ·»åŠ èŠ‚ç‚¹
+}
+
+bool insertAfter(DoublyLinkedList* list, Node* targetNode, Song songData) {
+	if (!list || !targetNode) {
+		perror("List or target node is NULL, cannot insert.");
+		return false; // é“¾è¡¨æˆ–ç›®æ ‡èŠ‚ç‚¹ä¸ºç©º
+	}
+	
+	// åˆ›å»ºæ–°çš„èŠ‚ç‚¹
+	Node* newNode = _createNode(songData);
+	// JS
+
+
+	if (!newNode) {
+		return false; // èŠ‚ç‚¹åˆ›å»ºå¤±è´¥
+	}
+
+
+	newNode->next = targetNode->next; // æ–°èŠ‚ç‚¹çš„ next æŒ‡å‘ç›®æ ‡èŠ‚ç‚¹çš„ä¸‹ä¸€ä¸ªèŠ‚ç‚¹
+	newNode->prev = targetNode; // æ–°èŠ‚ç‚¹çš„ prev æŒ‡å‘ç›®æ ‡èŠ‚ç‚¹
+
+	if (targetNode->next != NULL) {
+		targetNode->next->prev = newNode; // ç¡®ä¿ä¸æ˜¯åœ¨å°¾éƒ¨æ’å…¥
+	}
+	else {
+		list->tail = newNode; // å¦‚æžœç›®æ ‡èŠ‚ç‚¹æ˜¯å°¾èŠ‚ç‚¹ï¼Œæ›´æ–°å°¾èŠ‚ç‚¹ä¸ºæ–°èŠ‚ç‚¹
+	}
+	targetNode->next = newNode; // ç›®æ ‡èŠ‚ç‚¹çš„ next æŒ‡å‘æ–°èŠ‚ç‚¹
+	list->size++; // å¢žåŠ é“¾è¡¨çš„å¤§å°è®¡æ•°
+	return true; // æˆåŠŸæ’å…¥èŠ‚ç‚¹
+}
+
+// list æŒ‡å‘é“¾è¡¨çš„æŒ‡é’ˆï¼Œ nodeToDeleteæ˜¯æŒ‡å‘è¦åˆ é™¤çš„èŠ‚ç‚¹çš„æŒ‡é’ˆ
+bool deleteNode(DoublyLinkedList* list, Node* nodeToDelete) {
+	if (!list || !nodeToDelete) {
+		perror("List or node to delete is NULL.");
+		return false; // é“¾è¡¨æˆ–èŠ‚ç‚¹ä¸ºç©º
+	}
+
+	if (nodeToDelete->prev != NULL) {
+		nodeToDelete->prev->next = nodeToDelete->next;
+	}
+	else {
+		list->head = nodeToDelete->next;
+	}
+
+	if (nodeToDelete->next != NULL) {
+		nodeToDelete->next->prev = nodeToDelete->prev;
+	}
+	else {
+		list->tail = nodeToDelete->prev;
+	}
+
+	free(nodeToDelete->data.title);
+	free(nodeToDelete->data.artist);
+	free(nodeToDelete); // é‡Šæ”¾èŠ‚ç‚¹å†…å­˜	
+
+	list->size--; // å‡å°‘é“¾è¡¨çš„å¤§å°è®¡æ•°
+
+	return true;
+}
+
+Node* findByTitle(const DoublyLinkedList* list, const char* title) {
+	if (!list || !title) {
+		perror("List or title is NULL, cannot find.");
+		return NULL; // é“¾è¡¨æˆ–æ ‡é¢˜ä¸ºç©º
+	}
+
+	Node* current = list->head;
+
+	while (current != NULL) {
+		if (strcmp(current->data.title, title) == 0) {
+			return current; // æ‰¾åˆ°åŒ¹é…çš„èŠ‚ç‚¹
+		}
+		current = current->next; // ç§»åŠ¨åˆ°ä¸‹ä¸€ä¸ªèŠ‚ç‚¹
+	}
+
+	return NULL; // æ²¡æœ‰æ‰¾åˆ°åŒ¹é…çš„èŠ‚ç‚¹
+}
+
+void printListForward(const DoublyLinkedList* list) {
+	if (!list || !list->head) {
+		printf("List is empty.\n");
+		return; // é“¾è¡¨ä¸ºç©º
+	}
+
+	printf("---Playlist (Size: %d, Forword) ---\n", list->size);
+	Node* current = list->head;
+	int index = 1;
+	while (current != NULL) {
+		printf("%d. Title: %s, Artist: %s, Duration: %d seconds\n",
+			index++, current->data.title, current->data.artist, current->data.duration);
+		current = current->next; // ç§»åŠ¨åˆ°ä¸‹ä¸€ä¸ªèŠ‚ç‚¹
+	}
+	printf("--- End of Playlist ---\n");
+}
+
+void printListBackward(const DoublyLinkedList* list) {
+	if (!list || !list->tail) {
+		printf("List is empty.\n");
+		return; // é“¾è¡¨ä¸ºç©º
+	}
+
+	printf("---Playlist (Size: %d, Forword) ---\n", list->size);
+	Node* current = list->tail;
+	int index = list->size;
+	while (current != NULL) {
+		printf("%d. Title: %s, Artist: %s, Duration: %d seconds\n",
+			index--, current->data.title, current->data.artist, current->data.duration);
+		current = current->prev; // ç§»åŠ¨åˆ°ä¸‹ä¸€ä¸ªèŠ‚ç‚¹
+	}
+	printf("--- End of Playlist ---\n");
 }

@@ -1,99 +1,99 @@
-#define _CRT_SECURE_NO_WARNINGS
-
-#include "Node.h"
-#include <stdio.h>
-#include <string.h>
-
-// 1. ¶¨Òå¡°´òÓ¡¡±»Øµ÷
-void print_student(const void* data) {
-    const Student* s = (const Student*)data;
-    printf("{ID: %d, ĞÕÃû: %s, ÄêÁä: %d}", s->id, s->name, s->age);
-}
-
-// 2. ¶¨ÒåÒ»¸ö¼òµ¥µÄ¡°±È½Ï¡±»Øµ÷ (Ö»°´ID±È½Ï)
-int compare_by_id(const void* a, const void* b, void* context) {
-    // Õâ¸öº¯Êı²»ĞèÒª¶îÍâµÄÉÏÏÂÎÄ£¬ËùÒÔ context ²ÎÊı±»ºöÂÔ
-    // (void)context; // Ã÷È·±íÊ¾ÎÒÃÇÓĞÒâ²»Ê¹ÓÃÕâ¸ö²ÎÊı£¬±ÜÃâ±àÒëÆ÷¾¯¸æ
-
-    const Student* s_a = (const Student*)a;
-    const Student* target_s = (const Student*)b;
-    return s_a->id == target_s->id ? 0 : 1; // ·µ»Ø0±íÊ¾ÏàµÈ
-}
-
-// 3. ¶¨ÒåÒ»¸ö¸´ÔÓµÄ¡°±È½Ï¡±»Øµ÷ (ĞèÒªÊ¹ÓÃÉÏÏÂÎÄ)
-//    ÉÏÏÂÎÄ½á¹¹Ìå£¬ÓÃÓÚ´ò°ü¶îÍâ²ÎÊı
-typedef struct {
-    int min_age_required;
-} SearchContext;
-
-int compare_by_id_and_min_age(const void* a, const void* b, void* context) {
-    const Student* s_a = (const Student*)a;
-    const Student* target_s = (const Student*)b;
-    SearchContext* ctx = (SearchContext*)context;
-
-    // ¸´ÔÓµÄ±È½ÏÂß¼­
-    if (s_a->id == target_s->id && s_a->age >= ctx->min_age_required) {
-        return 0; // ËùÓĞÌõ¼şÂú×ã£¬ÊÓÎªÏàµÈ
-    }
-    return 1; // ·ñÔò²»ÏàµÈ
-}
-
-// 4. ¶¨Òå¡°ÊÍ·ÅDataÄÚ²¿×ÊÔ´¡±µÄ»Øµ÷ (±¾ÀıÖĞÎª¿Õ£¬½ö×÷ÑİÊ¾)
-void free_student_data(void* data) {
-    // Èç¹û Student ½á¹¹ÌåÄÚµÄ name ÊÇ char* ÀàĞÍÇÒÓÉ malloc ·ÖÅä£¬
-    // ´Ë´¦¾ÍĞèÒª free(((Student*)data)->name);
-}
-
-
-
-int main(void) {
-    Node* head = NULL;
-
-    // --- ³õÊ¼»¯Êı¾İ ---
-    printf("--- 1. ³õÊ¼»¯Á´±í ---\n");
-    Student students[] = {
-        {101, "Alice", 22},
-        {102, "Bob", 19},
-        {103, "Carol", 25},
-        {104, "David", 19}
-    };
-    for (int i = 0; i < 4; ++i) {
-        appendNode(&head, students[i]);
-    }
-    printList(head, print_student);
-
-    // --- ¼òµ¥²éÕÒÓëÉ¾³ı ---
-    printf("\n--- 2. É¾³ıÑ§ºÅÎª103µÄÑ§Éú(Carol) ---\n");
-    Student target_carol = { 103, "", 0 };
-    deleteNode(&head, &target_carol, compare_by_id, NULL); // ¼òµ¥±È½Ï£¬²»ĞèÒªÉÏÏÂÎÄ
-    printList(head, print_student);
-
-    // --- ¸´ÔÓ²éÕÒÓë¸üĞÂ ---
-    printf("\n--- 3. ²éÕÒÑ§ºÅÎª104ÇÒÄêÁä²»Ğ¡ÓÚ20ËêµÄÑ§Éú ---\n");
-    SearchContext ctx_fail = { 20 }; // ÉèÖÃÉÏÏÂÎÄ£º×îĞ¡ÄêÁä20
-    Student target_david = { 104, "", 0 };
-    Node* found = findNode(head, &target_david, compare_by_id_and_min_age, &ctx_fail);
-    if (found) {
-        printf("ÕÒµ½ÁË£¡\n");
-    }
-    else {
-
-        // test
-        printf("Ã»ÕÒµ½ (ÒòÎªDavidÖ»ÓĞ19Ëê)¡£\n");
-    }
-
-    printf("\n--- 4. ²éÕÒÑ§ºÅÎª101ÇÒÄêÁä²»Ğ¡ÓÚ20ËêµÄÑ§Éú£¬²¢¸üĞÂ ---\n");
-    SearchContext ctx_success = { 20 }; // ÉèÖÃÉÏÏÂÎÄ£º×îĞ¡ÄêÁä20
-    Student target_alice = { 101, "", 0 };
-    Student new_alice_data = { 101, "Alicia", 23 };
-    updateNode(head, &target_alice, new_alice_data, compare_by_id_and_min_age, &ctx_success);
-    printList(head, print_student);
-
-    //// --- ÇåÀí ---
-    //printf("\n--- 5. ÊÍ·ÅËùÓĞÄÚ´æ ---\n");
-    //freeList(&head, free_student_data);
-    //printf("Á´±íÒÑÇå¿Õ¡£\n");
-    //printList(head, print_student);
-
-    return 0;
+#define _CRT_SECURE_NO_WARNINGS
+
+#include "Node.h"
+#include <stdio.h>
+#include <string.h>
+
+// 1. å®šä¹‰â€œæ‰“å°â€å›è°ƒ
+void print_student(const void* data) {
+    const Student* s = (const Student*)data;
+    printf("{ID: %d, å§“å: %s, å¹´é¾„: %d}", s->id, s->name, s->age);
+}
+
+// 2. å®šä¹‰ä¸€ä¸ªç®€å•çš„â€œæ¯”è¾ƒâ€å›è°ƒ (åªæŒ‰IDæ¯”è¾ƒ)
+int compare_by_id(const void* a, const void* b, void* context) {
+    // è¿™ä¸ªå‡½æ•°ä¸éœ€è¦é¢å¤–çš„ä¸Šä¸‹æ–‡ï¼Œæ‰€ä»¥ context å‚æ•°è¢«å¿½ç•¥
+    // (void)context; // æ˜ç¡®è¡¨ç¤ºæˆ‘ä»¬æœ‰æ„ä¸ä½¿ç”¨è¿™ä¸ªå‚æ•°ï¼Œé¿å…ç¼–è¯‘å™¨è­¦å‘Š
+
+    const Student* s_a = (const Student*)a;
+    const Student* target_s = (const Student*)b;
+    return s_a->id == target_s->id ? 0 : 1; // è¿”å›0è¡¨ç¤ºç›¸ç­‰
+}
+
+// 3. å®šä¹‰ä¸€ä¸ªå¤æ‚çš„â€œæ¯”è¾ƒâ€å›è°ƒ (éœ€è¦ä½¿ç”¨ä¸Šä¸‹æ–‡)
+//    ä¸Šä¸‹æ–‡ç»“æ„ä½“ï¼Œç”¨äºæ‰“åŒ…é¢å¤–å‚æ•°
+typedef struct {
+    int min_age_required;
+} SearchContext;
+
+int compare_by_id_and_min_age(const void* a, const void* b, void* context) {
+    const Student* s_a = (const Student*)a;
+    const Student* target_s = (const Student*)b;
+    SearchContext* ctx = (SearchContext*)context;
+
+    // å¤æ‚çš„æ¯”è¾ƒé€»è¾‘
+    if (s_a->id == target_s->id && s_a->age >= ctx->min_age_required) {
+        return 0; // æ‰€æœ‰æ¡ä»¶æ»¡è¶³ï¼Œè§†ä¸ºç›¸ç­‰
+    }
+    return 1; // å¦åˆ™ä¸ç›¸ç­‰
+}
+
+// 4. å®šä¹‰â€œé‡Šæ”¾Dataå†…éƒ¨èµ„æºâ€çš„å›è°ƒ (æœ¬ä¾‹ä¸­ä¸ºç©ºï¼Œä»…ä½œæ¼”ç¤º)
+void free_student_data(void* data) {
+    // å¦‚æœ Student ç»“æ„ä½“å†…çš„ name æ˜¯ char* ç±»å‹ä¸”ç”± malloc åˆ†é…ï¼Œ
+    // æ­¤å¤„å°±éœ€è¦ free(((Student*)data)->name);
+}
+
+
+
+int main(void) {
+    Node* head = NULL;
+
+    // --- åˆå§‹åŒ–æ•°æ® ---
+    printf("--- 1. åˆå§‹åŒ–é“¾è¡¨ ---\n");
+    Student students[] = {
+        {101, "Alice", 22},
+        {102, "Bob", 19},
+        {103, "Carol", 25},
+        {104, "David", 19}
+    };
+    for (int i = 0; i < 4; ++i) {
+        appendNode(&head, students[i]);
+    }
+    printList(head, print_student);
+
+    // --- ç®€å•æŸ¥æ‰¾ä¸åˆ é™¤ ---
+    printf("\n--- 2. åˆ é™¤å­¦å·ä¸º103çš„å­¦ç”Ÿ(Carol) ---\n");
+    Student target_carol = { 103, "", 0 };
+    deleteNode(&head, &target_carol, compare_by_id, NULL); // ç®€å•æ¯”è¾ƒï¼Œä¸éœ€è¦ä¸Šä¸‹æ–‡
+    printList(head, print_student);
+
+    // --- å¤æ‚æŸ¥æ‰¾ä¸æ›´æ–° ---
+    printf("\n--- 3. æŸ¥æ‰¾å­¦å·ä¸º104ä¸”å¹´é¾„ä¸å°äº20å²çš„å­¦ç”Ÿ ---\n");
+    SearchContext ctx_fail = { 20 }; // è®¾ç½®ä¸Šä¸‹æ–‡ï¼šæœ€å°å¹´é¾„20
+    Student target_david = { 104, "", 0 };
+    Node* found = findNode(head, &target_david, compare_by_id_and_min_age, &ctx_fail);
+    if (found) {
+        printf("æ‰¾åˆ°äº†ï¼\n");
+    }
+    else {
+
+        // test
+        printf("æ²¡æ‰¾åˆ° (å› ä¸ºDavidåªæœ‰19å²)ã€‚\n");
+    }
+
+    printf("\n--- 4. æŸ¥æ‰¾å­¦å·ä¸º101ä¸”å¹´é¾„ä¸å°äº20å²çš„å­¦ç”Ÿï¼Œå¹¶æ›´æ–° ---\n");
+    SearchContext ctx_success = { 20 }; // è®¾ç½®ä¸Šä¸‹æ–‡ï¼šæœ€å°å¹´é¾„20
+    Student target_alice = { 101, "", 0 };
+    Student new_alice_data = { 101, "Alicia", 23 };
+    updateNode(head, &target_alice, new_alice_data, compare_by_id_and_min_age, &ctx_success);
+    printList(head, print_student);
+
+    //// --- æ¸…ç† ---
+    //printf("\n--- 5. é‡Šæ”¾æ‰€æœ‰å†…å­˜ ---\n");
+    //freeList(&head, free_student_data);
+    //printf("é“¾è¡¨å·²æ¸…ç©ºã€‚\n");
+    //printList(head, print_student);
+
+    return 0;
 }

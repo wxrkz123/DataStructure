@@ -1,83 +1,83 @@
-#include "shared_stack.h"
-#include <stdio.h>
-
-void print_stack_status(const Stack* stack) {
-    if (!stack) {
-        printf("Stack is NULL.\n");
-        return;
-    }
-    printf("------------------------------------------\n");
-    printf("Total Capacity: %zu\n", stack_get_total_capacity(stack));
-    printf("Stack 1 Size: %zu (Empty: %s)\n",
-        stack_get_size(stack, STACK_ONE),
-        stack_is_empty(stack, STACK_ONE) ? "Yes" : "No");
-    printf("Stack 2 Size: %zu (Empty: %s)\n",
-        stack_get_size(stack, STACK_TWO),
-        stack_is_empty(stack, STACK_TWO) ? "Yes" : "No");
-    printf("Is Full: %s\n", stack_is_full(stack) ? "Yes" : "No");
-    printf("------------------------------------------\n\n");
-}
-
-int main() {
-    printf("--- Testing Shared Integer Stack ---\n");
-    // ´´½¨Ò»¸ö×ÜÈİÁ¿Îª10µÄ¹²ÏíÕ»
-    Stack* ss = stack_create(10, sizeof(int));
-
-    print_stack_status(ss);
-
-    // 1. ÏòÕ»1Ñ¹ÈëÊı¾İ
-    printf("Pushing 10, 20, 30 to Stack 1...\n");
-    for (int i = 10; i <= 30; i += 10) {
-        stack_push(ss, STACK_ONE, &i);
-    }
-    print_stack_status(ss);
-
-    // 2. ÏòÕ»2Ñ¹ÈëÊı¾İ
-    printf("Pushing 100, 90 to Stack 2...\n");
-    for (int i = 100; i >= 90; i -= 10) {
-        stack_push(ss, STACK_TWO, &i);
-    }
-    print_stack_status(ss);
-
-    // 3. ²é¿´Õ»¶¥ÔªËØ
-    int peek_val;
-    if (stack_peek(ss, STACK_ONE, &peek_val)) {
-        printf("Peek at Stack 1 top: %d\n", peek_val);
-    }
-    if (stack_peek(ss, STACK_TWO, &peek_val)) {
-        printf("Peek at Stack 2 top: %d\n", peek_val);
-    }
-    printf("\n");
-
-    // 4. ´ÓÕ»1µ¯³öÒ»¸öÔªËØ
-    int pop_val;
-    printf("Popping from Stack 1...\n");
-    if (stack_pop(ss, STACK_ONE, &pop_val)) {
-        printf("Popped value: %d\n", pop_val);
-    }
-    print_stack_status(ss);
-
-    // 5. ½«Õ»ÌîÂú
-    printf("Filling the rest of the stack from Stack 1...\n");
-    int val = 40;
-    while (!stack_is_full(ss)) {
-        printf("Pushing %d to Stack 1.\n", val);
-        stack_push(ss, STACK_ONE, &val);
-        val += 10;
-    }
-    print_stack_status(ss);
-
-    // 6. ³¢ÊÔÔÚÒÑÂúµÄÕ»ÖĞ¼ÌĞøÑ¹Èë
-    printf("Attempting to push 999 to Stack 2 (should fail)...\n");
-    int extra = 999;
-    if (!stack_push(ss, STACK_TWO, &extra)) {
-        printf("Push failed as expected.\n\n");
-    }
-
-    // 7. Ïú»ÙÕ»
-    printf("Destroying stack...\n");
-    stack_destroy(&ss);
-    printf("Stack pointer is now: %s\n", ss == NULL ? "NULL" : "Not NULL");
-
-    return 0;
+#include "shared_stack.h"
+#include <stdio.h>
+
+void print_stack_status(const Stack* stack) {
+    if (!stack) {
+        printf("Stack is NULL.\n");
+        return;
+    }
+    printf("------------------------------------------\n");
+    printf("Total Capacity: %zu\n", stack_get_total_capacity(stack));
+    printf("Stack 1 Size: %zu (Empty: %s)\n",
+        stack_get_size(stack, STACK_ONE),
+        stack_is_empty(stack, STACK_ONE) ? "Yes" : "No");
+    printf("Stack 2 Size: %zu (Empty: %s)\n",
+        stack_get_size(stack, STACK_TWO),
+        stack_is_empty(stack, STACK_TWO) ? "Yes" : "No");
+    printf("Is Full: %s\n", stack_is_full(stack) ? "Yes" : "No");
+    printf("------------------------------------------\n\n");
+}
+
+int main() {
+    printf("--- Testing Shared Integer Stack ---\n");
+    // åˆ›å»ºä¸€ä¸ªæ€»å®¹é‡ä¸º10çš„å…±äº«æ ˆ
+    Stack* ss = stack_create(10, sizeof(int));
+
+    print_stack_status(ss);
+
+    // 1. å‘æ ˆ1å‹å…¥æ•°æ®
+    printf("Pushing 10, 20, 30 to Stack 1...\n");
+    for (int i = 10; i <= 30; i += 10) {
+        stack_push(ss, STACK_ONE, &i);
+    }
+    print_stack_status(ss);
+
+    // 2. å‘æ ˆ2å‹å…¥æ•°æ®
+    printf("Pushing 100, 90 to Stack 2...\n");
+    for (int i = 100; i >= 90; i -= 10) {
+        stack_push(ss, STACK_TWO, &i);
+    }
+    print_stack_status(ss);
+
+    // 3. æŸ¥çœ‹æ ˆé¡¶å…ƒç´ 
+    int peek_val;
+    if (stack_peek(ss, STACK_ONE, &peek_val)) {
+        printf("Peek at Stack 1 top: %d\n", peek_val);
+    }
+    if (stack_peek(ss, STACK_TWO, &peek_val)) {
+        printf("Peek at Stack 2 top: %d\n", peek_val);
+    }
+    printf("\n");
+
+    // 4. ä»æ ˆ1å¼¹å‡ºä¸€ä¸ªå…ƒç´ 
+    int pop_val;
+    printf("Popping from Stack 1...\n");
+    if (stack_pop(ss, STACK_ONE, &pop_val)) {
+        printf("Popped value: %d\n", pop_val);
+    }
+    print_stack_status(ss);
+
+    // 5. å°†æ ˆå¡«æ»¡
+    printf("Filling the rest of the stack from Stack 1...\n");
+    int val = 40;
+    while (!stack_is_full(ss)) {
+        printf("Pushing %d to Stack 1.\n", val);
+        stack_push(ss, STACK_ONE, &val);
+        val += 10;
+    }
+    print_stack_status(ss);
+
+    // 6. å°è¯•åœ¨å·²æ»¡çš„æ ˆä¸­ç»§ç»­å‹å…¥
+    printf("Attempting to push 999 to Stack 2 (should fail)...\n");
+    int extra = 999;
+    if (!stack_push(ss, STACK_TWO, &extra)) {
+        printf("Push failed as expected.\n\n");
+    }
+
+    // 7. é”€æ¯æ ˆ
+    printf("Destroying stack...\n");
+    stack_destroy(&ss);
+    printf("Stack pointer is now: %s\n", ss == NULL ? "NULL" : "Not NULL");
+
+    return 0;
 }

@@ -1,88 +1,88 @@
-#pragma once
-#include <stddef.h> // for size_t
-#include <stdbool.h> // for bool (C99/C11 standard)
-
-// --- Opaque Pointer Declaration ---
-// ÓÃ»§Ö»ÄÜ¿´µ½Õâ¸öÀàĞÍÃû£¬ÎŞ·¨ÖªµÀÆäÄÚ²¿½á¹¹£¬ÊµÏÖÁËÍêÃÀµÄ·â×°¡£
-typedef struct Stack Stack;
-
-// --- Public API Prototypes ---
-
-/**
- * @brief ´´½¨Ò»¸öĞÂµÄÍ¨ÓÃË³ĞòÕ»¡£
- *
- * @param capacity Õ»¿ÉÒÔÈİÄÉµÄ×î´óÔªËØÊıÁ¿¡£
- * @param element_size Õ»ÖĞÃ¿¸öÔªËØµÄ´óĞ¡£¨ÒÔ×Ö½ÚÎªµ¥Î»£©£¬ÀıÈç sizeof(int)¡£
- * @return ³É¹¦Ê±·µ»ØÖ¸ÏòĞÂÕ»µÄÖ¸Õë£¬Èç¹û capacity »ò element_size Îª0£¬
- *         »òÄÚ´æ·ÖÅäÊ§°Ü£¬Ôò·µ»Ø NULL¡£
- */
-Stack* stack_create(size_t capacity, size_t element_size);
-
-/**
- * @brief Ïú»ÙÒ»¸öÕ»²¢ÊÍ·ÅÆäËùÓĞÏà¹ØÄÚ´æ¡£
- *
- * @param p_stack Ö¸ÏòÕ»Ö¸ÕëµÄÖ¸Õë¡£º¯ÊıÖ´ĞĞºó£¬*p_stack ½«±»ÉèÖÃÎª NULL£¬
- *                ÒÔ·ÀÖ¹Ğü¿ÕÖ¸Õë¡£
- */
-void stack_destroy(Stack** p_stack);
-
-/**
- * @brief ½«Ò»¸öÔªËØÑ¹ÈëÕ»¶¥¡£
- *
- * @param stack Ö¸ÏòÒª²Ù×÷µÄÕ»µÄÖ¸Õë¡£
- * @param element_data Ö¸ÏòÒªÑ¹ÈëÕ»µÄÔªËØÊı¾İµÄÖ¸Õë¡£¸ÃÊı¾İ½«±»¸´ÖÆµ½Õ»ÖĞ¡£
- * @return ³É¹¦Ñ¹Õ»·µ»Ø true£¬Èç¹ûÕ»ÒÑÂú»ò²ÎÊıÎŞĞ§Ôò·µ»Ø false¡£
- */
-bool stack_push(Stack* stack, const void* element_data);
-
-/**
- * @brief ´ÓÕ»¶¥µ¯³öÒ»¸öÔªËØ¡£
- *
- * @param stack Ö¸ÏòÒª²Ù×÷µÄÕ»µÄÖ¸Õë¡£
- * @param output_buffer Ö¸ÏòÒ»¸ö»º³åÇøµÄÖ¸Õë£¬ÓÃÓÚ½ÓÊÕµ¯³öµÄÔªËØÊı¾İ¡£
- *                      ¸Ã»º³åÇøµÄ´óĞ¡±ØĞëÖÁÉÙÎªÕ»´´½¨Ê±Ö¸¶¨µÄ element_size¡£
- * @return ³É¹¦µ¯Õ»·µ»Ø true£¬Èç¹ûÕ»Îª¿Õ»ò²ÎÊıÎŞĞ§Ôò·µ»Ø false¡£
- */
-bool stack_pop(Stack* stack, void* output_buffer);
-
-/**
- * @brief ²é¿´Õ»¶¥ÔªËØ£¬µ«²»½«Æäµ¯³ö¡£
- *
- * @param stack Ö¸ÏòÒª²Ù×÷µÄÕ»µÄÖ¸Õë¡£
- * @param output_buffer Ö¸ÏòÒ»¸ö»º³åÇøµÄÖ¸Õë£¬ÓÃÓÚ½ÓÊÕÕ»¶¥ÔªËØµÄÊı¾İ¡£
- *                      ¸Ã»º³åÇøµÄ´óĞ¡±ØĞëÖÁÉÙÎªÕ»´´½¨Ê±Ö¸¶¨µÄ element_size¡£
- * @return ³É¹¦²é¿´·µ»Ø true£¬Èç¹ûÕ»Îª¿Õ»ò²ÎÊıÎŞĞ§Ôò·µ»Ø false¡£
- */
-bool stack_peek(Stack* stack, void* output_buffer);
-
-/**
- * @brief ¼ì²éÕ»ÊÇ·ñÎª¿Õ¡£
- *
- * @param stack Ö¸ÏòÒª²Ù×÷µÄÕ»µÄÖ¸Õë¡£
- * @return Èç¹ûÕ»Îª¿Õ»òÎªNULLÔò·µ»Ø true£¬·ñÔò·µ»Ø false¡£
- */
-bool stack_is_empty(const Stack* stack);
-
-/**
- * @brief ¼ì²éÕ»ÊÇ·ñÒÑÂú¡£
- *
- * @param stack Ö¸ÏòÒª²Ù×÷µÄÕ»µÄÖ¸Õë¡£
- * @return Èç¹ûÕ»ÒÑÂúÔò·µ»Ø true£¬·ñÔò·µ»Ø false¡£Èç¹ûÕ»ÎªNULL£¬Ò²·µ»Ø false¡£
- */
-bool stack_is_full(const Stack* stack);
-
-/**
- * @brief »ñÈ¡Õ»ÖĞµ±Ç°µÄÔªËØÊıÁ¿¡£
- *
- * @param stack Ö¸ÏòÒª²Ù×÷µÄÕ»µÄÖ¸Õë¡£
- * @return ·µ»ØÕ»ÖĞµÄÔªËØÊıÁ¿¡£Èç¹ûÕ»ÎªNULL£¬·µ»Ø0¡£
- */
-size_t stack_get_size(const Stack* stack);
-
-/**
- * @brief »ñÈ¡Õ»µÄ×ÜÈİÁ¿¡£
- *
- * @param stack Ö¸ÏòÒª²Ù×÷µÄÕ»µÄÖ¸Õë¡£
- * @return ·µ»ØÕ»µÄ×ÜÈİÁ¿¡£Èç¹ûÕ»ÎªNULL£¬·µ»Ø0¡£
- */
+#pragma once
+#include <stddef.h> // for size_t
+#include <stdbool.h> // for bool (C99/C11 standard)
+
+// --- Opaque Pointer Declaration ---
+// ç”¨æˆ·åªèƒ½çœ‹åˆ°è¿™ä¸ªç±»å‹åï¼Œæ— æ³•çŸ¥é“å…¶å†…éƒ¨ç»“æ„ï¼Œå®ç°äº†å®Œç¾çš„å°è£…ã€‚
+typedef struct Stack Stack;
+
+// --- Public API Prototypes ---
+
+/**
+ * @brief åˆ›å»ºä¸€ä¸ªæ–°çš„é€šç”¨é¡ºåºæ ˆã€‚
+ *
+ * @param capacity æ ˆå¯ä»¥å®¹çº³çš„æœ€å¤§å…ƒç´ æ•°é‡ã€‚
+ * @param element_size æ ˆä¸­æ¯ä¸ªå…ƒç´ çš„å¤§å°ï¼ˆä»¥å­—èŠ‚ä¸ºå•ä½ï¼‰ï¼Œä¾‹å¦‚ sizeof(int)ã€‚
+ * @return æˆåŠŸæ—¶è¿”å›æŒ‡å‘æ–°æ ˆçš„æŒ‡é’ˆï¼Œå¦‚æœ capacity æˆ– element_size ä¸º0ï¼Œ
+ *         æˆ–å†…å­˜åˆ†é…å¤±è´¥ï¼Œåˆ™è¿”å› NULLã€‚
+ */
+Stack* stack_create(size_t capacity, size_t element_size);
+
+/**
+ * @brief é”€æ¯ä¸€ä¸ªæ ˆå¹¶é‡Šæ”¾å…¶æ‰€æœ‰ç›¸å…³å†…å­˜ã€‚
+ *
+ * @param p_stack æŒ‡å‘æ ˆæŒ‡é’ˆçš„æŒ‡é’ˆã€‚å‡½æ•°æ‰§è¡Œåï¼Œ*p_stack å°†è¢«è®¾ç½®ä¸º NULLï¼Œ
+ *                ä»¥é˜²æ­¢æ‚¬ç©ºæŒ‡é’ˆã€‚
+ */
+void stack_destroy(Stack** p_stack);
+
+/**
+ * @brief å°†ä¸€ä¸ªå…ƒç´ å‹å…¥æ ˆé¡¶ã€‚
+ *
+ * @param stack æŒ‡å‘è¦æ“ä½œçš„æ ˆçš„æŒ‡é’ˆã€‚
+ * @param element_data æŒ‡å‘è¦å‹å…¥æ ˆçš„å…ƒç´ æ•°æ®çš„æŒ‡é’ˆã€‚è¯¥æ•°æ®å°†è¢«å¤åˆ¶åˆ°æ ˆä¸­ã€‚
+ * @return æˆåŠŸå‹æ ˆè¿”å› trueï¼Œå¦‚æœæ ˆå·²æ»¡æˆ–å‚æ•°æ— æ•ˆåˆ™è¿”å› falseã€‚
+ */
+bool stack_push(Stack* stack, const void* element_data);
+
+/**
+ * @brief ä»æ ˆé¡¶å¼¹å‡ºä¸€ä¸ªå…ƒç´ ã€‚
+ *
+ * @param stack æŒ‡å‘è¦æ“ä½œçš„æ ˆçš„æŒ‡é’ˆã€‚
+ * @param output_buffer æŒ‡å‘ä¸€ä¸ªç¼“å†²åŒºçš„æŒ‡é’ˆï¼Œç”¨äºæ¥æ”¶å¼¹å‡ºçš„å…ƒç´ æ•°æ®ã€‚
+ *                      è¯¥ç¼“å†²åŒºçš„å¤§å°å¿…é¡»è‡³å°‘ä¸ºæ ˆåˆ›å»ºæ—¶æŒ‡å®šçš„ element_sizeã€‚
+ * @return æˆåŠŸå¼¹æ ˆè¿”å› trueï¼Œå¦‚æœæ ˆä¸ºç©ºæˆ–å‚æ•°æ— æ•ˆåˆ™è¿”å› falseã€‚
+ */
+bool stack_pop(Stack* stack, void* output_buffer);
+
+/**
+ * @brief æŸ¥çœ‹æ ˆé¡¶å…ƒç´ ï¼Œä½†ä¸å°†å…¶å¼¹å‡ºã€‚
+ *
+ * @param stack æŒ‡å‘è¦æ“ä½œçš„æ ˆçš„æŒ‡é’ˆã€‚
+ * @param output_buffer æŒ‡å‘ä¸€ä¸ªç¼“å†²åŒºçš„æŒ‡é’ˆï¼Œç”¨äºæ¥æ”¶æ ˆé¡¶å…ƒç´ çš„æ•°æ®ã€‚
+ *                      è¯¥ç¼“å†²åŒºçš„å¤§å°å¿…é¡»è‡³å°‘ä¸ºæ ˆåˆ›å»ºæ—¶æŒ‡å®šçš„ element_sizeã€‚
+ * @return æˆåŠŸæŸ¥çœ‹è¿”å› trueï¼Œå¦‚æœæ ˆä¸ºç©ºæˆ–å‚æ•°æ— æ•ˆåˆ™è¿”å› falseã€‚
+ */
+bool stack_peek(Stack* stack, void* output_buffer);
+
+/**
+ * @brief æ£€æŸ¥æ ˆæ˜¯å¦ä¸ºç©ºã€‚
+ *
+ * @param stack æŒ‡å‘è¦æ“ä½œçš„æ ˆçš„æŒ‡é’ˆã€‚
+ * @return å¦‚æœæ ˆä¸ºç©ºæˆ–ä¸ºNULLåˆ™è¿”å› trueï¼Œå¦åˆ™è¿”å› falseã€‚
+ */
+bool stack_is_empty(const Stack* stack);
+
+/**
+ * @brief æ£€æŸ¥æ ˆæ˜¯å¦å·²æ»¡ã€‚
+ *
+ * @param stack æŒ‡å‘è¦æ“ä½œçš„æ ˆçš„æŒ‡é’ˆã€‚
+ * @return å¦‚æœæ ˆå·²æ»¡åˆ™è¿”å› trueï¼Œå¦åˆ™è¿”å› falseã€‚å¦‚æœæ ˆä¸ºNULLï¼Œä¹Ÿè¿”å› falseã€‚
+ */
+bool stack_is_full(const Stack* stack);
+
+/**
+ * @brief è·å–æ ˆä¸­å½“å‰çš„å…ƒç´ æ•°é‡ã€‚
+ *
+ * @param stack æŒ‡å‘è¦æ“ä½œçš„æ ˆçš„æŒ‡é’ˆã€‚
+ * @return è¿”å›æ ˆä¸­çš„å…ƒç´ æ•°é‡ã€‚å¦‚æœæ ˆä¸ºNULLï¼Œè¿”å›0ã€‚
+ */
+size_t stack_get_size(const Stack* stack);
+
+/**
+ * @brief è·å–æ ˆçš„æ€»å®¹é‡ã€‚
+ *
+ * @param stack æŒ‡å‘è¦æ“ä½œçš„æ ˆçš„æŒ‡é’ˆã€‚
+ * @return è¿”å›æ ˆçš„æ€»å®¹é‡ã€‚å¦‚æœæ ˆä¸ºNULLï¼Œè¿”å›0ã€‚
+ */
 size_t stack_get_capacity(const Stack* stack);

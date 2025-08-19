@@ -1,262 +1,262 @@
-// hash_table.c
-#define _CRT_SECURE_NO_WARNINGS // ÔÊĞíÊ¹ÓÃ strcpy µÈº¯Êı
-#include "hash_table.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-// --- Private Structure Definitions ---
-
-// ¹şÏ£±íÖĞµÄ½Úµã£¬ÓÃÓÚ¹¹³ÉÃ¿¸öÍ°ÖĞµÄÁ´±í
-typedef struct Node {
-    char* key;           // Ö¸Ïò¶¯Ì¬·ÖÅäµÄ¼ü×Ö·û´®
-    char* value;         // Ö¸Ïò¶¯Ì¬·ÖÅäµÄÖµ×Ö·û´®
-    struct Node* next;   // Ö¸ÏòÁ´±íÖĞµÄÏÂÒ»¸ö½Úµã
-} Node;
-
-// ¹şÏ£±íµÄÊµ¼Ê¹ÜÀí½á¹¹
-struct HashTable {
-    Node** buckets;      // Ö¸ÏòÒ»¸öÖ¸ÕëÊı×é£¬Ã¿¸öÖ¸ÕëÊÇÒ»¸öÍ°£¨Á´±íµÄÍ·½Úµã£©
-    size_t capacity;     // Í°µÄÊıÁ¿
-    size_t size;         // µ±Ç°´æ´¢µÄ¼üÖµ¶Ô×ÜÊı
-};
-
-// --- Static Helper Functions (Private) ---
-
-// ¹şÏ£º¯Êı£º½«×Ö·û´®×ª»»ÎªÒ»¸öÔÚ [0, capacity-1] ·¶Î§ÄÚµÄË÷Òı
-// ÕâÓëÄúµÄHTMLÊ¾ÀıÖĞµÄ¹şÏ£º¯ÊıÂß¼­ÏàÍ¬¡£
-// Ò»¸ö¼òµ¥µÄ×Ö·ûÇóºÍ¹şÏ£º¯Êı£¬ÊÊÓÃÓÚ½ÌÑ§ºÍĞ¡¹æÄ£Êı¾İ¡£
-// ×¢Òâ£ºÊµ¼ÊÓ¦ÓÃÖĞÓ¦Ê¹ÓÃ¸ü¸´ÔÓµÄ¹şÏ£º¯ÊıÒÔ¼õÉÙ³åÍ»¡£
-static size_t hash_function(const char* key, size_t capacity) {
-    unsigned long hash_value = 0;
-    for (size_t i = 0; key[i] != '\0'; i++) {
-        hash_value += key[i];
-    }
-    return hash_value % capacity;
-}
-
-// --- Public API Implementations ---
-
-HashTable* ht_create(size_t capacity) {
-    if (capacity == 0) return NULL;
-    HashTable* ht = (HashTable*)malloc(sizeof(HashTable));
-    if (!ht) return NULL;
-
-    // ÎªÍ°Êı×é·ÖÅäÄÚ´æ£¬ÕâÊÇÒ»¸öÖ¸ÕëÊı×é£¬ËùÒÔÊÇ sizeof(Node*)
-    ht->buckets = (Node**)calloc(capacity, sizeof(Node*));
-    if (!ht->buckets) {
-        free(ht);
-        return NULL;
-    }
-    // `calloc` »á½«ËùÓĞÍ°µÄÍ·Ö¸Õë³õÊ¼»¯Îª NULL£¬ÕâÊÇ±ØĞèµÄ¡£
-
-    ht->capacity = capacity;
-    ht->size = 0;
-    return ht;
-}
-
-void ht_destroy(HashTable** p_ht) {
-    if (!p_ht || !*p_ht) return;
-    HashTable* ht = *p_ht;
-
-    // ±éÀúÃ¿Ò»¸öÍ°
-    for (size_t i = 0; i < ht->capacity; i++) {
-        // ±éÀúÍ°ÖĞµÄÁ´±í£¬ÊÍ·ÅÃ¿Ò»¸ö½Úµã
-        Node* current = ht->buckets[i];
-      
-        // Ôö¼Ó·ÀÓùĞÔ¼ì²é£¬È·±£ to_free->key ºÍ to_free->value ·Ç NULL ºóÔÙÊÍ·Å
-        while (current != NULL) {
-            Node* to_free = current;
-            current = current->next;
-            if (to_free->key) {
-                free(to_free->key);   // ÊÍ·Å¼üµÄ¿½±´
-            }
-            if (to_free->value) {
-                free(to_free->value); // ÊÍ·ÅÖµµÄ¿½±´
-            }
-            free(to_free);        // ÊÍ·Å½Úµã±¾Éí
-        }
-    }
-    free(ht->buckets); // ÊÍ·ÅÍ°Êı×é
-    free(ht);          // ÊÍ·Å¹şÏ£±í½á¹¹Ìå
-    *p_ht = NULL;      // ·ÀÖ¹Ğü¿ÕÖ¸Õë
-}
-
-bool ht_set(HashTable* ht, const char* key, const char* value) {
-    /*
-     * º¯Êı¹¦ÄÜ: [¹¤Òµ¼¶] ²åÈë»ò¸üĞÂÒ»¸ö¼üÖµ¶Ô¡£
-     * ------------------------- ½ÌÑ§°¸Àı -------------------------
-     * ¼ÙÉè capacity = 10, hash("name") = 4, hash("mane") = 4 (¹şÏ£³åÍ»)
-     *
-     * °¸Àı 1: ²åÈë ("name", "Alice")
-     *   - ¼ÆËã¹şÏ£µÃµ½Ë÷Òı 4¡£
-     *   - Í° 4 Îª¿Õ£¬Ö±½Ó´´½¨Ò»¸öĞÂ½Úµã²¢²åÈë¡£
-     *   - Í° 4: -> [("name", "Alice")] -> NULL
-     *
-     * °¸Àı 2: ²åÈë ("mane", "Bob")
-     *   - ¼ÆËã¹şÏ£µÃµ½Ë÷Òı 4¡£
-     *   - Í° 4 ²»Îª¿Õ£¬±éÀúÁ´±í£¬Î´ÕÒµ½¼ü "mane"¡£
-     *   - ´´½¨ĞÂ½Úµã£¬²¢½«Æä²åÈëµ½Á´±íÍ·²¿ (×î¼òµ¥µÄ·½Ê½)¡£
-     *   - Í° 4: -> [("mane", "Bob")] -> [("name", "Alice")] -> NULL
-     *
-     * °¸Àı 3: ¸üĞÂ ("name", "Amy")
-     *   - ¼ÆËã¹şÏ£µÃµ½Ë÷Òı 4¡£
-     *   - ±éÀúÍ° 4 µÄÁ´±í£¬Ê¹ÓÃ strcmp ÕÒµ½¼ü "name"¡£
-     *   - ÊÍ·Å¾ÉÖµ "Alice" µÄÄÚ´æ£¬·ÖÅäĞÂÄÚ´æ²¢´æÈë "Amy"¡£
-     *   - Í° 4: -> [("mane", "Bob")] -> [("name", "Amy")] -> NULL
-     * -----------------------------------------------------------
-    */
-
-    // ²½Öè 1: [·ÀÓùĞÔ±à³Ì] ¼ì²éËùÓĞÊäÈë²ÎÊıÊÇ·ñÓĞĞ§¡£
-    if (!ht || !key || !value) return false;
-
-    // ²½Öè 2: ¼ÆËã¼üµÄ¹şÏ£Öµ£¬È·¶¨ËüÊôÓÚÄÄ¸öÍ°¡£
-    size_t index = hash_function(key, ht->capacity);
-
-    // ²½Öè 3: ±éÀúÍ°ÖĞµÄÁ´±í£¬¼ì²é¼üÊÇ·ñÒÑ¾­´æÔÚ¡£
-    Node* current = ht->buckets[index];
-    while (current != NULL) {
-        if (strcmp(current->key, key) == 0) {
-            // --- Çé¿öA: ¼üÒÑ´æÔÚ£¬Ö´ĞĞ¡°¸üĞÂ¡±²Ù×÷ ---
-            // ÎªÁË·ÀÖ¹ÄÚ´æĞ¹Â©£¬ÏÈÊÍ·Å¾ÉÖµµÄÄÚ´æ¡£
-            free(current->value);
-            // ÎªĞÂÖµ·ÖÅäÄÚ´æ²¢¿½±´¡£
-            current->value = (char*)malloc(strlen(value) + 1);
-            if (!current->value) return false; // ÄÚ´æ·ÖÅäÊ§°Ü
-            strcpy(current->value, value);
-            return true; // ¸üĞÂ³É¹¦£¬º¯Êı½áÊø
-        }
-        current = current->next;
-    }
-
-    // --- Çé¿öB: ¼ü²»´æÔÚ (Ñ­»·×ßÍê¶¼Î´ÕÒµ½)£¬Ö´ĞĞ¡°²åÈë¡±²Ù×÷ ---
-    // ²½Öè 4: ´´½¨Ò»¸öĞÂµÄ½Úµã¡£
-    Node* new_node = (Node*)malloc(sizeof(Node));
-    if (!new_node) return false;
-
-    // Îª¼üºÍÖµ·ÖÅä¶ÀÁ¢µÄÄÚ´æ²¢¿½±´£¬ÕâÑù¹şÏ£±í¾Í²»ÒÀÀµÓÚÍâ²¿´«ÈëµÄÖ¸ÕëÉúÃüÖÜÆÚ¡£
-    new_node->key = (char*)malloc(strlen(key) + 1);
-    new_node->value = (char*)malloc(strlen(value) + 1);
-
-    // ½¡×³ĞÔ¼ì²é£ºÈç¹ûÈÎºÎÒ»¸ömallocÊ§°Ü£¬¶¼ĞèÒªÇåÀíÒÑ·ÖÅäµÄÄÚ´æ¡£
-    if (!new_node->key || !new_node->value) {
-        free(new_node->key); // free(NULL)ÊÇ°²È«µÄ
-        free(new_node->value);
-        free(new_node);
-        return false;
-    }
-    strcpy(new_node->key, key);
-    strcpy(new_node->value, value);
-
-    // ²½Öè 5: ½«ĞÂ½Úµã²åÈëµ½Á´±íµÄÍ·²¿¡£
-    // ÕâÊÇ×î¼òµ¥¸ßĞ§µÄÁ´±í²åÈë·½Ê½¡£
-    new_node->next = ht->buckets[index]; // ĞÂ½ÚµãµÄ next Ö¸Ïòµ±Ç°Í°µÄµÚÒ»¸ö½Úµã
-    ht->buckets[index] = new_node;       // ¸üĞÂÍ°µÄÍ·Ö¸Õë£¬Ê¹ÆäÖ¸ÏòÕâ¸öĞÂ½Úµã
-
-    // ²½Öè 6: ¸üĞÂ¹şÏ£±íµÄ×Ü´óĞ¡¡£
-    ht->size++;
-    return true; // ²åÈë³É¹¦
-}
-
-const char* ht_get(const HashTable* ht, const char* key) {
-    /*
-     * º¯Êı¹¦ÄÜ: [¹¤Òµ¼¶] ¸ù¾İ¼ü²éÕÒ¶ÔÓ¦µÄÖµ¡£
-     * ½ÌÑ§°¸Àı: ÔÚ `ht_set` °¸Àı 3 µÄ×´Ì¬ÏÂ²éÕÒ "name"¡£
-     *   - Í° 4: -> [("mane", "Bob")] -> [("name", "Amy")] -> NULL
-     *   - ¼ÆËã¹şÏ£("name")µÃµ½Ë÷Òı 4¡£
-     *   - ±éÀúÍ° 4 µÄÁ´±í¡£
-     *   - µÚÒ»¸ö½Úµã "mane" != "name"¡£
-     *   - µÚ¶ş¸ö½Úµã "name" == "name"£¬ÕÒµ½£¡
-     *   - ·µ»ØÖ¸ÏòÄÚ²¿Öµ "Amy" µÄÖ¸Õë¡£
-    */
-    if (!ht || !key) return NULL;
-
-    size_t index = hash_function(key, ht->capacity);
-
-    Node* current = ht->buckets[index];
-    while (current != NULL) {
-        if (strcmp(current->key, key) == 0) {
-            return current->value; // ÕÒµ½£¬·µ»ØÖ¸ÏòÄÚ²¿ÖµµÄÖ¸Õë
-        }
-        current = current->next;
-    }
-
-    return NULL; // ±éÀúÍêÁ´±íÈÔÎ´ÕÒµ½
-}
-
-bool ht_remove(HashTable* ht, const char* key) {
-    /*
-     * º¯Êı¹¦ÄÜ: [¹¤Òµ¼¶] ¸ù¾İ¼üÉ¾³ıÒ»¸ö¼üÖµ¶Ô¡£
-     * ½ÌÑ§°¸Àı: ÔÚ `ht_set` °¸Àı 3 µÄ×´Ì¬ÏÂÉ¾³ı "mane"¡£
-     *   - Í° 4: -> [("mane", "Bob")] -> [("name", "Amy")] -> NULL
-     *   - ¼ÆËã¹şÏ£("mane")µÃµ½Ë÷Òı 4¡£
-     *   - ±éÀúÁ´±í£¬ĞèÒªÒ»¸ö `prev` Ö¸ÕëÀ´¸¨ÖúÉ¾³ı¡£
-     *   - ÕÒµ½ "mane" Ê±£¬ËüÊÇÍ·½Úµã (prev=NULL)¡£
-     *   - ½«Í°µÄÍ·Ö¸Õë `buckets[4]` Ö¸Ïò "mane" µÄÏÂÒ»¸ö½Úµã ("name")¡£
-     *   - ÊÍ·Å "mane" ½ÚµãµÄ¼ü¡¢ÖµºÍ½Úµã±¾Éí¡£
-     *   - ×îÖÕÍ° 4: -> [("name", "Amy")] -> NULL
-     * 
-	 * [Í°µÄÈë¿Ú] -> Alice -> Bob -> Charile -> David -> NULL
-	 * ht->buckets[index] = Alice
-	 * current = Alice
-     * 
-     */
-    if (!ht || !key) return false;
-
-    size_t index = hash_function(key, ht->capacity);
-
-    Node* current = ht->buckets[index];
-    Node* prev = NULL; // ¹Ø¼ü: ÓÃÓÚÁ´½ÓÇ°ºó½ÚµãµÄ "Ç°Çı" Ö¸Õë
-
-    // ±éÀúÁ´±í²éÕÒÒªÉ¾³ıµÄ½Úµã
-    while (current != NULL && strcmp(current->key, key) != 0) {
-        prev = current;
-        current = current->next;
-    }
-
-    // Èç¹û current Îª NULL£¬ËµÃ÷±éÀúÍêÒ²Ã»ÕÒµ½Õâ¸ö¼ü
-    if (current == NULL) {
-        return false;
-    }
-
-    // --- ÕÒµ½ÁËÒªÉ¾³ıµÄ½Úµã (current) ---
-    if (prev == NULL) {
-        // Çé¿öA: ÒªÉ¾³ıµÄÊÇÁ´±íµÄÍ·½Úµã
-        ht->buckets[index] = current->next;
-    }
-    else {
-        // Çé¿öB: ÒªÉ¾³ıµÄÊÇÁ´±íµÄÖĞ¼ä»òÎ²²¿½Úµã
-        prev->next = current->next;
-    }
-
-    // ÊÍ·Å±»É¾³ı½ÚµãµÄËùÓĞÄÚ´æ
-    free(current->key);
-    free(current->value);
-    free(current);
-
-    ht->size--;
-    return true; // É¾³ı³É¹¦
-}
-
-void ht_print(const HashTable* ht) {
-    if (!ht) {
-        printf("HashTable is NULL.\n");
-        return;
-    }
-    printf("--- HashTable (capacity: %zu, size: %zu) ---\n", ht->capacity, ht->size);
-    for (size_t i = 0; i < ht->capacity; i++) {
-        printf("Bucket[%zu]: ", i);
-        Node* current = ht->buckets[i];
-        if (current == NULL) {
-            printf("-> NULL\n");
-        }
-        else {
-            while (current != NULL) {
-                printf("-> [K:\"%s\", V:\"%s\"] ", current->key, current->value);
-                current = current->next;
-            }
-            printf("-> NULL\n");
-        }
-    }
-    printf("------------------------------------------\n\n");
+// hash_table.c
+#define _CRT_SECURE_NO_WARNINGS // å…è®¸ä½¿ç”¨ strcpy ç­‰å‡½æ•°
+#include "hash_table.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+// --- Private Structure Definitions ---
+
+// å“ˆå¸Œè¡¨ä¸­çš„èŠ‚ç‚¹ï¼Œç”¨äºæ„æˆæ¯ä¸ªæ¡¶ä¸­çš„é“¾è¡¨
+typedef struct Node {
+    char* key;           // æŒ‡å‘åŠ¨æ€åˆ†é…çš„é”®å­—ç¬¦ä¸²
+    char* value;         // æŒ‡å‘åŠ¨æ€åˆ†é…çš„å€¼å­—ç¬¦ä¸²
+    struct Node* next;   // æŒ‡å‘é“¾è¡¨ä¸­çš„ä¸‹ä¸€ä¸ªèŠ‚ç‚¹
+} Node;
+
+// å“ˆå¸Œè¡¨çš„å®é™…ç®¡ç†ç»“æ„
+struct HashTable {
+    Node** buckets;      // æŒ‡å‘ä¸€ä¸ªæŒ‡é’ˆæ•°ç»„ï¼Œæ¯ä¸ªæŒ‡é’ˆæ˜¯ä¸€ä¸ªæ¡¶ï¼ˆé“¾è¡¨çš„å¤´èŠ‚ç‚¹ï¼‰
+    size_t capacity;     // æ¡¶çš„æ•°é‡
+    size_t size;         // å½“å‰å­˜å‚¨çš„é”®å€¼å¯¹æ€»æ•°
+};
+
+// --- Static Helper Functions (Private) ---
+
+// å“ˆå¸Œå‡½æ•°ï¼šå°†å­—ç¬¦ä¸²è½¬æ¢ä¸ºä¸€ä¸ªåœ¨ [0, capacity-1] èŒƒå›´å†…çš„ç´¢å¼•
+// è¿™ä¸æ‚¨çš„HTMLç¤ºä¾‹ä¸­çš„å“ˆå¸Œå‡½æ•°é€»è¾‘ç›¸åŒã€‚
+// ä¸€ä¸ªç®€å•çš„å­—ç¬¦æ±‚å’Œå“ˆå¸Œå‡½æ•°ï¼Œé€‚ç”¨äºæ•™å­¦å’Œå°è§„æ¨¡æ•°æ®ã€‚
+// æ³¨æ„ï¼šå®é™…åº”ç”¨ä¸­åº”ä½¿ç”¨æ›´å¤æ‚çš„å“ˆå¸Œå‡½æ•°ä»¥å‡å°‘å†²çªã€‚
+static size_t hash_function(const char* key, size_t capacity) {
+    unsigned long hash_value = 0;
+    for (size_t i = 0; key[i] != '\0'; i++) {
+        hash_value += key[i];
+    }
+    return hash_value % capacity;
+}
+
+// --- Public API Implementations ---
+
+HashTable* ht_create(size_t capacity) {
+    if (capacity == 0) return NULL;
+    HashTable* ht = (HashTable*)malloc(sizeof(HashTable));
+    if (!ht) return NULL;
+
+    // ä¸ºæ¡¶æ•°ç»„åˆ†é…å†…å­˜ï¼Œè¿™æ˜¯ä¸€ä¸ªæŒ‡é’ˆæ•°ç»„ï¼Œæ‰€ä»¥æ˜¯ sizeof(Node*)
+    ht->buckets = (Node**)calloc(capacity, sizeof(Node*));
+    if (!ht->buckets) {
+        free(ht);
+        return NULL;
+    }
+    // `calloc` ä¼šå°†æ‰€æœ‰æ¡¶çš„å¤´æŒ‡é’ˆåˆå§‹åŒ–ä¸º NULLï¼Œè¿™æ˜¯å¿…éœ€çš„ã€‚
+
+    ht->capacity = capacity;
+    ht->size = 0;
+    return ht;
+}
+
+void ht_destroy(HashTable** p_ht) {
+    if (!p_ht || !*p_ht) return;
+    HashTable* ht = *p_ht;
+
+    // éå†æ¯ä¸€ä¸ªæ¡¶
+    for (size_t i = 0; i < ht->capacity; i++) {
+        // éå†æ¡¶ä¸­çš„é“¾è¡¨ï¼Œé‡Šæ”¾æ¯ä¸€ä¸ªèŠ‚ç‚¹
+        Node* current = ht->buckets[i];
+      
+        // å¢åŠ é˜²å¾¡æ€§æ£€æŸ¥ï¼Œç¡®ä¿ to_free->key å’Œ to_free->value é NULL åå†é‡Šæ”¾
+        while (current != NULL) {
+            Node* to_free = current;
+            current = current->next;
+            if (to_free->key) {
+                free(to_free->key);   // é‡Šæ”¾é”®çš„æ‹·è´
+            }
+            if (to_free->value) {
+                free(to_free->value); // é‡Šæ”¾å€¼çš„æ‹·è´
+            }
+            free(to_free);        // é‡Šæ”¾èŠ‚ç‚¹æœ¬èº«
+        }
+    }
+    free(ht->buckets); // é‡Šæ”¾æ¡¶æ•°ç»„
+    free(ht);          // é‡Šæ”¾å“ˆå¸Œè¡¨ç»“æ„ä½“
+    *p_ht = NULL;      // é˜²æ­¢æ‚¬ç©ºæŒ‡é’ˆ
+}
+
+bool ht_set(HashTable* ht, const char* key, const char* value) {
+    /*
+     * å‡½æ•°åŠŸèƒ½: [å·¥ä¸šçº§] æ’å…¥æˆ–æ›´æ–°ä¸€ä¸ªé”®å€¼å¯¹ã€‚
+     * ------------------------- æ•™å­¦æ¡ˆä¾‹ -------------------------
+     * å‡è®¾ capacity = 10, hash("name") = 4, hash("mane") = 4 (å“ˆå¸Œå†²çª)
+     *
+     * æ¡ˆä¾‹ 1: æ’å…¥ ("name", "Alice")
+     *   - è®¡ç®—å“ˆå¸Œå¾—åˆ°ç´¢å¼• 4ã€‚
+     *   - æ¡¶ 4 ä¸ºç©ºï¼Œç›´æ¥åˆ›å»ºä¸€ä¸ªæ–°èŠ‚ç‚¹å¹¶æ’å…¥ã€‚
+     *   - æ¡¶ 4: -> [("name", "Alice")] -> NULL
+     *
+     * æ¡ˆä¾‹ 2: æ’å…¥ ("mane", "Bob")
+     *   - è®¡ç®—å“ˆå¸Œå¾—åˆ°ç´¢å¼• 4ã€‚
+     *   - æ¡¶ 4 ä¸ä¸ºç©ºï¼Œéå†é“¾è¡¨ï¼Œæœªæ‰¾åˆ°é”® "mane"ã€‚
+     *   - åˆ›å»ºæ–°èŠ‚ç‚¹ï¼Œå¹¶å°†å…¶æ’å…¥åˆ°é“¾è¡¨å¤´éƒ¨ (æœ€ç®€å•çš„æ–¹å¼)ã€‚
+     *   - æ¡¶ 4: -> [("mane", "Bob")] -> [("name", "Alice")] -> NULL
+     *
+     * æ¡ˆä¾‹ 3: æ›´æ–° ("name", "Amy")
+     *   - è®¡ç®—å“ˆå¸Œå¾—åˆ°ç´¢å¼• 4ã€‚
+     *   - éå†æ¡¶ 4 çš„é“¾è¡¨ï¼Œä½¿ç”¨ strcmp æ‰¾åˆ°é”® "name"ã€‚
+     *   - é‡Šæ”¾æ—§å€¼ "Alice" çš„å†…å­˜ï¼Œåˆ†é…æ–°å†…å­˜å¹¶å­˜å…¥ "Amy"ã€‚
+     *   - æ¡¶ 4: -> [("mane", "Bob")] -> [("name", "Amy")] -> NULL
+     * -----------------------------------------------------------
+    */
+
+    // æ­¥éª¤ 1: [é˜²å¾¡æ€§ç¼–ç¨‹] æ£€æŸ¥æ‰€æœ‰è¾“å…¥å‚æ•°æ˜¯å¦æœ‰æ•ˆã€‚
+    if (!ht || !key || !value) return false;
+
+    // æ­¥éª¤ 2: è®¡ç®—é”®çš„å“ˆå¸Œå€¼ï¼Œç¡®å®šå®ƒå±äºå“ªä¸ªæ¡¶ã€‚
+    size_t index = hash_function(key, ht->capacity);
+
+    // æ­¥éª¤ 3: éå†æ¡¶ä¸­çš„é“¾è¡¨ï¼Œæ£€æŸ¥é”®æ˜¯å¦å·²ç»å­˜åœ¨ã€‚
+    Node* current = ht->buckets[index];
+    while (current != NULL) {
+        if (strcmp(current->key, key) == 0) {
+            // --- æƒ…å†µA: é”®å·²å­˜åœ¨ï¼Œæ‰§è¡Œâ€œæ›´æ–°â€æ“ä½œ ---
+            // ä¸ºäº†é˜²æ­¢å†…å­˜æ³„æ¼ï¼Œå…ˆé‡Šæ”¾æ—§å€¼çš„å†…å­˜ã€‚
+            free(current->value);
+            // ä¸ºæ–°å€¼åˆ†é…å†…å­˜å¹¶æ‹·è´ã€‚
+            current->value = (char*)malloc(strlen(value) + 1);
+            if (!current->value) return false; // å†…å­˜åˆ†é…å¤±è´¥
+            strcpy(current->value, value);
+            return true; // æ›´æ–°æˆåŠŸï¼Œå‡½æ•°ç»“æŸ
+        }
+        current = current->next;
+    }
+
+    // --- æƒ…å†µB: é”®ä¸å­˜åœ¨ (å¾ªç¯èµ°å®Œéƒ½æœªæ‰¾åˆ°)ï¼Œæ‰§è¡Œâ€œæ’å…¥â€æ“ä½œ ---
+    // æ­¥éª¤ 4: åˆ›å»ºä¸€ä¸ªæ–°çš„èŠ‚ç‚¹ã€‚
+    Node* new_node = (Node*)malloc(sizeof(Node));
+    if (!new_node) return false;
+
+    // ä¸ºé”®å’Œå€¼åˆ†é…ç‹¬ç«‹çš„å†…å­˜å¹¶æ‹·è´ï¼Œè¿™æ ·å“ˆå¸Œè¡¨å°±ä¸ä¾èµ–äºå¤–éƒ¨ä¼ å…¥çš„æŒ‡é’ˆç”Ÿå‘½å‘¨æœŸã€‚
+    new_node->key = (char*)malloc(strlen(key) + 1);
+    new_node->value = (char*)malloc(strlen(value) + 1);
+
+    // å¥å£®æ€§æ£€æŸ¥ï¼šå¦‚æœä»»ä½•ä¸€ä¸ªmallocå¤±è´¥ï¼Œéƒ½éœ€è¦æ¸…ç†å·²åˆ†é…çš„å†…å­˜ã€‚
+    if (!new_node->key || !new_node->value) {
+        free(new_node->key); // free(NULL)æ˜¯å®‰å…¨çš„
+        free(new_node->value);
+        free(new_node);
+        return false;
+    }
+    strcpy(new_node->key, key);
+    strcpy(new_node->value, value);
+
+    // æ­¥éª¤ 5: å°†æ–°èŠ‚ç‚¹æ’å…¥åˆ°é“¾è¡¨çš„å¤´éƒ¨ã€‚
+    // è¿™æ˜¯æœ€ç®€å•é«˜æ•ˆçš„é“¾è¡¨æ’å…¥æ–¹å¼ã€‚
+    new_node->next = ht->buckets[index]; // æ–°èŠ‚ç‚¹çš„ next æŒ‡å‘å½“å‰æ¡¶çš„ç¬¬ä¸€ä¸ªèŠ‚ç‚¹
+    ht->buckets[index] = new_node;       // æ›´æ–°æ¡¶çš„å¤´æŒ‡é’ˆï¼Œä½¿å…¶æŒ‡å‘è¿™ä¸ªæ–°èŠ‚ç‚¹
+
+    // æ­¥éª¤ 6: æ›´æ–°å“ˆå¸Œè¡¨çš„æ€»å¤§å°ã€‚
+    ht->size++;
+    return true; // æ’å…¥æˆåŠŸ
+}
+
+const char* ht_get(const HashTable* ht, const char* key) {
+    /*
+     * å‡½æ•°åŠŸèƒ½: [å·¥ä¸šçº§] æ ¹æ®é”®æŸ¥æ‰¾å¯¹åº”çš„å€¼ã€‚
+     * æ•™å­¦æ¡ˆä¾‹: åœ¨ `ht_set` æ¡ˆä¾‹ 3 çš„çŠ¶æ€ä¸‹æŸ¥æ‰¾ "name"ã€‚
+     *   - æ¡¶ 4: -> [("mane", "Bob")] -> [("name", "Amy")] -> NULL
+     *   - è®¡ç®—å“ˆå¸Œ("name")å¾—åˆ°ç´¢å¼• 4ã€‚
+     *   - éå†æ¡¶ 4 çš„é“¾è¡¨ã€‚
+     *   - ç¬¬ä¸€ä¸ªèŠ‚ç‚¹ "mane" != "name"ã€‚
+     *   - ç¬¬äºŒä¸ªèŠ‚ç‚¹ "name" == "name"ï¼Œæ‰¾åˆ°ï¼
+     *   - è¿”å›æŒ‡å‘å†…éƒ¨å€¼ "Amy" çš„æŒ‡é’ˆã€‚
+    */
+    if (!ht || !key) return NULL;
+
+    size_t index = hash_function(key, ht->capacity);
+
+    Node* current = ht->buckets[index];
+    while (current != NULL) {
+        if (strcmp(current->key, key) == 0) {
+            return current->value; // æ‰¾åˆ°ï¼Œè¿”å›æŒ‡å‘å†…éƒ¨å€¼çš„æŒ‡é’ˆ
+        }
+        current = current->next;
+    }
+
+    return NULL; // éå†å®Œé“¾è¡¨ä»æœªæ‰¾åˆ°
+}
+
+bool ht_remove(HashTable* ht, const char* key) {
+    /*
+     * å‡½æ•°åŠŸèƒ½: [å·¥ä¸šçº§] æ ¹æ®é”®åˆ é™¤ä¸€ä¸ªé”®å€¼å¯¹ã€‚
+     * æ•™å­¦æ¡ˆä¾‹: åœ¨ `ht_set` æ¡ˆä¾‹ 3 çš„çŠ¶æ€ä¸‹åˆ é™¤ "mane"ã€‚
+     *   - æ¡¶ 4: -> [("mane", "Bob")] -> [("name", "Amy")] -> NULL
+     *   - è®¡ç®—å“ˆå¸Œ("mane")å¾—åˆ°ç´¢å¼• 4ã€‚
+     *   - éå†é“¾è¡¨ï¼Œéœ€è¦ä¸€ä¸ª `prev` æŒ‡é’ˆæ¥è¾…åŠ©åˆ é™¤ã€‚
+     *   - æ‰¾åˆ° "mane" æ—¶ï¼Œå®ƒæ˜¯å¤´èŠ‚ç‚¹ (prev=NULL)ã€‚
+     *   - å°†æ¡¶çš„å¤´æŒ‡é’ˆ `buckets[4]` æŒ‡å‘ "mane" çš„ä¸‹ä¸€ä¸ªèŠ‚ç‚¹ ("name")ã€‚
+     *   - é‡Šæ”¾ "mane" èŠ‚ç‚¹çš„é”®ã€å€¼å’ŒèŠ‚ç‚¹æœ¬èº«ã€‚
+     *   - æœ€ç»ˆæ¡¶ 4: -> [("name", "Amy")] -> NULL
+     * 
+	 * [æ¡¶çš„å…¥å£] -> Alice -> Bob -> Charile -> David -> NULL
+	 * ht->buckets[index] = Alice
+	 * current = Alice
+     * 
+     */
+    if (!ht || !key) return false;
+
+    size_t index = hash_function(key, ht->capacity);
+
+    Node* current = ht->buckets[index];
+    Node* prev = NULL; // å…³é”®: ç”¨äºé“¾æ¥å‰åèŠ‚ç‚¹çš„ "å‰é©±" æŒ‡é’ˆ
+
+    // éå†é“¾è¡¨æŸ¥æ‰¾è¦åˆ é™¤çš„èŠ‚ç‚¹
+    while (current != NULL && strcmp(current->key, key) != 0) {
+        prev = current;
+        current = current->next;
+    }
+
+    // å¦‚æœ current ä¸º NULLï¼Œè¯´æ˜éå†å®Œä¹Ÿæ²¡æ‰¾åˆ°è¿™ä¸ªé”®
+    if (current == NULL) {
+        return false;
+    }
+
+    // --- æ‰¾åˆ°äº†è¦åˆ é™¤çš„èŠ‚ç‚¹ (current) ---
+    if (prev == NULL) {
+        // æƒ…å†µA: è¦åˆ é™¤çš„æ˜¯é“¾è¡¨çš„å¤´èŠ‚ç‚¹
+        ht->buckets[index] = current->next;
+    }
+    else {
+        // æƒ…å†µB: è¦åˆ é™¤çš„æ˜¯é“¾è¡¨çš„ä¸­é—´æˆ–å°¾éƒ¨èŠ‚ç‚¹
+        prev->next = current->next;
+    }
+
+    // é‡Šæ”¾è¢«åˆ é™¤èŠ‚ç‚¹çš„æ‰€æœ‰å†…å­˜
+    free(current->key);
+    free(current->value);
+    free(current);
+
+    ht->size--;
+    return true; // åˆ é™¤æˆåŠŸ
+}
+
+void ht_print(const HashTable* ht) {
+    if (!ht) {
+        printf("HashTable is NULL.\n");
+        return;
+    }
+    printf("--- HashTable (capacity: %zu, size: %zu) ---\n", ht->capacity, ht->size);
+    for (size_t i = 0; i < ht->capacity; i++) {
+        printf("Bucket[%zu]: ", i);
+        Node* current = ht->buckets[i];
+        if (current == NULL) {
+            printf("-> NULL\n");
+        }
+        else {
+            while (current != NULL) {
+                printf("-> [K:\"%s\", V:\"%s\"] ", current->key, current->value);
+                current = current->next;
+            }
+            printf("-> NULL\n");
+        }
+    }
+    printf("------------------------------------------\n\n");
 }

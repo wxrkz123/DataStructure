@@ -1,181 +1,181 @@
-#include "generic_linked_queue.h"
-#include <stdlib.h>
-#include <string.h>
-
-// --- Private Structure Definitions ---
-
-// ÄÚ²¿½Úµã½á¹¹£¬¶ÔÓÃ»§²»¿É¼û
-typedef struct Node {
-    void* data;         // Ö¸ÏòÎª¸Ã½ÚµãÔªËØ¶¯Ì¬·ÖÅäµÄÄÚ´æ
-    struct Node* next;  // Ö¸Ïò¶ÓÁÐÖÐµÄÏÂÒ»¸ö½Úµã
-} Node;
-
-// Á´Ê½¶ÓÁÐµÄÊµ¼Ê¹ÜÀí½á¹¹
-struct LinkedQueue {
-    Node* front;            // Ö¸Ïò¶ÓÍ·µÄ½Úµã
-    Node* rear;             // Ö¸Ïò¶ÓÎ²µÄ½Úµã
-    size_t element_size;    // Ã¿¸öÔªËØµÄÊý¾Ý´óÐ¡
-    size_t size;            // ¶ÓÁÐÖÐµ±Ç°µÄÔªËØÊýÁ¿
-};
-
-// --- API Function Implementations ---
-
-Queue* queue_create(size_t element_size) {
-    if (element_size == 0) return NULL;
-    Queue* q = (Queue*)malloc(sizeof(Queue));
-    if (!q) return NULL;
-
-    q->front = NULL; // ³õÊ¼»¯Ê±£¬¶ÓÁÐÎª¿Õ£¬Í·Î²Ö¸Õë¶¼ÎªNULL
-    q->rear = NULL;
-    q->element_size = element_size;
-    q->size = 0;
-
-    return q;
-}
-
-void queue_destroy(Queue** p_queue) {
-    if (p_queue && *p_queue) {
-        Queue* q = *p_queue;
-        Node* current = q->front;
-        while (current != NULL) {
-            Node* temp = current;
-            current = current->next;
-            free(temp->data); // 1. ÊÍ·Å½ÚµãµÄÊý¾Ý
-            free(temp);       // 2. ÊÍ·Å½Úµã±¾Éí
-        }
-        free(q);
-        *p_queue = NULL;
-    }
-}
-
-bool queue_enqueue(Queue* queue, const void* element_data) {
-    /*
-     * º¯Êý¹¦ÄÜ: [¹¤Òµ¼¶] ½«Ò»¸öÐÂÔªËØÌí¼Óµ½Á´±í¶ÓÎ²¡£
-     * ½ÌÑ§°¸Àý 1 (³£¹æÇé¿ö): ¶ÓÁÐÖÐÒÑÓÐÔªËØ A -> B¡£
-     * front -> [A] -> [B] <- rear
-     * ÎÒÃÇÒªÈë¶ÓÒ»¸öÐÂµÄÔªËØ 'C'¡£
-     *
-     * ½ÌÑ§°¸Àý 2 (ÌØÊâÇé¿ö): ¶ÓÁÐÎª¿Õ¡£
-     * front -> NULL, rear -> NULL
-     * ÎÒÃÇÒªÈë¶ÓµÚÒ»¸öÔªËØ 'A'¡£
-    */
-
-    // ²½Öè 1: [·ÀÓùÐÔ±à³Ì] ¼ì²éÖ¸ÕëÓÐÐ§ÐÔ¡£
-    if (!queue || !element_data) {
-        return false;
-    }
-
-    // ²½Öè 2: ÎªÐÂ½Úµã±¾Éí·ÖÅäÄÚ´æ¡£
-    Node* new_node = (Node*)malloc(sizeof(Node));
-    if (!new_node) {
-        return false; // ÏµÍ³ÄÚ´æ²»×ã£¬Èë¶ÓÊ§°Ü
-    }
-
-    // ²½Öè 3: ÎªÐÂ½ÚµãµÄÊý¾ÝÇø·ÖÅäÄÚ´æ¡£
-    new_node->data = malloc(queue->element_size);
-    if (!new_node->data) {
-        free(new_node); // Èç¹ûÊý¾ÝÇø·ÖÅäÊ§°Ü£¬±ØÐëÇåÀíÒÑ·ÖÅäµÄ½Úµã£¬·ÀÖ¹ÄÚ´æÐ¹Â©¡£
-        return false;
-    }
-
-    // ²½Öè 4: ¿½±´ÓÃ»§Êý¾Ýµ½ÐÂ½ÚµãµÄÊý¾ÝÇø¡£
-    memcpy(new_node->data, element_data, queue->element_size);
-    new_node->next = NULL; // ÐÂ½Úµã×ÜÊÇ±»¼ÓÔÚ¶ÓÎ²£¬ËùÒÔËüµÄnextÓÀÔ¶ÊÇNULL¡£
-
-    // ²½Öè 5: [ºËÐÄÂß¼­] ½«ÐÂ½ÚµãÁ´½Óµ½¶ÓÁÐÎ²²¿¡£
-    if (queue_is_empty(queue)) {
-        // --- ´¦ÀíÌØÊâÇé¿ö£ºÕâÊÇ¶ÓÁÐµÄµÚÒ»¸öÔªËØ ---
-        // °¸Àý 2: ¶ÓÁÐÎª¿Õ£¬frontºÍrear¶¼ÎªNULL¡£
-        // front -> NULL
-        // rear  -> NULL
-        // new_node -> [A|next=NULL]
-        // ÈÃ front ºÍ rear Í¬Ê±Ö¸ÏòÕâ¸öÐÂ½Úµã¡£
-        // front -> [A] <- rear
-        queue->front = new_node;
-        queue->rear = new_node;
-    }
-    else {
-        // --- ´¦Àí³£¹æÇé¿ö£º¶ÓÁÐ·Ç¿Õ ---
-        // °¸Àý 1: ¶ÓÁÐÎª A -> B¡£
-        // rear Ö¸Ïò½ÚµãB: [B|next=NULL]
-        // new_node: [C|next=NULL]
-        // ¹Ø¼üÒ»²½: ÈÃµ±Ç°¶ÓÎ²½Úµã(B)µÄnextÖ¸ÕëÖ¸ÏòÐÂ½Úµã(C)¡£
-        // Á´½Óºó: [B|next=ptr_to_C] -> [C|next=NULL]
-        queue->rear->next = new_node;
-        // È»ºó£¬¸üÐÂrearÖ¸Õë£¬ÈÃËüÖ¸ÏòÐÂµÄ¶ÓÎ²½Úµã(C)¡£
-        // A -> B -> [C] <- rear
-        queue->rear = new_node;
-    }
-
-    // ²½Öè 6: ¸üÐÂ¶ÓÁÐ´óÐ¡¡£
-    queue->size++;
-    return true;
-}
-
-bool queue_dequeue(Queue* queue, void* output_buffer) {
-    /*
-     * º¯Êý¹¦ÄÜ: [¹¤Òµ¼¶] ´ÓÁ´±í¶ÓÍ·ÒÆ³ýÒ»¸öÔªËØ¡£
-     * ½ÌÑ§°¸Àý 1 (³£¹æÇé¿ö): ¶ÓÁÐÎª A -> B -> C¡£
-     * front -> [A] -> [B] -> [C] <- rear
-     * ÎÒÃÇÒª³ö¶ÓÔªËØ 'A'¡£
-     *
-     * ½ÌÑ§°¸Àý 2 (ÌØÊâÇé¿ö): ¶ÓÁÐÖÐÖ»ÓÐÒ»¸öÔªËØ¡£
-     * front -> [A] <- rear
-     * ÎÒÃÇÒª³ö¶ÓÔªËØ 'A'¡£
-    */
-
-    // ²½Öè 1: [·ÀÓùÐÔ±à³Ì] ¼ì²éÖ¸ÕëÓÐÐ§ÐÔ¼°¶ÓÁÐÊÇ·ñÎª¿Õ¡£
-    if (queue_is_empty(queue) || !output_buffer) {
-        return false;
-    }
-
-    // ²½Öè 2: ´´½¨Ò»¸öÁÙÊ±Ö¸Õë£¬Ö¸Ïò¼´½«±»ÒÆ³ýµÄ¶ÓÍ·½Úµã¡£
-    // °¸Àý 1 & 2: temp -> [A]
-    Node* temp = queue->front;
-
-    // ²½Öè 3: ¿½±´¶ÓÍ·½ÚµãµÄÊý¾Ýµ½ÓÃ»§µÄ»º³åÇø¡£
-    memcpy(output_buffer, temp->data, queue->element_size);
-
-    // ²½Öè 4: [ºËÐÄÂß¼­] ¸üÐÂfrontÖ¸Õë£¬Ê¹ÆäÖ¸ÏòÏÂÒ»¸ö½Úµã¡£
-    // °¸Àý 1: Ô­frontÖ¸ÏòA£¬AµÄnextÖ¸ÏòB¡£
-    //      ÐÂfront = temp->next£¬ËùÒÔÐÂfrontÖ¸ÏòÁË½ÚµãB¡£
-    //      Âß¼­ÉÏ¶ÓÁÐ±äÎª: front -> [B] -> [C] <- rear
-    queue->front = temp->next;
-
-    // ²½Öè 5: [´¦ÀíÌØÊâÇé¿ö] Èç¹û¸üÐÂºóµÄfrontÎªNULL£¬ËµÃ÷¶ÓÁÐ±ä¿ÕÁË¡£
-    // °¸Àý 2: Ô­¶ÓÁÐÖ»ÓÐÒ»¸öÔªËØA£¬AµÄnextÊÇNULL¡£
-    //      Ö´ÐÐ²½Öè4ºó£¬queue->front±äÎªNULL¡£
-    //      Õâ±íÊ¾¶ÓÁÐÖÐÒÑÎÞÈÎºÎÔªËØ£¬´ËÊ±±ØÐëÍ¬Ê±¸üÐÂrearÖ¸ÕëÒ²ÎªNULL£¬
-    //      ÒÔ±£³Ö¶ÓÁÐ×´Ì¬µÄÒ»ÖÂÐÔ¡£
-    if (queue->front == NULL) {
-        queue->rear = NULL;
-    }
-
-    // ²½Öè 6: ÊÍ·Å±»ÒÆ³ý½ÚµãµÄÄÚ´æ£¨Êý¾ÝÇøºÍ½Úµã±¾Éí£©¡£
-    // °¸Àý 1 & 2: ÊÍ·Å temp Ö¸ÏòµÄ½ÚµãAµÄÊý¾ÝÇøºÍ½ÚµãA±¾Éí¡£
-    free(temp->data);
-    free(temp);
-
-    // ²½Öè 7: ¸üÐÂ¶ÓÁÐ´óÐ¡¡£
-    queue->size--;
-    return true;
-}
-
-bool queue_peek(const Queue* queue, void* output_buffer) {
-    if (queue_is_empty(queue) || !output_buffer) {
-        return false;
-    }
-    // Peek²Ù×÷·Ç³£¼òµ¥£ºÖ»¿½±´¶ÓÍ·µÄÊý¾Ý£¬²»½øÐÐÈÎºÎÐÞ¸Ä¡£
-    memcpy(output_buffer, queue->front->data, queue->element_size);
-    return true;
-}
-
-bool queue_is_empty(const Queue* queue) {
-    if (!queue) return true;
-    return queue->size == 0; // »òÕßÅÐ¶Ï queue->front == NULL
-}
-
-size_t queue_get_size(const Queue* queue) {
-    if (!queue) return 0;
-    return queue->size;
+#include "generic_linked_queue.h"
+#include <stdlib.h>
+#include <string.h>
+
+// --- Private Structure Definitions ---
+
+// å†…éƒ¨èŠ‚ç‚¹ç»“æž„ï¼Œå¯¹ç”¨æˆ·ä¸å¯è§
+typedef struct Node {
+    void* data;         // æŒ‡å‘ä¸ºè¯¥èŠ‚ç‚¹å…ƒç´ åŠ¨æ€åˆ†é…çš„å†…å­˜
+    struct Node* next;  // æŒ‡å‘é˜Ÿåˆ—ä¸­çš„ä¸‹ä¸€ä¸ªèŠ‚ç‚¹
+} Node;
+
+// é“¾å¼é˜Ÿåˆ—çš„å®žé™…ç®¡ç†ç»“æž„
+struct LinkedQueue {
+    Node* front;            // æŒ‡å‘é˜Ÿå¤´çš„èŠ‚ç‚¹
+    Node* rear;             // æŒ‡å‘é˜Ÿå°¾çš„èŠ‚ç‚¹
+    size_t element_size;    // æ¯ä¸ªå…ƒç´ çš„æ•°æ®å¤§å°
+    size_t size;            // é˜Ÿåˆ—ä¸­å½“å‰çš„å…ƒç´ æ•°é‡
+};
+
+// --- API Function Implementations ---
+
+Queue* queue_create(size_t element_size) {
+    if (element_size == 0) return NULL;
+    Queue* q = (Queue*)malloc(sizeof(Queue));
+    if (!q) return NULL;
+
+    q->front = NULL; // åˆå§‹åŒ–æ—¶ï¼Œé˜Ÿåˆ—ä¸ºç©ºï¼Œå¤´å°¾æŒ‡é’ˆéƒ½ä¸ºNULL
+    q->rear = NULL;
+    q->element_size = element_size;
+    q->size = 0;
+
+    return q;
+}
+
+void queue_destroy(Queue** p_queue) {
+    if (p_queue && *p_queue) {
+        Queue* q = *p_queue;
+        Node* current = q->front;
+        while (current != NULL) {
+            Node* temp = current;
+            current = current->next;
+            free(temp->data); // 1. é‡Šæ”¾èŠ‚ç‚¹çš„æ•°æ®
+            free(temp);       // 2. é‡Šæ”¾èŠ‚ç‚¹æœ¬èº«
+        }
+        free(q);
+        *p_queue = NULL;
+    }
+}
+
+bool queue_enqueue(Queue* queue, const void* element_data) {
+    /*
+     * å‡½æ•°åŠŸèƒ½: [å·¥ä¸šçº§] å°†ä¸€ä¸ªæ–°å…ƒç´ æ·»åŠ åˆ°é“¾è¡¨é˜Ÿå°¾ã€‚
+     * æ•™å­¦æ¡ˆä¾‹ 1 (å¸¸è§„æƒ…å†µ): é˜Ÿåˆ—ä¸­å·²æœ‰å…ƒç´  A -> Bã€‚
+     * front -> [A] -> [B] <- rear
+     * æˆ‘ä»¬è¦å…¥é˜Ÿä¸€ä¸ªæ–°çš„å…ƒç´  'C'ã€‚
+     *
+     * æ•™å­¦æ¡ˆä¾‹ 2 (ç‰¹æ®Šæƒ…å†µ): é˜Ÿåˆ—ä¸ºç©ºã€‚
+     * front -> NULL, rear -> NULL
+     * æˆ‘ä»¬è¦å…¥é˜Ÿç¬¬ä¸€ä¸ªå…ƒç´  'A'ã€‚
+    */
+
+    // æ­¥éª¤ 1: [é˜²å¾¡æ€§ç¼–ç¨‹] æ£€æŸ¥æŒ‡é’ˆæœ‰æ•ˆæ€§ã€‚
+    if (!queue || !element_data) {
+        return false;
+    }
+
+    // æ­¥éª¤ 2: ä¸ºæ–°èŠ‚ç‚¹æœ¬èº«åˆ†é…å†…å­˜ã€‚
+    Node* new_node = (Node*)malloc(sizeof(Node));
+    if (!new_node) {
+        return false; // ç³»ç»Ÿå†…å­˜ä¸è¶³ï¼Œå…¥é˜Ÿå¤±è´¥
+    }
+
+    // æ­¥éª¤ 3: ä¸ºæ–°èŠ‚ç‚¹çš„æ•°æ®åŒºåˆ†é…å†…å­˜ã€‚
+    new_node->data = malloc(queue->element_size);
+    if (!new_node->data) {
+        free(new_node); // å¦‚æžœæ•°æ®åŒºåˆ†é…å¤±è´¥ï¼Œå¿…é¡»æ¸…ç†å·²åˆ†é…çš„èŠ‚ç‚¹ï¼Œé˜²æ­¢å†…å­˜æ³„æ¼ã€‚
+        return false;
+    }
+
+    // æ­¥éª¤ 4: æ‹·è´ç”¨æˆ·æ•°æ®åˆ°æ–°èŠ‚ç‚¹çš„æ•°æ®åŒºã€‚
+    memcpy(new_node->data, element_data, queue->element_size);
+    new_node->next = NULL; // æ–°èŠ‚ç‚¹æ€»æ˜¯è¢«åŠ åœ¨é˜Ÿå°¾ï¼Œæ‰€ä»¥å®ƒçš„nextæ°¸è¿œæ˜¯NULLã€‚
+
+    // æ­¥éª¤ 5: [æ ¸å¿ƒé€»è¾‘] å°†æ–°èŠ‚ç‚¹é“¾æŽ¥åˆ°é˜Ÿåˆ—å°¾éƒ¨ã€‚
+    if (queue_is_empty(queue)) {
+        // --- å¤„ç†ç‰¹æ®Šæƒ…å†µï¼šè¿™æ˜¯é˜Ÿåˆ—çš„ç¬¬ä¸€ä¸ªå…ƒç´  ---
+        // æ¡ˆä¾‹ 2: é˜Ÿåˆ—ä¸ºç©ºï¼Œfrontå’Œrearéƒ½ä¸ºNULLã€‚
+        // front -> NULL
+        // rear  -> NULL
+        // new_node -> [A|next=NULL]
+        // è®© front å’Œ rear åŒæ—¶æŒ‡å‘è¿™ä¸ªæ–°èŠ‚ç‚¹ã€‚
+        // front -> [A] <- rear
+        queue->front = new_node;
+        queue->rear = new_node;
+    }
+    else {
+        // --- å¤„ç†å¸¸è§„æƒ…å†µï¼šé˜Ÿåˆ—éžç©º ---
+        // æ¡ˆä¾‹ 1: é˜Ÿåˆ—ä¸º A -> Bã€‚
+        // rear æŒ‡å‘èŠ‚ç‚¹B: [B|next=NULL]
+        // new_node: [C|next=NULL]
+        // å…³é”®ä¸€æ­¥: è®©å½“å‰é˜Ÿå°¾èŠ‚ç‚¹(B)çš„nextæŒ‡é’ˆæŒ‡å‘æ–°èŠ‚ç‚¹(C)ã€‚
+        // é“¾æŽ¥åŽ: [B|next=ptr_to_C] -> [C|next=NULL]
+        queue->rear->next = new_node;
+        // ç„¶åŽï¼Œæ›´æ–°rearæŒ‡é’ˆï¼Œè®©å®ƒæŒ‡å‘æ–°çš„é˜Ÿå°¾èŠ‚ç‚¹(C)ã€‚
+        // A -> B -> [C] <- rear
+        queue->rear = new_node;
+    }
+
+    // æ­¥éª¤ 6: æ›´æ–°é˜Ÿåˆ—å¤§å°ã€‚
+    queue->size++;
+    return true;
+}
+
+bool queue_dequeue(Queue* queue, void* output_buffer) {
+    /*
+     * å‡½æ•°åŠŸèƒ½: [å·¥ä¸šçº§] ä»Žé“¾è¡¨é˜Ÿå¤´ç§»é™¤ä¸€ä¸ªå…ƒç´ ã€‚
+     * æ•™å­¦æ¡ˆä¾‹ 1 (å¸¸è§„æƒ…å†µ): é˜Ÿåˆ—ä¸º A -> B -> Cã€‚
+     * front -> [A] -> [B] -> [C] <- rear
+     * æˆ‘ä»¬è¦å‡ºé˜Ÿå…ƒç´  'A'ã€‚
+     *
+     * æ•™å­¦æ¡ˆä¾‹ 2 (ç‰¹æ®Šæƒ…å†µ): é˜Ÿåˆ—ä¸­åªæœ‰ä¸€ä¸ªå…ƒç´ ã€‚
+     * front -> [A] <- rear
+     * æˆ‘ä»¬è¦å‡ºé˜Ÿå…ƒç´  'A'ã€‚
+    */
+
+    // æ­¥éª¤ 1: [é˜²å¾¡æ€§ç¼–ç¨‹] æ£€æŸ¥æŒ‡é’ˆæœ‰æ•ˆæ€§åŠé˜Ÿåˆ—æ˜¯å¦ä¸ºç©ºã€‚
+    if (queue_is_empty(queue) || !output_buffer) {
+        return false;
+    }
+
+    // æ­¥éª¤ 2: åˆ›å»ºä¸€ä¸ªä¸´æ—¶æŒ‡é’ˆï¼ŒæŒ‡å‘å³å°†è¢«ç§»é™¤çš„é˜Ÿå¤´èŠ‚ç‚¹ã€‚
+    // æ¡ˆä¾‹ 1 & 2: temp -> [A]
+    Node* temp = queue->front;
+
+    // æ­¥éª¤ 3: æ‹·è´é˜Ÿå¤´èŠ‚ç‚¹çš„æ•°æ®åˆ°ç”¨æˆ·çš„ç¼“å†²åŒºã€‚
+    memcpy(output_buffer, temp->data, queue->element_size);
+
+    // æ­¥éª¤ 4: [æ ¸å¿ƒé€»è¾‘] æ›´æ–°frontæŒ‡é’ˆï¼Œä½¿å…¶æŒ‡å‘ä¸‹ä¸€ä¸ªèŠ‚ç‚¹ã€‚
+    // æ¡ˆä¾‹ 1: åŽŸfrontæŒ‡å‘Aï¼ŒAçš„nextæŒ‡å‘Bã€‚
+    //      æ–°front = temp->nextï¼Œæ‰€ä»¥æ–°frontæŒ‡å‘äº†èŠ‚ç‚¹Bã€‚
+    //      é€»è¾‘ä¸Šé˜Ÿåˆ—å˜ä¸º: front -> [B] -> [C] <- rear
+    queue->front = temp->next;
+
+    // æ­¥éª¤ 5: [å¤„ç†ç‰¹æ®Šæƒ…å†µ] å¦‚æžœæ›´æ–°åŽçš„frontä¸ºNULLï¼Œè¯´æ˜Žé˜Ÿåˆ—å˜ç©ºäº†ã€‚
+    // æ¡ˆä¾‹ 2: åŽŸé˜Ÿåˆ—åªæœ‰ä¸€ä¸ªå…ƒç´ Aï¼ŒAçš„nextæ˜¯NULLã€‚
+    //      æ‰§è¡Œæ­¥éª¤4åŽï¼Œqueue->frontå˜ä¸ºNULLã€‚
+    //      è¿™è¡¨ç¤ºé˜Ÿåˆ—ä¸­å·²æ— ä»»ä½•å…ƒç´ ï¼Œæ­¤æ—¶å¿…é¡»åŒæ—¶æ›´æ–°rearæŒ‡é’ˆä¹Ÿä¸ºNULLï¼Œ
+    //      ä»¥ä¿æŒé˜Ÿåˆ—çŠ¶æ€çš„ä¸€è‡´æ€§ã€‚
+    if (queue->front == NULL) {
+        queue->rear = NULL;
+    }
+
+    // æ­¥éª¤ 6: é‡Šæ”¾è¢«ç§»é™¤èŠ‚ç‚¹çš„å†…å­˜ï¼ˆæ•°æ®åŒºå’ŒèŠ‚ç‚¹æœ¬èº«ï¼‰ã€‚
+    // æ¡ˆä¾‹ 1 & 2: é‡Šæ”¾ temp æŒ‡å‘çš„èŠ‚ç‚¹Açš„æ•°æ®åŒºå’ŒèŠ‚ç‚¹Aæœ¬èº«ã€‚
+    free(temp->data);
+    free(temp);
+
+    // æ­¥éª¤ 7: æ›´æ–°é˜Ÿåˆ—å¤§å°ã€‚
+    queue->size--;
+    return true;
+}
+
+bool queue_peek(const Queue* queue, void* output_buffer) {
+    if (queue_is_empty(queue) || !output_buffer) {
+        return false;
+    }
+    // Peekæ“ä½œéžå¸¸ç®€å•ï¼šåªæ‹·è´é˜Ÿå¤´çš„æ•°æ®ï¼Œä¸è¿›è¡Œä»»ä½•ä¿®æ”¹ã€‚
+    memcpy(output_buffer, queue->front->data, queue->element_size);
+    return true;
+}
+
+bool queue_is_empty(const Queue* queue) {
+    if (!queue) return true;
+    return queue->size == 0; // æˆ–è€…åˆ¤æ–­ queue->front == NULL
+}
+
+size_t queue_get_size(const Queue* queue) {
+    if (!queue) return 0;
+    return queue->size;
 }

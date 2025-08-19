@@ -1,73 +1,73 @@
-// binary_search_tree.h
-#pragma once
-
-#include <stddef.h>
-#include <stdbool.h>
-
-// --- Opaque Pointer and Function Pointer Type Definitions ---
-
-typedef struct BST BST;
-
-/**
- * ±È½Ïº¯ÊıÖ¸ÕëÀàĞÍ¡£
- * @param a Ö¸ÏòµÚÒ»¸öÔªËØµÄÖ¸Õë¡£
- * @param b Ö¸ÏòµÚ¶ş¸öÔªËØµÄÖ¸Õë¡£
- * @return > 0 Èç¹û a > b¡£
- * @return < 0 Èç¹û a < b¡£
- * @return 0   Èç¹û a == b¡£
- */
-typedef int (*CompareFunc)(const void* a, const void* b);
-
-/**
- * ·ÃÎÊº¯ÊıÖ¸ÕëÀàĞÍ£¬ÓÃÓÚ±éÀú¡£
- * @param data Ö¸Ïò½ÚµãÊı¾İµÄÖ¸Õë¡£
- */
-typedef void (*VisitFunc)(const void* data);
-
-// ±éÀúË³ĞòµÄÃ¶¾Ù
-typedef enum {
-    IN_ORDER,   // ÖĞĞò±éÀú (LNR -> ½á¹ûÓĞĞò)
-    PRE_ORDER,  // Ç°Ğò±éÀú (NLR)
-    POST_ORDER  // ºóĞò±éÀú (LRN)
-} TraverseOrder;
-
-
-// --- Public API Prototypes ---
-
-/**
- * @brief ´´½¨Ò»¸öĞÂµÄ·ºĞÍ¶ş²æËÑË÷Ê÷¡£
- *
- * @param element_size Ã¿¸öÔªËØµÄ´óĞ¡£¨×Ö½Ú£©¡£
- * @param compare_func ÓÃÓÚ±È½ÏÔªËØµÄº¯ÊıÖ¸Õë£¬ÕâÊÇBSTµÄºËĞÄ¡£
- * @return ³É¹¦Ê±·µ»ØÖ¸ÏòĞÂÊ÷µÄÖ¸Õë£¬Ê§°Ü·µ»Ø NULL¡£
- */
-BST* bst_create(size_t element_size, CompareFunc compare_func);
-
-/**
- * @brief Ïú»ÙÒ»¸ö¶ş²æËÑË÷Ê÷²¢ÊÍ·ÅËùÓĞ½ÚµãºÍÄÚ´æ¡£
- */
-void bst_destroy(BST** p_bst);
-
-/**
- * @brief ÔÚÊ÷ÖĞ²åÈëÒ»¸öĞÂÔªËØ¡£
- * Èç¹ûÔªËØÒÑ´æÔÚ£¬Ôò²»½øĞĞÈÎºÎ²Ù×÷¡£
- */
-bool bst_insert(BST* bst, const void* element_data);
-
-/**
- * @brief ´ÓÊ÷ÖĞÒÆ³ıÒ»¸öÔªËØ¡£
- */
-bool bst_remove(BST* bst, const void* element_data);
-
-/**
- * @brief ¼ì²éÒ»¸öÔªËØÊÇ·ñ´æÔÚÓÚÊ÷ÖĞ¡£
- */
-bool bst_search(const BST* bst, const void* key);
-
-/**
- * @brief °´ÕÕÖ¸¶¨µÄË³Ğò±éÀúÊ÷£¬²¢¶ÔÃ¿¸ö½ÚµãÖ´ĞĞ·ÃÎÊº¯Êı¡£
- */
-void bst_traverse(const BST* bst, TraverseOrder order, VisitFunc visit_func);
-
-bool bst_is_empty(const BST* bst);
-size_t bst_get_size(const BST* bst);
+// binary_search_tree.h
+#pragma once
+
+#include <stddef.h>
+#include <stdbool.h>
+
+// --- Opaque Pointer and Function Pointer Type Definitions ---
+
+typedef struct BST BST;
+
+/**
+ * æ¯”è¾ƒå‡½æ•°æŒ‡é’ˆç±»å‹ã€‚
+ * @param a æŒ‡å‘ç¬¬ä¸€ä¸ªå…ƒç´ çš„æŒ‡é’ˆã€‚
+ * @param b æŒ‡å‘ç¬¬äºŒä¸ªå…ƒç´ çš„æŒ‡é’ˆã€‚
+ * @return > 0 å¦‚æœ a > bã€‚
+ * @return < 0 å¦‚æœ a < bã€‚
+ * @return 0   å¦‚æœ a == bã€‚
+ */
+typedef int (*CompareFunc)(const void* a, const void* b);
+
+/**
+ * è®¿é—®å‡½æ•°æŒ‡é’ˆç±»å‹ï¼Œç”¨äºéå†ã€‚
+ * @param data æŒ‡å‘èŠ‚ç‚¹æ•°æ®çš„æŒ‡é’ˆã€‚
+ */
+typedef void (*VisitFunc)(const void* data);
+
+// éå†é¡ºåºçš„æšä¸¾
+typedef enum {
+    IN_ORDER,   // ä¸­åºéå† (LNR -> ç»“æœæœ‰åº)
+    PRE_ORDER,  // å‰åºéå† (NLR)
+    POST_ORDER  // ååºéå† (LRN)
+} TraverseOrder;
+
+
+// --- Public API Prototypes ---
+
+/**
+ * @brief åˆ›å»ºä¸€ä¸ªæ–°çš„æ³›å‹äºŒå‰æœç´¢æ ‘ã€‚
+ *
+ * @param element_size æ¯ä¸ªå…ƒç´ çš„å¤§å°ï¼ˆå­—èŠ‚ï¼‰ã€‚
+ * @param compare_func ç”¨äºæ¯”è¾ƒå…ƒç´ çš„å‡½æ•°æŒ‡é’ˆï¼Œè¿™æ˜¯BSTçš„æ ¸å¿ƒã€‚
+ * @return æˆåŠŸæ—¶è¿”å›æŒ‡å‘æ–°æ ‘çš„æŒ‡é’ˆï¼Œå¤±è´¥è¿”å› NULLã€‚
+ */
+BST* bst_create(size_t element_size, CompareFunc compare_func);
+
+/**
+ * @brief é”€æ¯ä¸€ä¸ªäºŒå‰æœç´¢æ ‘å¹¶é‡Šæ”¾æ‰€æœ‰èŠ‚ç‚¹å’Œå†…å­˜ã€‚
+ */
+void bst_destroy(BST** p_bst);
+
+/**
+ * @brief åœ¨æ ‘ä¸­æ’å…¥ä¸€ä¸ªæ–°å…ƒç´ ã€‚
+ * å¦‚æœå…ƒç´ å·²å­˜åœ¨ï¼Œåˆ™ä¸è¿›è¡Œä»»ä½•æ“ä½œã€‚
+ */
+bool bst_insert(BST* bst, const void* element_data);
+
+/**
+ * @brief ä»æ ‘ä¸­ç§»é™¤ä¸€ä¸ªå…ƒç´ ã€‚
+ */
+bool bst_remove(BST* bst, const void* element_data);
+
+/**
+ * @brief æ£€æŸ¥ä¸€ä¸ªå…ƒç´ æ˜¯å¦å­˜åœ¨äºæ ‘ä¸­ã€‚
+ */
+bool bst_search(const BST* bst, const void* key);
+
+/**
+ * @brief æŒ‰ç…§æŒ‡å®šçš„é¡ºåºéå†æ ‘ï¼Œå¹¶å¯¹æ¯ä¸ªèŠ‚ç‚¹æ‰§è¡Œè®¿é—®å‡½æ•°ã€‚
+ */
+void bst_traverse(const BST* bst, TraverseOrder order, VisitFunc visit_func);
+
+bool bst_is_empty(const BST* bst);
+size_t bst_get_size(const BST* bst);

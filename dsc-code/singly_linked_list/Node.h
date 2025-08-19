@@ -1,62 +1,62 @@
-#pragma once
-#include <stddef.h>
-
-typedef struct {
-	int id;
-	char name[50];
-	int age;
-} Student;
-
-
-typedef Student Data;
-
-
-typedef struct {
-	Data data;
-	// Ò»¶¨µÃÊÇÒ»¸öÇ¶Ì×µÄ½á¹¹Ìå
-	struct Node* next;
-} Node;
-
-Node* createNode(Data data);
-
-// appendNode£¬µ±Á´±íÎª¿ÕµÄÊ±ºò£¬Head ÊÇNULLÊ±ºò£¬appendnodeĞèÒª½«headÖ¸ÏòĞÂ´´½¨µÄ½Úµã¡£
-// ÕâÉæ¼°µÄÊÇheadÖ¸Õë±¾Éí
-void appendNode(Node** headRef, Data data);
-
-void prependNode(Node** headRef, Data data);
-
-void printList(Node* head, void (*print_func)(const void* data));
-
-// Õâ¸öº¯ÊıÖ´ĞĞÍê±ÏÖ®ºó£¬»á·µ»ØÒ»¸öÖ¸ÏòNode½á¹¹ÌåµÄÖ¸Õë¡£ Node*
-// ·ºĞÍ
-// µÚÈı¸ö²ÎÊı£¬ÒâÎ¶×Å£¬µÚÈı¸ö²ÎÊı´«µİ¹ıÀ´µÄÊÇÒ»¸öº¯ÊıµÄµØÖ·£¬Õâ¸öº¯Êı±ØĞëÂú×ã 1. ·µ»ØintÀàĞÍ 
-// 2. Õâ¸öº¯Êı±ØĞë½ÓÊÜÁ½¸öconst void*ÀàĞÍµÄ²ÎÊı
-// node->data
-// ¿É±ä²ÎÊı printf(%D);
-// µ÷ÓÃÆõÔ¼
-// 1. ËüÕıÔÚ±éÀúµÄÊÇµ±Ç°½ÚµãµÄÊı¾İ
-// 2. ÄãÒ»¿ªÊ¼´«µİ¸øËüµÄÄ¿±êÊı¾İ
-// context pointer ÉÏÏÂÎÄÖ¸Õë
-Node* findNode(
-	Node* head,
-	const void* target_data,
-	int (*compare_func) (const void* a, const void* b, void* context),
-	void* context
-);
-
-void deleteNode(
-	Node** headRef,
-	const void* target_data,
-	int (*compare_func) (const void* a, const void* b, void* context),
-	void* context
-);
-
-void updateNode(
-	Node** headRef,
-	const void* target_data,
-	Data newData,
-	int (*compare_func) (const void* a, const void* b, void* context),
-	void* context
-);
-
-void freeList(Node** headRef, void (*free_data_func)(void* data));
+#pragma once
+#include <stddef.h>
+
+typedef struct {
+	int id;
+	char name[50];
+	int age;
+} Student;
+
+
+typedef Student Data;
+
+
+typedef struct {
+	Data data;
+	// ä¸€å®šå¾—æ˜¯ä¸€ä¸ªåµŒå¥—çš„ç»“æ„ä½“
+	struct Node* next;
+} Node;
+
+Node* createNode(Data data);
+
+// appendNodeï¼Œå½“é“¾è¡¨ä¸ºç©ºçš„æ—¶å€™ï¼ŒHead æ˜¯NULLæ—¶å€™ï¼Œappendnodeéœ€è¦å°†headæŒ‡å‘æ–°åˆ›å»ºçš„èŠ‚ç‚¹ã€‚
+// è¿™æ¶‰åŠçš„æ˜¯headæŒ‡é’ˆæœ¬èº«
+void appendNode(Node** headRef, Data data);
+
+void prependNode(Node** headRef, Data data);
+
+void printList(Node* head, void (*print_func)(const void* data));
+
+// è¿™ä¸ªå‡½æ•°æ‰§è¡Œå®Œæ¯•ä¹‹åï¼Œä¼šè¿”å›ä¸€ä¸ªæŒ‡å‘Nodeç»“æ„ä½“çš„æŒ‡é’ˆã€‚ Node*
+// æ³›å‹
+// ç¬¬ä¸‰ä¸ªå‚æ•°ï¼Œæ„å‘³ç€ï¼Œç¬¬ä¸‰ä¸ªå‚æ•°ä¼ é€’è¿‡æ¥çš„æ˜¯ä¸€ä¸ªå‡½æ•°çš„åœ°å€ï¼Œè¿™ä¸ªå‡½æ•°å¿…é¡»æ»¡è¶³ 1. è¿”å›intç±»å‹ 
+// 2. è¿™ä¸ªå‡½æ•°å¿…é¡»æ¥å—ä¸¤ä¸ªconst void*ç±»å‹çš„å‚æ•°
+// node->data
+// å¯å˜å‚æ•° printf(%D);
+// è°ƒç”¨å¥‘çº¦
+// 1. å®ƒæ­£åœ¨éå†çš„æ˜¯å½“å‰èŠ‚ç‚¹çš„æ•°æ®
+// 2. ä½ ä¸€å¼€å§‹ä¼ é€’ç»™å®ƒçš„ç›®æ ‡æ•°æ®
+// context pointer ä¸Šä¸‹æ–‡æŒ‡é’ˆ
+Node* findNode(
+	Node* head,
+	const void* target_data,
+	int (*compare_func) (const void* a, const void* b, void* context),
+	void* context
+);
+
+void deleteNode(
+	Node** headRef,
+	const void* target_data,
+	int (*compare_func) (const void* a, const void* b, void* context),
+	void* context
+);
+
+void updateNode(
+	Node** headRef,
+	const void* target_data,
+	Data newData,
+	int (*compare_func) (const void* a, const void* b, void* context),
+	void* context
+);
+
+void freeList(Node** headRef, void (*free_data_func)(void* data));

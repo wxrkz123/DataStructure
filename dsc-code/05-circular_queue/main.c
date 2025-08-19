@@ -1,83 +1,83 @@
-#include "generic_circular_queue.h"
-#include <stdio.h>
-
-// ¸¨Öúº¯Êı£¬ÓÃÓÚ´òÓ¡¶ÓÁĞµÄÏêÏ¸ÄÚ²¿×´Ì¬£¬±ãÓÚ½ÌÑ§
-// ... (´Ë´¦Ê¡ÂÔÓëÉÏÒ»°æÍêÈ«ÏàÍ¬µÄ print_queue_status º¯Êı) ...
-void print_queue_status(const Queue* q, const char* title) {
-    printf("--- %s ---\n", title);
-    if (!q) {
-        printf("¶ÓÁĞÎª NULL\n\n");
-        return;
-    }
-    printf("ÈİÁ¿: %zu, ´óĞ¡: %zu\n", queue_get_capacity(q), queue_get_size(q));
-    printf("¿Õ? %s, Âú? %s\n", queue_is_empty(q) ? "ÊÇ" : "·ñ", queue_is_full(q) ? "ÊÇ" : "·ñ");
-    struct CircularQueue_Internal {
-        void* data; size_t capacity; size_t element_size; size_t size;
-        int front; int rear;
-    };
-    struct CircularQueue_Internal* q_internal = (struct CircularQueue_Internal*)q;
-    printf("ÄÚ²¿Ö¸Õë: front = %d, rear = %d\n\n", q_internal->front, q_internal->rear);
-}
-
-
-int main(void) {
-    // 1. ´´½¨Ò»¸öÈİÁ¿Îª5µÄÕûÊı¶ÓÁĞ
-    Queue* q = queue_create(5, sizeof(int));
-    print_queue_status(q, "1. ³õÊ¼×´Ì¬");
-
-    // 2. Èë¶Ó3¸öÔªËØ
-    for (int i = 10; i <= 30; i += 10) {
-        printf("Èë¶Ó: %d\n", i);
-        queue_enqueue(q, &i);
-    }
-    print_queue_status(q, "2. Èë¶Ó 10, 20, 30 ºó");
-
-    // 3. ³ö¶Ó2¸öÔªËØ
-    int dequeued_val;
-    for (int i = 0; i < 2; i++) {
-        if (queue_dequeue(q, &dequeued_val)) {
-            printf("³ö¶Ó: %d\n", dequeued_val);
-        }
-    }
-    print_queue_status(q, "3. ³ö¶ÓÁ½¸öÔªËØºó");
-
-    // 4. ¼ÌĞøÈë¶Ó£¬Õ¹Ê¾¡°Ñ­»·¡±ÌØĞÔ
-    struct CircularQueue_Internal {
-        void* data; size_t capacity; size_t element_size; size_t size;
-        int front; int rear;
-    };
-    printf("ÏÖÔÚ rear=%d, front=%d¡£¿Õ¼äÒÑÔÚÊı×éÇ°·½¿Õ³ö¡£\n", ((struct CircularQueue_Internal*)q)->rear, ((struct CircularQueue_Internal*)q)->front);
-    printf("¼ÌĞøÈë¶Ó 40, 50, 60 À´ÌîÂú¶ÓÁĞ...\n");
-    for (int i = 40; i <= 60; i += 10) {
-        printf("Èë¶Ó: %d\n", i);
-        queue_enqueue(q, &i);
-    }
-    print_queue_status(q, "4. Èë¶Ó 40, 50, 60 ºó (·¢ÉúÑ­»·)");
-
-    // 5. ²é¿´¶ÓÍ·
-    int peek_val;
-    if (queue_peek(q, &peek_val)) {
-        printf("²é¿´¶ÓÍ·ÔªËØ (Ó¦Îª30): %d\n\n", peek_val);
-    }
-
-    // 6. ³¢ÊÔÔÚÂú¶ÓÁĞÊ±Èë¶Ó
-    int overflow_val = 999;
-    printf("³¢ÊÔÈë¶Ó %d µ½Âú¶ÓÁĞÖĞ...\n", overflow_val);
-    if (!queue_enqueue(q, &overflow_val)) {
-        printf("Èë¶ÓÊ§°Ü£¬·ûºÏÔ¤ÆÚ¡£\n\n");
-    }
-
-    // 7. È«²¿³ö¶Ó£¬Çå¿Õ¶ÓÁĞ
-    printf("½«ËùÓĞÔªËØ³ö¶Ó:\n");
-    while (!queue_is_empty(q)) {
-        queue_dequeue(q, &dequeued_val);
-        printf("³ö¶Ó: %d\n", dequeued_val);
-    }
-    print_queue_status(q, "7. È«²¿³ö¶Óºó");
-
-    // 8. Ïú»Ù¶ÓÁĞ
-    queue_destroy(&q);
-    printf("¶ÓÁĞÒÑÏú»Ù£¬Ö¸ÕëÎª: %s\n", q == NULL ? "NULL" : "Not NULL");
-
-    return 0;
+#include "generic_circular_queue.h"
+#include <stdio.h>
+
+// è¾…åŠ©å‡½æ•°ï¼Œç”¨äºæ‰“å°é˜Ÿåˆ—çš„è¯¦ç»†å†…éƒ¨çŠ¶æ€ï¼Œä¾¿äºæ•™å­¦
+// ... (æ­¤å¤„çœç•¥ä¸ä¸Šä¸€ç‰ˆå®Œå…¨ç›¸åŒçš„ print_queue_status å‡½æ•°) ...
+void print_queue_status(const Queue* q, const char* title) {
+    printf("--- %s ---\n", title);
+    if (!q) {
+        printf("é˜Ÿåˆ—ä¸º NULL\n\n");
+        return;
+    }
+    printf("å®¹é‡: %zu, å¤§å°: %zu\n", queue_get_capacity(q), queue_get_size(q));
+    printf("ç©º? %s, æ»¡? %s\n", queue_is_empty(q) ? "æ˜¯" : "å¦", queue_is_full(q) ? "æ˜¯" : "å¦");
+    struct CircularQueue_Internal {
+        void* data; size_t capacity; size_t element_size; size_t size;
+        int front; int rear;
+    };
+    struct CircularQueue_Internal* q_internal = (struct CircularQueue_Internal*)q;
+    printf("å†…éƒ¨æŒ‡é’ˆ: front = %d, rear = %d\n\n", q_internal->front, q_internal->rear);
+}
+
+
+int main(void) {
+    // 1. åˆ›å»ºä¸€ä¸ªå®¹é‡ä¸º5çš„æ•´æ•°é˜Ÿåˆ—
+    Queue* q = queue_create(5, sizeof(int));
+    print_queue_status(q, "1. åˆå§‹çŠ¶æ€");
+
+    // 2. å…¥é˜Ÿ3ä¸ªå…ƒç´ 
+    for (int i = 10; i <= 30; i += 10) {
+        printf("å…¥é˜Ÿ: %d\n", i);
+        queue_enqueue(q, &i);
+    }
+    print_queue_status(q, "2. å…¥é˜Ÿ 10, 20, 30 å");
+
+    // 3. å‡ºé˜Ÿ2ä¸ªå…ƒç´ 
+    int dequeued_val;
+    for (int i = 0; i < 2; i++) {
+        if (queue_dequeue(q, &dequeued_val)) {
+            printf("å‡ºé˜Ÿ: %d\n", dequeued_val);
+        }
+    }
+    print_queue_status(q, "3. å‡ºé˜Ÿä¸¤ä¸ªå…ƒç´ å");
+
+    // 4. ç»§ç»­å…¥é˜Ÿï¼Œå±•ç¤ºâ€œå¾ªç¯â€ç‰¹æ€§
+    struct CircularQueue_Internal {
+        void* data; size_t capacity; size_t element_size; size_t size;
+        int front; int rear;
+    };
+    printf("ç°åœ¨ rear=%d, front=%dã€‚ç©ºé—´å·²åœ¨æ•°ç»„å‰æ–¹ç©ºå‡ºã€‚\n", ((struct CircularQueue_Internal*)q)->rear, ((struct CircularQueue_Internal*)q)->front);
+    printf("ç»§ç»­å…¥é˜Ÿ 40, 50, 60 æ¥å¡«æ»¡é˜Ÿåˆ—...\n");
+    for (int i = 40; i <= 60; i += 10) {
+        printf("å…¥é˜Ÿ: %d\n", i);
+        queue_enqueue(q, &i);
+    }
+    print_queue_status(q, "4. å…¥é˜Ÿ 40, 50, 60 å (å‘ç”Ÿå¾ªç¯)");
+
+    // 5. æŸ¥çœ‹é˜Ÿå¤´
+    int peek_val;
+    if (queue_peek(q, &peek_val)) {
+        printf("æŸ¥çœ‹é˜Ÿå¤´å…ƒç´  (åº”ä¸º30): %d\n\n", peek_val);
+    }
+
+    // 6. å°è¯•åœ¨æ»¡é˜Ÿåˆ—æ—¶å…¥é˜Ÿ
+    int overflow_val = 999;
+    printf("å°è¯•å…¥é˜Ÿ %d åˆ°æ»¡é˜Ÿåˆ—ä¸­...\n", overflow_val);
+    if (!queue_enqueue(q, &overflow_val)) {
+        printf("å…¥é˜Ÿå¤±è´¥ï¼Œç¬¦åˆé¢„æœŸã€‚\n\n");
+    }
+
+    // 7. å…¨éƒ¨å‡ºé˜Ÿï¼Œæ¸…ç©ºé˜Ÿåˆ—
+    printf("å°†æ‰€æœ‰å…ƒç´ å‡ºé˜Ÿ:\n");
+    while (!queue_is_empty(q)) {
+        queue_dequeue(q, &dequeued_val);
+        printf("å‡ºé˜Ÿ: %d\n", dequeued_val);
+    }
+    print_queue_status(q, "7. å…¨éƒ¨å‡ºé˜Ÿå");
+
+    // 8. é”€æ¯é˜Ÿåˆ—
+    queue_destroy(&q);
+    printf("é˜Ÿåˆ—å·²é”€æ¯ï¼ŒæŒ‡é’ˆä¸º: %s\n", q == NULL ? "NULL" : "Not NULL");
+
+    return 0;
 }

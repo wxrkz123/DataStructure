@@ -1,145 +1,145 @@
-#define _CRT_SECURE_NO_WARNINGS
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include "trie.h"
-
-// --- ×Ô¶¨ÒåÊı¾İ½á¹¹ ---
-// ÎªÁË²âÊÔ·ºĞÍTrie£¬ÎÒÃÇ¶¨ÒåÒ»¸öPerson½á¹¹ÌåÀ´×÷Îª´æ´¢µÄÖµ¡£
-typedef struct {
-    char* name;
-    int age;
-} Person;
-
-// --- ×Ô¶¨ÒåÖµµÄ´´½¨ºÍÏú»Ùº¯Êı ---
-
-/**
- * @brief ´´½¨Ò»¸öĞÂµÄPersonÊµÀı£¨¸¨Öúº¯Êı£©¡£
- */
-Person* Person_Create(const char* name, int age) {
-    Person* p = (Person*)malloc(sizeof(Person));
-    if (!p) return NULL;
-    // ÎªÃû×Ö·ÖÅäÄÚ´æ²¢¿½±´
-    p->name = (char*)malloc(strlen(name) + 1);
-    if (!p->name) {
-        free(p);
-        return NULL;
-    }
-    strcpy(p->name, name);
-    p->age = age;
-    return p;
-}
-
-/**
- * @brief ÓÃÓÚTrieµÄValueDestroyer£¬¸ºÔğÊÍ·ÅPerson½á¹¹ÌåµÄÄÚ´æ¡£
- * @param value Ò»¸övoid*Ö¸Õë£¬Ö¸ÏòÒ»¸öPerson½á¹¹Ìå¡£
- */
-void Person_Destroy(void* value) {
-    if (!value) return;
-    Person* p = (Person*)value;
-    printf("  (Destroying value for Person: %s)\n", p->name);
-    free(p->name); // ÊÍ·ÅÄÚ²¿µÄ×Ö·û´®
-    free(p);       // ÊÍ·Å½á¹¹Ìå±¾Éí
-}
-
-
-/**
- * @brief ´òÓ¡ËÑË÷½á¹ûµÄ¸¨Öúº¯Êı¡£
- */
-void print_search_result(const Trie* trie, const char* key) {
-    Person* p = (Person*)Trie_Search(trie, key);
-    if (p) {
-        printf("Search for '%s': FOUND. Value -> { Name: %s, Age: %d }\n", key, p->name, p->age);
-    }
-    else {
-        printf("Search for '%s': NOT FOUND.\n", key);
-    }
-}
-
-
-int main(void) {
-    printf("--- Trie Test Suite ---\n\n");
-
-    // 1. ´´½¨Trie£¬²¢´«ÈëPersonµÄÎö¹¹º¯Êı
-    printf("1. Creating Trie with a custom value destroyer...\n");
-    Trie* trie = Trie_Create(Person_Destroy);
-    if (!trie) {
-        fprintf(stderr, "Failed to create Trie.\n");
-        return 1;
-    }
-    printf("Trie created successfully.\n\n");
-
-    // 2. ²åÈëÊı¾İ
-    printf("2. Testing Trie_Insert...\n");
-    // ×¢Òâ£ºTrie»á½Ó¹ÜÕâĞ©PersonÖ¸ÕëµÄÄÚ´æ¹ÜÀí£¬ÎÒÃÇ²»ĞèÒªÔÚmainÖĞÊÖ¶¯ÊÍ·ÅËüÃÇ
-    Trie_Insert(trie, "apple", Person_Create("iPhone", 15));
-    Trie_Insert(trie, "app", Person_Create("AppStore", 16));
-    Trie_Insert(trie, "application", Person_Create("GenericApp", 5));
-    Trie_Insert(trie, "banana", Person_Create("Fruit", 2));
-    Trie_Insert(trie, "band", Person_Create("MusicGroup", 10));
-    printf("Finished inserting keys: 'apple', 'app', 'application', 'banana', 'band'.\n\n");
-
-    // 3. ËÑË÷²âÊÔ
-    printf("3. Testing Trie_Search...\n");
-    print_search_result(trie, "apple");
-    print_search_result(trie, "app");
-    print_search_result(trie, "application");
-    print_search_result(trie, "banana");
-    print_search_result(trie, "band");
-    print_search_result(trie, "ban");    // ²»´æÔÚµÄ¼ü
-    print_search_result(trie, "apples");  // ²»´æÔÚµÄ¼ü
-    printf("\n");
-
-    // 4. Ç°×º²âÊÔ
-    printf("4. Testing Trie_StartsWith...\n");
-    printf("Prefix 'app': %s\n", Trie_StartsWith(trie, "app") ? "true" : "false");
-    printf("Prefix 'ban': %s\n", Trie_StartsWith(trie, "ban") ? "true" : "false");
-    printf("Prefix 'bana': %s\n", Trie_StartsWith(trie, "bana") ? "true" : "false");
-    printf("Prefix 'cat': %s\n", Trie_StartsWith(trie, "cat") ? "false" : "false");
-    printf("Prefix 'application': %s\n", Trie_StartsWith(trie, "application") ? "true" : "false");
-    printf("\n");
-
-    // 5. É¾³ı²âÊÔ
-    printf("5. Testing Trie_Delete...\n");
-
-    // ³¡¾°A: É¾³ıÒ»¸ö×÷ÎªÆäËû¼üÇ°×ºµÄ¼ü ("app")
-    // Ô¤ÆÚ£º'app'µÄvalue±äÎªNULL£¬µ«½Úµã±£Áô£¬ÒòÎª'apple'ºÍ'application'ĞèÒªËü¡£
-    printf("\n--- Deleting 'app' (is a prefix of others) ---\n");
-    Trie_Delete(trie, "app");
-    print_search_result(trie, "app"); // Ó¦¸ÃÕÒ²»µ½ÁË
-    print_search_result(trie, "apple"); // Ó¦¸Ã»¹ÔÚ
-    printf("Prefix 'app' after deleting key 'app': %s\n", Trie_StartsWith(trie, "app") ? "true" : "false"); // Ç°×ºÓ¦¸Ã»¹´æÔÚ
-
-    // ³¡¾°B: É¾³ıÒ»¸öÒ¶×Ó¼ü ("banana")
-    // Ô¤ÆÚ£º'banana'±»É¾³ı£¬²¢ÇÒ'nana'Â·¾¶µÄ½Úµã±»ÎïÀíÒÆ³ı¡£
-    printf("\n--- Deleting 'banana' (is a leaf path) ---\n");
-    Trie_Delete(trie, "banana");
-    print_search_result(trie, "banana"); // Ó¦¸ÃÕÒ²»µ½ÁË
-    print_search_result(trie, "band");   // Ó¦¸Ã»¹ÔÚ
-    printf("Prefix 'bana' after deleting key 'banana': %s\n", Trie_StartsWith(trie, "bana") ? "false" : "false"); // Ç°×ºÓ¦¸Ã²»´æÔÚÁË
-    printf("Prefix 'ban' after deleting key 'banana': %s\n", Trie_StartsWith(trie, "ban") ? "true" : "false");   // µ«'ban'Ç°×ºÓ¦Òò'band'¶ø´æÔÚ
-
-    // ³¡¾°C: É¾³ıÒ»¸ö²»´æÔÚµÄ¼ü
-    printf("\n--- Deleting 'zebra' (non-existent) ---\n");
-    Trie_Delete(trie, "zebra");
-    printf("Attempted to delete a non-existent key. Let's check if others are intact.\n");
-    print_search_result(trie, "apple"); // Ó¦¸Ã»¹ÔÚ
-    print_search_result(trie, "band");  // Ó¦¸Ã»¹ÔÚ
-
-    // ³¡¾°D: É¾³ı×îºóÒ»¸öÒÀÀµÓÚÄ³¸öÇ°×ºµÄ¼ü
-    printf("\n--- Deleting 'application' ---\n");
-    Trie_Delete(trie, "application");
-    print_search_result(trie, "application");
-    printf("Prefix 'appli' after deleting key 'application': %s\n", Trie_StartsWith(trie, "appli") ? "false" : "false"); // Ç°×ºÓ¦¸Ã²»´æÔÚÁË
-
-    printf("\n");
-
-    // 6. Ïú»ÙTrie
-    printf("6. Testing Trie_Destroy...\n");
-    printf("Calling Trie_Destroy. The custom destroyer should be called for remaining values ('apple', 'band').\n");
-    Trie_Destroy(trie);
-    printf("Trie destroyed.\n\n");
-
-    printf("--- Test Suite Finished ---\n");
-    return 0;
+#define _CRT_SECURE_NO_WARNINGS
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "trie.h"
+
+// --- è‡ªå®šä¹‰æ•°æ®ç»“æ„ ---
+// ä¸ºäº†æµ‹è¯•æ³›å‹Trieï¼Œæˆ‘ä»¬å®šä¹‰ä¸€ä¸ªPersonç»“æ„ä½“æ¥ä½œä¸ºå­˜å‚¨çš„å€¼ã€‚
+typedef struct {
+    char* name;
+    int age;
+} Person;
+
+// --- è‡ªå®šä¹‰å€¼çš„åˆ›å»ºå’Œé”€æ¯å‡½æ•° ---
+
+/**
+ * @brief åˆ›å»ºä¸€ä¸ªæ–°çš„Personå®ä¾‹ï¼ˆè¾…åŠ©å‡½æ•°ï¼‰ã€‚
+ */
+Person* Person_Create(const char* name, int age) {
+    Person* p = (Person*)malloc(sizeof(Person));
+    if (!p) return NULL;
+    // ä¸ºåå­—åˆ†é…å†…å­˜å¹¶æ‹·è´
+    p->name = (char*)malloc(strlen(name) + 1);
+    if (!p->name) {
+        free(p);
+        return NULL;
+    }
+    strcpy(p->name, name);
+    p->age = age;
+    return p;
+}
+
+/**
+ * @brief ç”¨äºTrieçš„ValueDestroyerï¼Œè´Ÿè´£é‡Šæ”¾Personç»“æ„ä½“çš„å†…å­˜ã€‚
+ * @param value ä¸€ä¸ªvoid*æŒ‡é’ˆï¼ŒæŒ‡å‘ä¸€ä¸ªPersonç»“æ„ä½“ã€‚
+ */
+void Person_Destroy(void* value) {
+    if (!value) return;
+    Person* p = (Person*)value;
+    printf("  (Destroying value for Person: %s)\n", p->name);
+    free(p->name); // é‡Šæ”¾å†…éƒ¨çš„å­—ç¬¦ä¸²
+    free(p);       // é‡Šæ”¾ç»“æ„ä½“æœ¬èº«
+}
+
+
+/**
+ * @brief æ‰“å°æœç´¢ç»“æœçš„è¾…åŠ©å‡½æ•°ã€‚
+ */
+void print_search_result(const Trie* trie, const char* key) {
+    Person* p = (Person*)Trie_Search(trie, key);
+    if (p) {
+        printf("Search for '%s': FOUND. Value -> { Name: %s, Age: %d }\n", key, p->name, p->age);
+    }
+    else {
+        printf("Search for '%s': NOT FOUND.\n", key);
+    }
+}
+
+
+int main(void) {
+    printf("--- Trie Test Suite ---\n\n");
+
+    // 1. åˆ›å»ºTrieï¼Œå¹¶ä¼ å…¥Personçš„ææ„å‡½æ•°
+    printf("1. Creating Trie with a custom value destroyer...\n");
+    Trie* trie = Trie_Create(Person_Destroy);
+    if (!trie) {
+        fprintf(stderr, "Failed to create Trie.\n");
+        return 1;
+    }
+    printf("Trie created successfully.\n\n");
+
+    // 2. æ’å…¥æ•°æ®
+    printf("2. Testing Trie_Insert...\n");
+    // æ³¨æ„ï¼šTrieä¼šæ¥ç®¡è¿™äº›PersonæŒ‡é’ˆçš„å†…å­˜ç®¡ç†ï¼Œæˆ‘ä»¬ä¸éœ€è¦åœ¨mainä¸­æ‰‹åŠ¨é‡Šæ”¾å®ƒä»¬
+    Trie_Insert(trie, "apple", Person_Create("iPhone", 15));
+    Trie_Insert(trie, "app", Person_Create("AppStore", 16));
+    Trie_Insert(trie, "application", Person_Create("GenericApp", 5));
+    Trie_Insert(trie, "banana", Person_Create("Fruit", 2));
+    Trie_Insert(trie, "band", Person_Create("MusicGroup", 10));
+    printf("Finished inserting keys: 'apple', 'app', 'application', 'banana', 'band'.\n\n");
+
+    // 3. æœç´¢æµ‹è¯•
+    printf("3. Testing Trie_Search...\n");
+    print_search_result(trie, "apple");
+    print_search_result(trie, "app");
+    print_search_result(trie, "application");
+    print_search_result(trie, "banana");
+    print_search_result(trie, "band");
+    print_search_result(trie, "ban");    // ä¸å­˜åœ¨çš„é”®
+    print_search_result(trie, "apples");  // ä¸å­˜åœ¨çš„é”®
+    printf("\n");
+
+    // 4. å‰ç¼€æµ‹è¯•
+    printf("4. Testing Trie_StartsWith...\n");
+    printf("Prefix 'app': %s\n", Trie_StartsWith(trie, "app") ? "true" : "false");
+    printf("Prefix 'ban': %s\n", Trie_StartsWith(trie, "ban") ? "true" : "false");
+    printf("Prefix 'bana': %s\n", Trie_StartsWith(trie, "bana") ? "true" : "false");
+    printf("Prefix 'cat': %s\n", Trie_StartsWith(trie, "cat") ? "false" : "false");
+    printf("Prefix 'application': %s\n", Trie_StartsWith(trie, "application") ? "true" : "false");
+    printf("\n");
+
+    // 5. åˆ é™¤æµ‹è¯•
+    printf("5. Testing Trie_Delete...\n");
+
+    // åœºæ™¯A: åˆ é™¤ä¸€ä¸ªä½œä¸ºå…¶ä»–é”®å‰ç¼€çš„é”® ("app")
+    // é¢„æœŸï¼š'app'çš„valueå˜ä¸ºNULLï¼Œä½†èŠ‚ç‚¹ä¿ç•™ï¼Œå› ä¸º'apple'å’Œ'application'éœ€è¦å®ƒã€‚
+    printf("\n--- Deleting 'app' (is a prefix of others) ---\n");
+    Trie_Delete(trie, "app");
+    print_search_result(trie, "app"); // åº”è¯¥æ‰¾ä¸åˆ°äº†
+    print_search_result(trie, "apple"); // åº”è¯¥è¿˜åœ¨
+    printf("Prefix 'app' after deleting key 'app': %s\n", Trie_StartsWith(trie, "app") ? "true" : "false"); // å‰ç¼€åº”è¯¥è¿˜å­˜åœ¨
+
+    // åœºæ™¯B: åˆ é™¤ä¸€ä¸ªå¶å­é”® ("banana")
+    // é¢„æœŸï¼š'banana'è¢«åˆ é™¤ï¼Œå¹¶ä¸”'nana'è·¯å¾„çš„èŠ‚ç‚¹è¢«ç‰©ç†ç§»é™¤ã€‚
+    printf("\n--- Deleting 'banana' (is a leaf path) ---\n");
+    Trie_Delete(trie, "banana");
+    print_search_result(trie, "banana"); // åº”è¯¥æ‰¾ä¸åˆ°äº†
+    print_search_result(trie, "band");   // åº”è¯¥è¿˜åœ¨
+    printf("Prefix 'bana' after deleting key 'banana': %s\n", Trie_StartsWith(trie, "bana") ? "false" : "false"); // å‰ç¼€åº”è¯¥ä¸å­˜åœ¨äº†
+    printf("Prefix 'ban' after deleting key 'banana': %s\n", Trie_StartsWith(trie, "ban") ? "true" : "false");   // ä½†'ban'å‰ç¼€åº”å› 'band'è€Œå­˜åœ¨
+
+    // åœºæ™¯C: åˆ é™¤ä¸€ä¸ªä¸å­˜åœ¨çš„é”®
+    printf("\n--- Deleting 'zebra' (non-existent) ---\n");
+    Trie_Delete(trie, "zebra");
+    printf("Attempted to delete a non-existent key. Let's check if others are intact.\n");
+    print_search_result(trie, "apple"); // åº”è¯¥è¿˜åœ¨
+    print_search_result(trie, "band");  // åº”è¯¥è¿˜åœ¨
+
+    // åœºæ™¯D: åˆ é™¤æœ€åä¸€ä¸ªä¾èµ–äºæŸä¸ªå‰ç¼€çš„é”®
+    printf("\n--- Deleting 'application' ---\n");
+    Trie_Delete(trie, "application");
+    print_search_result(trie, "application");
+    printf("Prefix 'appli' after deleting key 'application': %s\n", Trie_StartsWith(trie, "appli") ? "false" : "false"); // å‰ç¼€åº”è¯¥ä¸å­˜åœ¨äº†
+
+    printf("\n");
+
+    // 6. é”€æ¯Trie
+    printf("6. Testing Trie_Destroy...\n");
+    printf("Calling Trie_Destroy. The custom destroyer should be called for remaining values ('apple', 'band').\n");
+    Trie_Destroy(trie);
+    printf("Trie destroyed.\n\n");
+
+    printf("--- Test Suite Finished ---\n");
+    return 0;
 }

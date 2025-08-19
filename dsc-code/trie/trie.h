@@ -1,42 +1,42 @@
-#pragma once
-
-#include <stdbool.h>
-
-typedef struct Trie Trie;
-
-// ¶¨ÒåÒ»¸öº¯ÊıÖ¸ÕëÀàĞÍ£¬ÓÃÓÚÏú»ÙÓÃ»§×Ô¶¨ÒåµÄÖµ
-// µ±Trie±»Ïú»ÙÊ±£¬Èç¹û½ÚµãÉÏ´æÓĞÖµ£¬Trie»áµ÷ÓÃÕâ¸öº¯ÊıÀ´ÊÍ·ÅÖµµÄÄÚ´æ
-typedef void (*ValueDestroyer)(void* value);
-
-/**
- * @brief ´´½¨Ò»¸öĞÂµÄTrieÊµÀı¡£
- * @param destroyer Ò»¸öº¯ÊıÖ¸Õë£¬ÓÃÓÚÊÍ·Å´æ´¢ÔÚTrieÖĞµÄÖµ¡£Èç¹ûÖµÎª¼òµ¥ÀàĞÍ
- *                  »òÓÉÍâ²¿¹ÜÀíÄÚ´æ£¬¿ÉÒÔ´«ÈëNULL¡£
- * @return ³É¹¦Ê±·µ»ØÖ¸ÏòĞÂTrieµÄÖ¸Õë£»Ê§°Ü·µ»ØNULL¡£
- */
-Trie* Trie_Create(ValueDestroyer destroyer);
-
-void Trie_Destroy(Trie* trie);
-
-/**
- * @brief ÏòTrieÖĞ²åÈëÒ»¸ö¼üÖµ¶Ô¡£
- * @param trie Ö¸ÏòTrieÊµÀıµÄÖ¸Õë¡£
- * @param key Òª²åÈëµÄ¼ü£¨µ¥´Ê£©¡£
- * @param value Ö¸ÏòÒª´æ´¢µÄÖµµÄÖ¸Õë¡£Èç¹ûÒ»¸ö¼üÒÑ´æÔÚ£¬Æä¾ÉÖµ½«±»¸²¸Ç¡£
- *              £¨×¢Òâ£º¿â²»»á×Ô¶¯ÊÍ·Å¾ÉÖµ£¬ĞèÒªÓÃ»§×Ô¼º¹ÜÀí£©¡£
- * @return Èç¹û²åÈë³É¹¦£¬·µ»Øtrue£»·ñÔò·µ»Øfalse¡£
- */
-bool Trie_Insert(Trie* trie, const char* key, void* value);
-
-/**
- * @brief ÔÚTrieÖĞËÑË÷Ò»¸ö¼ü£¬²¢·µ»ØÆä¹ØÁªµÄÖµ¡£
- * @param trie Ö¸ÏòTrieÊµÀıµÄÖ¸Õë¡£
- * @param key ÒªËÑË÷µÄ¼ü¡£
- * @return Èç¹ûÕÒµ½¼ü£¬·µ»Ø¹ØÁªµÄÖµµÄÖ¸Õë£»·ñÔò·µ»ØNULL¡£
- */
-void* Trie_Search(const Trie* trie, const char* key);
-
-bool Trie_StartsWith(const Trie* trie, const char* prefix);
-
-void Trie_Delete(Trie* trie, const char* key);
-
+#pragma once
+
+#include <stdbool.h>
+
+typedef struct Trie Trie;
+
+// å®šä¹‰ä¸€ä¸ªå‡½æ•°æŒ‡é’ˆç±»å‹ï¼Œç”¨äºé”€æ¯ç”¨æˆ·è‡ªå®šä¹‰çš„å€¼
+// å½“Trieè¢«é”€æ¯æ—¶ï¼Œå¦‚æœèŠ‚ç‚¹ä¸Šå­˜æœ‰å€¼ï¼ŒTrieä¼šè°ƒç”¨è¿™ä¸ªå‡½æ•°æ¥é‡Šæ”¾å€¼çš„å†…å­˜
+typedef void (*ValueDestroyer)(void* value);
+
+/**
+ * @brief åˆ›å»ºä¸€ä¸ªæ–°çš„Trieå®ä¾‹ã€‚
+ * @param destroyer ä¸€ä¸ªå‡½æ•°æŒ‡é’ˆï¼Œç”¨äºé‡Šæ”¾å­˜å‚¨åœ¨Trieä¸­çš„å€¼ã€‚å¦‚æœå€¼ä¸ºç®€å•ç±»å‹
+ *                  æˆ–ç”±å¤–éƒ¨ç®¡ç†å†…å­˜ï¼Œå¯ä»¥ä¼ å…¥NULLã€‚
+ * @return æˆåŠŸæ—¶è¿”å›æŒ‡å‘æ–°Trieçš„æŒ‡é’ˆï¼›å¤±è´¥è¿”å›NULLã€‚
+ */
+Trie* Trie_Create(ValueDestroyer destroyer);
+
+void Trie_Destroy(Trie* trie);
+
+/**
+ * @brief å‘Trieä¸­æ’å…¥ä¸€ä¸ªé”®å€¼å¯¹ã€‚
+ * @param trie æŒ‡å‘Trieå®ä¾‹çš„æŒ‡é’ˆã€‚
+ * @param key è¦æ’å…¥çš„é”®ï¼ˆå•è¯ï¼‰ã€‚
+ * @param value æŒ‡å‘è¦å­˜å‚¨çš„å€¼çš„æŒ‡é’ˆã€‚å¦‚æœä¸€ä¸ªé”®å·²å­˜åœ¨ï¼Œå…¶æ—§å€¼å°†è¢«è¦†ç›–ã€‚
+ *              ï¼ˆæ³¨æ„ï¼šåº“ä¸ä¼šè‡ªåŠ¨é‡Šæ”¾æ—§å€¼ï¼Œéœ€è¦ç”¨æˆ·è‡ªå·±ç®¡ç†ï¼‰ã€‚
+ * @return å¦‚æœæ’å…¥æˆåŠŸï¼Œè¿”å›trueï¼›å¦åˆ™è¿”å›falseã€‚
+ */
+bool Trie_Insert(Trie* trie, const char* key, void* value);
+
+/**
+ * @brief åœ¨Trieä¸­æœç´¢ä¸€ä¸ªé”®ï¼Œå¹¶è¿”å›å…¶å…³è”çš„å€¼ã€‚
+ * @param trie æŒ‡å‘Trieå®ä¾‹çš„æŒ‡é’ˆã€‚
+ * @param key è¦æœç´¢çš„é”®ã€‚
+ * @return å¦‚æœæ‰¾åˆ°é”®ï¼Œè¿”å›å…³è”çš„å€¼çš„æŒ‡é’ˆï¼›å¦åˆ™è¿”å›NULLã€‚
+ */
+void* Trie_Search(const Trie* trie, const char* key);
+
+bool Trie_StartsWith(const Trie* trie, const char* prefix);
+
+void Trie_Delete(Trie* trie, const char* key);
+

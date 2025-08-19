@@ -1,68 +1,68 @@
-#pragma once
-
-#include <stddef.h>
-#include <stdbool.h>
-
-// --- Opaque Pointer Declaration ---
-// ÓÃ»§Ö»ÖªµÀÓĞ Queue Õâ¸öÀàĞÍ£¬²»ÖªµÀÆäÄÚ²¿ÊÇÁ´±í»¹ÊÇÊı×é¡£
-typedef struct LinkedQueue Queue;
-
-// --- Public API Prototypes ---
-
-/**
- * @brief ´´½¨Ò»¸öĞÂµÄ·ºĞÍÁ´Ê½¶ÓÁĞ¡£
- *
- * @param element_size Ã¿¸öÔªËØµÄ´óĞ¡£¨ÒÔ×Ö½ÚÎªµ¥Î»£©¡£
- * @return ³É¹¦Ê±·µ»ØÖ¸ÏòĞÂ¶ÓÁĞµÄÖ¸Õë£¬Ê§°Ü·µ»Ø NULL¡£
- */
-Queue* queue_create(size_t element_size);
-
-/**
- * @brief Ïú»ÙÒ»¸ö¶ÓÁĞ²¢ÊÍ·ÅÆäËùÓĞ½ÚµãºÍÏà¹ØÄÚ´æ¡£
- *
- * @param p_queue Ö¸Ïò¶ÓÁĞÖ¸ÕëµÄÖ¸Õë£¬º¯Êı»á½«ÆäÖÃÎª NULL¡£
- */
-void queue_destroy(Queue** p_queue);
-
-/**
- * @brief ½«Ò»¸öÔªËØÌí¼Óµ½¶ÓÎ²£¨Èë¶Ó£©¡£
- *
- * @param queue Ö¸ÏòÒª²Ù×÷µÄ¶ÓÁĞ¡£
- * @param element_data Ö¸ÏòÒªÈë¶ÓµÄÔªËØÊı¾İµÄÖ¸Õë¡£
- * @return ³É¹¦·µ»Ø true£¬Èç¹ûÄÚ´æ·ÖÅäÊ§°Ü»ò²ÎÊıÎŞĞ§Ôò·µ»Ø false¡£
- */
-bool queue_enqueue(Queue* queue, const void* element_data);
-
-/**
- * @brief ´Ó¶ÓÍ·ÒÆ³ıÒ»¸öÔªËØ£¨³ö¶Ó£©¡£
- *
- * @param queue Ö¸ÏòÒª²Ù×÷µÄ¶ÓÁĞ¡£
- * @param output_buffer Ö¸ÏòÓÃÓÚ½ÓÊÕ³ö¶ÓÔªËØÊı¾İµÄ»º³åÇø¡£
- * @return ³É¹¦·µ»Ø true£¬Èç¹û¶ÓÁĞÎª¿Õ»ò²ÎÊıÎŞĞ§Ôò·µ»Ø false¡£
- */
-bool queue_dequeue(Queue* queue, void* output_buffer);
-
-/**
- * @brief ²é¿´¶ÓÍ·ÔªËØ£¬µ«²»½«ÆäÒÆ³ı¡£
- *
- * @param queue Ö¸ÏòÒª²Ù×÷µÄ¶ÓÁĞ¡£
- * @param output_buffer Ö¸ÏòÓÃÓÚ½ÓÊÕ¶ÓÍ·ÔªËØÊı¾İµÄ»º³åÇø¡£
- * @return ³É¹¦·µ»Ø true£¬Èç¹û¶ÓÁĞÎª¿Õ»ò²ÎÊıÎŞĞ§Ôò·µ»Ø false¡£
- */
-bool queue_peek(const Queue* queue, void* output_buffer);
-
-/**
- * @brief ¼ì²é¶ÓÁĞÊÇ·ñÎª¿Õ¡£
- *
- * @param queue Ö¸ÏòÒª¼ì²éµÄ¶ÓÁĞ¡£
- * @return Èç¹û¶ÓÁĞÎª¿Õ·µ»Ø true£¬·ñÔò·µ»Ø false¡£
- */
-bool queue_is_empty(const Queue* queue);
-
-/**
- * @brief »ñÈ¡¶ÓÁĞÖĞµ±Ç°µÄÔªËØÊıÁ¿¡£
- *
- * @param queue Ö¸ÏòÒª²Ù×÷µÄ¶ÓÁĞ¡£
- * @return ·µ»Ø¶ÓÁĞÖĞµÄÔªËØÊıÁ¿¡£
- */
+#pragma once
+
+#include <stddef.h>
+#include <stdbool.h>
+
+// --- Opaque Pointer Declaration ---
+// ç”¨æˆ·åªçŸ¥é“æœ‰ Queue è¿™ä¸ªç±»å‹ï¼Œä¸çŸ¥é“å…¶å†…éƒ¨æ˜¯é“¾è¡¨è¿˜æ˜¯æ•°ç»„ã€‚
+typedef struct LinkedQueue Queue;
+
+// --- Public API Prototypes ---
+
+/**
+ * @brief åˆ›å»ºä¸€ä¸ªæ–°çš„æ³›å‹é“¾å¼é˜Ÿåˆ—ã€‚
+ *
+ * @param element_size æ¯ä¸ªå…ƒç´ çš„å¤§å°ï¼ˆä»¥å­—èŠ‚ä¸ºå•ä½ï¼‰ã€‚
+ * @return æˆåŠŸæ—¶è¿”å›æŒ‡å‘æ–°é˜Ÿåˆ—çš„æŒ‡é’ˆï¼Œå¤±è´¥è¿”å› NULLã€‚
+ */
+Queue* queue_create(size_t element_size);
+
+/**
+ * @brief é”€æ¯ä¸€ä¸ªé˜Ÿåˆ—å¹¶é‡Šæ”¾å…¶æ‰€æœ‰èŠ‚ç‚¹å’Œç›¸å…³å†…å­˜ã€‚
+ *
+ * @param p_queue æŒ‡å‘é˜Ÿåˆ—æŒ‡é’ˆçš„æŒ‡é’ˆï¼Œå‡½æ•°ä¼šå°†å…¶ç½®ä¸º NULLã€‚
+ */
+void queue_destroy(Queue** p_queue);
+
+/**
+ * @brief å°†ä¸€ä¸ªå…ƒç´ æ·»åŠ åˆ°é˜Ÿå°¾ï¼ˆå…¥é˜Ÿï¼‰ã€‚
+ *
+ * @param queue æŒ‡å‘è¦æ“ä½œçš„é˜Ÿåˆ—ã€‚
+ * @param element_data æŒ‡å‘è¦å…¥é˜Ÿçš„å…ƒç´ æ•°æ®çš„æŒ‡é’ˆã€‚
+ * @return æˆåŠŸè¿”å› trueï¼Œå¦‚æœå†…å­˜åˆ†é…å¤±è´¥æˆ–å‚æ•°æ— æ•ˆåˆ™è¿”å› falseã€‚
+ */
+bool queue_enqueue(Queue* queue, const void* element_data);
+
+/**
+ * @brief ä»é˜Ÿå¤´ç§»é™¤ä¸€ä¸ªå…ƒç´ ï¼ˆå‡ºé˜Ÿï¼‰ã€‚
+ *
+ * @param queue æŒ‡å‘è¦æ“ä½œçš„é˜Ÿåˆ—ã€‚
+ * @param output_buffer æŒ‡å‘ç”¨äºæ¥æ”¶å‡ºé˜Ÿå…ƒç´ æ•°æ®çš„ç¼“å†²åŒºã€‚
+ * @return æˆåŠŸè¿”å› trueï¼Œå¦‚æœé˜Ÿåˆ—ä¸ºç©ºæˆ–å‚æ•°æ— æ•ˆåˆ™è¿”å› falseã€‚
+ */
+bool queue_dequeue(Queue* queue, void* output_buffer);
+
+/**
+ * @brief æŸ¥çœ‹é˜Ÿå¤´å…ƒç´ ï¼Œä½†ä¸å°†å…¶ç§»é™¤ã€‚
+ *
+ * @param queue æŒ‡å‘è¦æ“ä½œçš„é˜Ÿåˆ—ã€‚
+ * @param output_buffer æŒ‡å‘ç”¨äºæ¥æ”¶é˜Ÿå¤´å…ƒç´ æ•°æ®çš„ç¼“å†²åŒºã€‚
+ * @return æˆåŠŸè¿”å› trueï¼Œå¦‚æœé˜Ÿåˆ—ä¸ºç©ºæˆ–å‚æ•°æ— æ•ˆåˆ™è¿”å› falseã€‚
+ */
+bool queue_peek(const Queue* queue, void* output_buffer);
+
+/**
+ * @brief æ£€æŸ¥é˜Ÿåˆ—æ˜¯å¦ä¸ºç©ºã€‚
+ *
+ * @param queue æŒ‡å‘è¦æ£€æŸ¥çš„é˜Ÿåˆ—ã€‚
+ * @return å¦‚æœé˜Ÿåˆ—ä¸ºç©ºè¿”å› trueï¼Œå¦åˆ™è¿”å› falseã€‚
+ */
+bool queue_is_empty(const Queue* queue);
+
+/**
+ * @brief è·å–é˜Ÿåˆ—ä¸­å½“å‰çš„å…ƒç´ æ•°é‡ã€‚
+ *
+ * @param queue æŒ‡å‘è¦æ“ä½œçš„é˜Ÿåˆ—ã€‚
+ * @return è¿”å›é˜Ÿåˆ—ä¸­çš„å…ƒç´ æ•°é‡ã€‚
+ */
 size_t queue_get_size(const Queue* queue);

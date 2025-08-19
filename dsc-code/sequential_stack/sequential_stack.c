@@ -1,177 +1,177 @@
-#include "sequential_stack.h"
-#include <stdlib.h> // for malloc, free
-#include <string.h> // for memcpy
-#include <assert.h> // for assert
-
-// --- Private Structure Definition ---
-// ÕâÊÇÕ»µÄÊµ¼ÊÄÚ²¿½á¹¹£¬¶ÔÓÃ»§²»¿É¼û¡£
-struct Stack {
-    void* data;          // Ö¸Ïò´æ´¢Êý¾ÝµÄÁ¬ÐøÄÚ´æ¿é (ÎÒÃÇµÄ"Êý×é")
-    size_t capacity;     // Õ»µÄ×ÜÈÝÁ¿£¨ÔªËØ¸öÊý£©
-    size_t element_size; // Ã¿¸öÔªËØµÄ´óÐ¡£¨×Ö½Ú£©
-    int top;             // Õ»¶¥Ë÷Òý£¬-1 ±íÊ¾¿ÕÕ»
-};
-
-// --- API Function Implementations ---
-
-Stack* stack_create(size_t capacity, size_t element_size) {
-    if (capacity == 0 || element_size == 0) {
-        return NULL; // ÎÞÐ§²ÎÊý
-    }
-
-    // 1. ÎªÕ»½á¹¹Ìå±¾Éí·ÖÅäÄÚ´æ
-    Stack* stack = (Stack*)malloc(sizeof(Stack));
-    if (stack == NULL) {
-        return NULL; // ÄÚ´æ·ÖÅäÊ§°Ü
-    }
-
-    // 2. Îª´æ´¢Êý¾ÝµÄÊý×é·ÖÅäÄÚ´æ
-    stack->data = malloc(capacity * element_size);
-    if (stack->data == NULL) {
-        free(stack); // ÇåÀíÒÑ·ÖÅäµÄÕ»½á¹¹Ìå£¬·ÀÖ¹ÄÚ´æÐ¹Â©
-        return NULL; // ÄÚ´æ·ÖÅäÊ§°Ü
-    }
-
-    // 3. ³õÊ¼»¯Õ»µÄÊôÐÔ
-    stack->capacity = capacity;
-    stack->element_size = element_size;
-    stack->top = -1; // -1 ´ú±í¿ÕÕ»
-
-    return stack;
-}
-
-void stack_destroy(Stack** p_stack) {
-    if (p_stack == NULL || *p_stack == NULL) {
-        return; // ¿ÕÖ¸Õë£¬ÎÞÐè²Ù×÷
-    }
-
-    free((*p_stack)->data);  // 1. ÊÍ·ÅÊý¾ÝÇøÄÚ´æ
-    free(*p_stack);          // 2. ÊÍ·ÅÕ»½á¹¹ÌåÄÚ´æ
-    *p_stack = NULL;         // 3. ½«Íâ²¿Ö¸ÕëÖÃÎªNULL£¬·ÀÖ¹Ò°Ö¸Õë
-}
-
-bool stack_push(Stack* stack, const void* element_data) {
-    if (stack == NULL || element_data == NULL) {
-        return false;
-    }
-    if (stack_is_full(stack)) {
-        return false; // Õ»Âú£¬ÎÞ·¨Ñ¹Èë
-    }
-
-    stack->top++;
-    // ¼ÆËãÒª²åÈëµÄÎ»ÖÃµÄµØÖ·
-    // Ê¹ÓÃ (char*) ÊÇÒòÎª¶Ô void* µÄÖ¸ÕëËãÊõ²»ÊÇ±ê×¼C
-    // char* °´×Ö½ÚÒÆ¶¯£¬×îÎª°²È«
-    // ËüµÄÄ¿±êÊÇ¼ÆËã³öÐÂÔªËØÔÚÎïÀíÄÚ´æÖÐÓ¦¸Ã´æ·ÅµÄÎ»ÖÃ¡£
-    void* target_address = (char*)stack->data + (stack->top * stack->element_size);
-	
-	// Stack* my_stack = stack_create(5, sizeof(int));
-	// my_stack->data ÊÇÒ»¸öÖ¸ÏòÁ¬ÐøÄÚ´æ¿éµÄÖ¸Õë 20
-	// my_stack->capacity ÊÇ 5
-	// my_stack->element_size ÊÇ 4
-	// my_stack->top ÊÇ -1
-    // 
-	// stack->top++; // ÏÈ½« top Ôö¼Ó£¬Ö¸ÏòÏÂÒ»¸ö¿ÕÎ»
-    // top => 0
-    // top 0 => index
-    
-    // stack->top * stack->element_size ¼ÆËã×Ö½ÚÆ«ÒÆÁ¿
-	// stack->element_size ÊÇÃ¿¸öÔªËØµÄ´óÐ¡ 4
-	// 0*4 => 
-
-    // (char*)stack->data
-	// CÓïÑÔÖÐ£¬Ö¸ÕëËãÊõÊÇ»ùÓÚÀàÐÍµÄ£¬ËùÒÔÎÒÃÇÐèÒª½« void* ×ª»»Îª char*£¬
-    // ÒòÎª char ÊÇ 1 ×Ö½ÚµÄÀàÐÍ£¬ÕâÑù¿ÉÒÔ°´×Ö½Ú½øÐÐÆ«ÒÆ¡£
-	// Pointer arithmetic
-	// stack->data  void* , CÓïÑÔÀï£¬²»ÔÊÐí¶ÔVoid* ½øÐÐÖ¸ÕëËãÊõ²Ù×÷£¬void* + 1 ÊÇ²»ºÏ·¨µÄ¡£µ½µ×ÊÇÒÆ¶¯¶àÉÙ×Ö½Ú£¿
-    // char 1
-   
-	// Òò´Ë£¬µ±ÎÒÃÇ°ÑÈÎºÎÖ¸ÕëµÄÀàÐÍ×ª»»Îª char* Ê±£¬ÎÒÃÇ¾ÍÏàµ±ÓÚ¸æËß±àÒëÆ÷£ºÇëÏÖÔÚ°ÑÕû¸öÖ¸Õë¿´¿´×÷Ò»¸ö
-	// ×Ö½ÚÊý×éÀ´´¦Àí£¬ÕâÑù¾Í¿ÉÒÔ°´×Ö½Ú½øÐÐÆ«ÒÆÁË¡££¨Ö¸ÏòÒ»¸öµ¥×Ö½ÚÊý¾Ý¿éµÄÖ¸Õë£©
-    // (char*)stack -> data + N £º »ñÈ¡stack->data µÄµØÖ·£¬²¢ÇÒÏòºóÒÆ¶¯ N¸ö×Ö½Ú
-    //   void* target_address = (char*)stack->data + (stack->top * stack->element_size);
-
-	// void* target_address = (char*)stack->data + 0
-	// È¡Õ»Êý¾ÝÇøµÄÆðÊ¼µØÖ· stack->data£¬°ÑËüµ±×÷Ò»¸ö×Ö½ÚÖ¸Õë£¬ÏòºóÒÆ¶¯0¸ö×Ö½Ú£¬µÃµ½ÐÂµÄµØÖ·
-    // ¾ÍÊÇÎÒÃÇÐÂÔªËØµÄÄ¿±ê´æ·ÅµØÖ·¡£
-
-
-	// *target_address = element_data;
-    // ½«ÓÃ»§Êý¾Ý¿½±´µ½Õ»µÄÄÚ´æÖÐ
-    memcpy(target_address, element_data, stack->element_size);
-
-    return true;
-}
-
-bool stack_pop(Stack* stack, void* output_buffer) {
-    if (stack == NULL || output_buffer == NULL) {
-        return false;
-    }
-    if (stack_is_empty(stack)) {
-        return false; // Õ»¿Õ£¬ÎÞ·¨µ¯³ö
-    }
-
-    // ¼ÆËãÕ»¶¥ÔªËØµÄµØÖ·
-    void* source_address = (char*)stack->data + (stack->top * stack->element_size);
-	// my_stack->data => 10,20,30,40,50
-	// capacity = 5
-	// element_size = 4
-	// top = 4
-
-    // int received_value;
-	// bool success = stack_pop(my_stack, &received_value);
-
-
-
-    // ½«Õ»¶¥Êý¾Ý¿½±´µ½ÓÃ»§µÄ»º³åÇø
-    memcpy(output_buffer, source_address, stack->element_size);
-
-    stack->top--;
-    // Âß¼­É¾³ý£ºÍ¨¹ýÒÆ¶¯Ö¸ÕëÀ´Ðû¸æÒ»¿éÊý¾ÝÎÞÐ§£¬¶ø²»ÊÇ»¨·ÑÊ±¼äÈ¥ÇåÀíËü
-
-    return true;
-}
-
-bool stack_peek(Stack* stack, void* output_buffer) {
-    if (stack == NULL || output_buffer == NULL) {
-        return false;
-    }
-    if (stack_is_empty(stack)) {
-        return false; // Õ»¿Õ£¬ÎÞ·¨²é¿´
-    }
-
-    void* source_address = (char*)stack->data + (stack->top * stack->element_size);
-    memcpy(output_buffer, source_address, stack->element_size);
-
-    // Óë pop µÄÎ¨Ò»Çø±ð£º²»ÒÆ¶¯ top Ö¸Õë
-    return true;
-}
-
-bool stack_is_empty(const Stack* stack) {
-    if (stack == NULL) {
-        return true; // ÊÓ×÷¿Õ
-    }
-    return stack->top == -1;
-}
-
-bool stack_is_full(const Stack* stack) {
-    if (stack == NULL) {
-        return false; // NULLÕ»²»Âú
-    }
-    // ×¢ÒâÀàÐÍ×ª»»£¬±ÜÃâÓÐ·ûºÅºÍÎÞ·ûºÅÕûÊý±È½ÏµÄ¾¯¸æ
-    return stack->top == (int)(stack->capacity - 1);
-}
-
-size_t stack_get_size(const Stack* stack) {
-    if (stack == NULL) {
-        return 0;
-    }
-    return (size_t)(stack->top + 1);
-}
-
-size_t stack_get_capacity(const Stack* stack) {
-    if (stack == NULL) {
-        return 0;
-    }
-    return stack->capacity;
+#include "sequential_stack.h"
+#include <stdlib.h> // for malloc, free
+#include <string.h> // for memcpy
+#include <assert.h> // for assert
+
+// --- Private Structure Definition ---
+// è¿™æ˜¯æ ˆçš„å®žé™…å†…éƒ¨ç»“æž„ï¼Œå¯¹ç”¨æˆ·ä¸å¯è§ã€‚
+struct Stack {
+    void* data;          // æŒ‡å‘å­˜å‚¨æ•°æ®çš„è¿žç»­å†…å­˜å— (æˆ‘ä»¬çš„"æ•°ç»„")
+    size_t capacity;     // æ ˆçš„æ€»å®¹é‡ï¼ˆå…ƒç´ ä¸ªæ•°ï¼‰
+    size_t element_size; // æ¯ä¸ªå…ƒç´ çš„å¤§å°ï¼ˆå­—èŠ‚ï¼‰
+    int top;             // æ ˆé¡¶ç´¢å¼•ï¼Œ-1 è¡¨ç¤ºç©ºæ ˆ
+};
+
+// --- API Function Implementations ---
+
+Stack* stack_create(size_t capacity, size_t element_size) {
+    if (capacity == 0 || element_size == 0) {
+        return NULL; // æ— æ•ˆå‚æ•°
+    }
+
+    // 1. ä¸ºæ ˆç»“æž„ä½“æœ¬èº«åˆ†é…å†…å­˜
+    Stack* stack = (Stack*)malloc(sizeof(Stack));
+    if (stack == NULL) {
+        return NULL; // å†…å­˜åˆ†é…å¤±è´¥
+    }
+
+    // 2. ä¸ºå­˜å‚¨æ•°æ®çš„æ•°ç»„åˆ†é…å†…å­˜
+    stack->data = malloc(capacity * element_size);
+    if (stack->data == NULL) {
+        free(stack); // æ¸…ç†å·²åˆ†é…çš„æ ˆç»“æž„ä½“ï¼Œé˜²æ­¢å†…å­˜æ³„æ¼
+        return NULL; // å†…å­˜åˆ†é…å¤±è´¥
+    }
+
+    // 3. åˆå§‹åŒ–æ ˆçš„å±žæ€§
+    stack->capacity = capacity;
+    stack->element_size = element_size;
+    stack->top = -1; // -1 ä»£è¡¨ç©ºæ ˆ
+
+    return stack;
+}
+
+void stack_destroy(Stack** p_stack) {
+    if (p_stack == NULL || *p_stack == NULL) {
+        return; // ç©ºæŒ‡é’ˆï¼Œæ— éœ€æ“ä½œ
+    }
+
+    free((*p_stack)->data);  // 1. é‡Šæ”¾æ•°æ®åŒºå†…å­˜
+    free(*p_stack);          // 2. é‡Šæ”¾æ ˆç»“æž„ä½“å†…å­˜
+    *p_stack = NULL;         // 3. å°†å¤–éƒ¨æŒ‡é’ˆç½®ä¸ºNULLï¼Œé˜²æ­¢é‡ŽæŒ‡é’ˆ
+}
+
+bool stack_push(Stack* stack, const void* element_data) {
+    if (stack == NULL || element_data == NULL) {
+        return false;
+    }
+    if (stack_is_full(stack)) {
+        return false; // æ ˆæ»¡ï¼Œæ— æ³•åŽ‹å…¥
+    }
+
+    stack->top++;
+    // è®¡ç®—è¦æ’å…¥çš„ä½ç½®çš„åœ°å€
+    // ä½¿ç”¨ (char*) æ˜¯å› ä¸ºå¯¹ void* çš„æŒ‡é’ˆç®—æœ¯ä¸æ˜¯æ ‡å‡†C
+    // char* æŒ‰å­—èŠ‚ç§»åŠ¨ï¼Œæœ€ä¸ºå®‰å…¨
+    // å®ƒçš„ç›®æ ‡æ˜¯è®¡ç®—å‡ºæ–°å…ƒç´ åœ¨ç‰©ç†å†…å­˜ä¸­åº”è¯¥å­˜æ”¾çš„ä½ç½®ã€‚
+    void* target_address = (char*)stack->data + (stack->top * stack->element_size);
+	
+	// Stack* my_stack = stack_create(5, sizeof(int));
+	// my_stack->data æ˜¯ä¸€ä¸ªæŒ‡å‘è¿žç»­å†…å­˜å—çš„æŒ‡é’ˆ 20
+	// my_stack->capacity æ˜¯ 5
+	// my_stack->element_size æ˜¯ 4
+	// my_stack->top æ˜¯ -1
+    // 
+	// stack->top++; // å…ˆå°† top å¢žåŠ ï¼ŒæŒ‡å‘ä¸‹ä¸€ä¸ªç©ºä½
+    // top => 0
+    // top 0 => index
+    
+    // stack->top * stack->element_size è®¡ç®—å­—èŠ‚åç§»é‡
+	// stack->element_size æ˜¯æ¯ä¸ªå…ƒç´ çš„å¤§å° 4
+	// 0*4 => 
+
+    // (char*)stack->data
+	// Cè¯­è¨€ä¸­ï¼ŒæŒ‡é’ˆç®—æœ¯æ˜¯åŸºäºŽç±»åž‹çš„ï¼Œæ‰€ä»¥æˆ‘ä»¬éœ€è¦å°† void* è½¬æ¢ä¸º char*ï¼Œ
+    // å› ä¸º char æ˜¯ 1 å­—èŠ‚çš„ç±»åž‹ï¼Œè¿™æ ·å¯ä»¥æŒ‰å­—èŠ‚è¿›è¡Œåç§»ã€‚
+	// Pointer arithmetic
+	// stack->data  void* , Cè¯­è¨€é‡Œï¼Œä¸å…è®¸å¯¹Void* è¿›è¡ŒæŒ‡é’ˆç®—æœ¯æ“ä½œï¼Œvoid* + 1 æ˜¯ä¸åˆæ³•çš„ã€‚åˆ°åº•æ˜¯ç§»åŠ¨å¤šå°‘å­—èŠ‚ï¼Ÿ
+    // char 1
+   
+	// å› æ­¤ï¼Œå½“æˆ‘ä»¬æŠŠä»»ä½•æŒ‡é’ˆçš„ç±»åž‹è½¬æ¢ä¸º char* æ—¶ï¼Œæˆ‘ä»¬å°±ç›¸å½“äºŽå‘Šè¯‰ç¼–è¯‘å™¨ï¼šè¯·çŽ°åœ¨æŠŠæ•´ä¸ªæŒ‡é’ˆçœ‹çœ‹ä½œä¸€ä¸ª
+	// å­—èŠ‚æ•°ç»„æ¥å¤„ç†ï¼Œè¿™æ ·å°±å¯ä»¥æŒ‰å­—èŠ‚è¿›è¡Œåç§»äº†ã€‚ï¼ˆæŒ‡å‘ä¸€ä¸ªå•å­—èŠ‚æ•°æ®å—çš„æŒ‡é’ˆï¼‰
+    // (char*)stack -> data + N ï¼š èŽ·å–stack->data çš„åœ°å€ï¼Œå¹¶ä¸”å‘åŽç§»åŠ¨ Nä¸ªå­—èŠ‚
+    //   void* target_address = (char*)stack->data + (stack->top * stack->element_size);
+
+	// void* target_address = (char*)stack->data + 0
+	// å–æ ˆæ•°æ®åŒºçš„èµ·å§‹åœ°å€ stack->dataï¼ŒæŠŠå®ƒå½“ä½œä¸€ä¸ªå­—èŠ‚æŒ‡é’ˆï¼Œå‘åŽç§»åŠ¨0ä¸ªå­—èŠ‚ï¼Œå¾—åˆ°æ–°çš„åœ°å€
+    // å°±æ˜¯æˆ‘ä»¬æ–°å…ƒç´ çš„ç›®æ ‡å­˜æ”¾åœ°å€ã€‚
+
+
+	// *target_address = element_data;
+    // å°†ç”¨æˆ·æ•°æ®æ‹·è´åˆ°æ ˆçš„å†…å­˜ä¸­
+    memcpy(target_address, element_data, stack->element_size);
+
+    return true;
+}
+
+bool stack_pop(Stack* stack, void* output_buffer) {
+    if (stack == NULL || output_buffer == NULL) {
+        return false;
+    }
+    if (stack_is_empty(stack)) {
+        return false; // æ ˆç©ºï¼Œæ— æ³•å¼¹å‡º
+    }
+
+    // è®¡ç®—æ ˆé¡¶å…ƒç´ çš„åœ°å€
+    void* source_address = (char*)stack->data + (stack->top * stack->element_size);
+	// my_stack->data => 10,20,30,40,50
+	// capacity = 5
+	// element_size = 4
+	// top = 4
+
+    // int received_value;
+	// bool success = stack_pop(my_stack, &received_value);
+
+
+
+    // å°†æ ˆé¡¶æ•°æ®æ‹·è´åˆ°ç”¨æˆ·çš„ç¼“å†²åŒº
+    memcpy(output_buffer, source_address, stack->element_size);
+
+    stack->top--;
+    // é€»è¾‘åˆ é™¤ï¼šé€šè¿‡ç§»åŠ¨æŒ‡é’ˆæ¥å®£å‘Šä¸€å—æ•°æ®æ— æ•ˆï¼Œè€Œä¸æ˜¯èŠ±è´¹æ—¶é—´åŽ»æ¸…ç†å®ƒ
+
+    return true;
+}
+
+bool stack_peek(Stack* stack, void* output_buffer) {
+    if (stack == NULL || output_buffer == NULL) {
+        return false;
+    }
+    if (stack_is_empty(stack)) {
+        return false; // æ ˆç©ºï¼Œæ— æ³•æŸ¥çœ‹
+    }
+
+    void* source_address = (char*)stack->data + (stack->top * stack->element_size);
+    memcpy(output_buffer, source_address, stack->element_size);
+
+    // ä¸Ž pop çš„å”¯ä¸€åŒºåˆ«ï¼šä¸ç§»åŠ¨ top æŒ‡é’ˆ
+    return true;
+}
+
+bool stack_is_empty(const Stack* stack) {
+    if (stack == NULL) {
+        return true; // è§†ä½œç©º
+    }
+    return stack->top == -1;
+}
+
+bool stack_is_full(const Stack* stack) {
+    if (stack == NULL) {
+        return false; // NULLæ ˆä¸æ»¡
+    }
+    // æ³¨æ„ç±»åž‹è½¬æ¢ï¼Œé¿å…æœ‰ç¬¦å·å’Œæ— ç¬¦å·æ•´æ•°æ¯”è¾ƒçš„è­¦å‘Š
+    return stack->top == (int)(stack->capacity - 1);
+}
+
+size_t stack_get_size(const Stack* stack) {
+    if (stack == NULL) {
+        return 0;
+    }
+    return (size_t)(stack->top + 1);
+}
+
+size_t stack_get_capacity(const Stack* stack) {
+    if (stack == NULL) {
+        return 0;
+    }
+    return stack->capacity;
 }

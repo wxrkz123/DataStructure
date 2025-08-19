@@ -1,54 +1,54 @@
-#pragma once
-#include <stddef.h>
-
-typedef struct {
-	int id;
-	char name[50];
-} Student;
-
-
-typedef Student Data;
-
-// typedefÊÇ¸øÒ»¸öÒÑ¾­´æÔÚµÄÊı¾İÀàĞÍÆğÒ»¸öĞÂµÄÃû×Ö£¨±ğÃû£©
-
-// ¶¨ÒåÎÒÃÇ¶¯Ì¬Êı×éµÄ½á¹¹Ìå
-// 
-
-//[{stu1.id =1, stu1.name='Frank'}, {},....]
-
-
-typedef struct {
-	Data* data;		// Ö¸Ïò´æ´¢Êı¾İµÄÁ¬ĞøÄÚ´æ¿é; Ö¸ÏòÒ»¸öÊı×éµÄÊ×µØÖ·
-	// int* data;	// Ëµ°×ÁË£¬ÎÒÃÇ¿ÉÒÔ·ÅºÜ¶àintÀàĞÍµÄÊı¾İ£¬ÒòÎªÖ¸ÏòµÄÊÇÒ»¸öÁ¬Ğø²»¶ÏµÄµØÖ·¿Õ¼ä
-
-	size_t size;
-
-	size_t capacity;
-} DynamicArray;
-
-// ¹«¹²½Ó¿Úº¯ÊıÉùÃ÷
-
-// ´´½¨²¢³õÊ¼»¯Ò»¸ö¶¯Ì¬Êı×é
-DynamicArray* create_array(size_t initial_capcity);
-
-// Ïú»ÙÊı×é£¬ÊÍ·ÅÄÚ´æ
-void destroy_array(DynamicArray* arr);
-
-// ÔÚÊı×éÄ©Î²×·¼ÓÔªËØ Amortized O(1)
-void array_append(DynamicArray* arr, Data value);
-
-// ¶ÁÈ¡Ö¸¶¨µÄË÷ÒıÔªËØ
-// ·µ»ØÒ»¸öÖ¸Õë£¬ÒÔ±ãÄÜ¹»¼ì²éÊÇ·ñ³É¹¦£¬Èç¹ûË÷ÒıÎŞĞ§£¬·µ»ØNULL
-Data* array_read(DynamicArray* arr, size_t index);
-
-// ¸üĞÂÖ¸¶¨Ë÷ÒıµÄÔªËØ
-// ·µ»Ø0±íÊ¾³É¹¦£¬·µ»Ø-1±íÊ¾Ê§°Ü
-int array_update(DynamicArray* arr, size_t index, Data value);
-
-int array_insert(DynamicArray* arr, size_t index, Data value);
-
-// É¾³ıÖ¸¶¨Ë÷ÒıµÄÔªËØ
-int array_delete(DynamicArray* arr, size_t index);
-
-void print_array(const DynamicArray* arr, void (*print_func)(const void* data));
-
+#pragma once
+#include <stddef.h>
+
+typedef struct {
+	int id;
+	char name[50];
+} Student;
+
+
+typedef Student Data;
+
+// typedefæ˜¯ç»™ä¸€ä¸ªå·²ç»å­˜åœ¨çš„æ•°æ®ç±»å‹èµ·ä¸€ä¸ªæ–°çš„åå­—ï¼ˆåˆ«åï¼‰
+
+// å®šä¹‰æˆ‘ä»¬åŠ¨æ€æ•°ç»„çš„ç»“æ„ä½“
+// 
+
+//[{stu1.id =1, stu1.name='Frank'}, {},....]
+
+
+typedef struct {
+	Data* data;		// æŒ‡å‘å­˜å‚¨æ•°æ®çš„è¿ç»­å†…å­˜å—; æŒ‡å‘ä¸€ä¸ªæ•°ç»„çš„é¦–åœ°å€
+	// int* data;	// è¯´ç™½äº†ï¼Œæˆ‘ä»¬å¯ä»¥æ”¾å¾ˆå¤šintç±»å‹çš„æ•°æ®ï¼Œå› ä¸ºæŒ‡å‘çš„æ˜¯ä¸€ä¸ªè¿ç»­ä¸æ–­çš„åœ°å€ç©ºé—´
+
+	size_t size;
+
+	size_t capacity;
+} DynamicArray;
+
+// å…¬å…±æ¥å£å‡½æ•°å£°æ˜
+
+// åˆ›å»ºå¹¶åˆå§‹åŒ–ä¸€ä¸ªåŠ¨æ€æ•°ç»„
+DynamicArray* create_array(size_t initial_capcity);
+
+// é”€æ¯æ•°ç»„ï¼Œé‡Šæ”¾å†…å­˜
+void destroy_array(DynamicArray* arr);
+
+// åœ¨æ•°ç»„æœ«å°¾è¿½åŠ å…ƒç´  Amortized O(1)
+void array_append(DynamicArray* arr, Data value);
+
+// è¯»å–æŒ‡å®šçš„ç´¢å¼•å…ƒç´ 
+// è¿”å›ä¸€ä¸ªæŒ‡é’ˆï¼Œä»¥ä¾¿èƒ½å¤Ÿæ£€æŸ¥æ˜¯å¦æˆåŠŸï¼Œå¦‚æœç´¢å¼•æ— æ•ˆï¼Œè¿”å›NULL
+Data* array_read(DynamicArray* arr, size_t index);
+
+// æ›´æ–°æŒ‡å®šç´¢å¼•çš„å…ƒç´ 
+// è¿”å›0è¡¨ç¤ºæˆåŠŸï¼Œè¿”å›-1è¡¨ç¤ºå¤±è´¥
+int array_update(DynamicArray* arr, size_t index, Data value);
+
+int array_insert(DynamicArray* arr, size_t index, Data value);
+
+// åˆ é™¤æŒ‡å®šç´¢å¼•çš„å…ƒç´ 
+int array_delete(DynamicArray* arr, size_t index);
+
+void print_array(const DynamicArray* arr, void (*print_func)(const void* data));
+

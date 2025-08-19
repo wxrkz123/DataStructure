@@ -1,216 +1,216 @@
-#include "generic_deque.h"
-#include <stdlib.h>
-#include <string.h>
-
-// --- Private Structure Definition ---
-// ÓëÑ­»·¶ÓÁÐµÄ½á¹¹ÍêÈ«ÏàÍ¬£¬Ö»ÊÇ¶Ô front ºÍ rear µÄ²Ù×÷·½Ê½¸ü¶àÑù
-struct Deque {
-    void* data;
-    size_t capacity;
-    size_t element_size;
-    size_t size;
-    int front; // Ö¸Ïò¶ÓÍ·ÔªËØµÄË÷Òý
-    int rear;  // Ö¸Ïò¶ÓÎ²ÔªËØµÄºóÒ»¸öÎ»ÖÃµÄË÷Òý
-};
-
-// --- API Function Implementations ---
-
-Deque* deque_create(size_t capacity, size_t element_size) {
-    if (capacity == 0 || element_size == 0) return NULL;
-    Deque* dq = (Deque*)malloc(sizeof(Deque));
-    if (!dq) return NULL;
-    dq->data = malloc(capacity * element_size);
-    if (!dq->data) {
-        free(dq);
-        return NULL;
-    }
-    dq->capacity = capacity;
-    dq->element_size = element_size;
-    dq->size = 0;
-    dq->front = 0;
-    dq->rear = 0;
-    return dq;
-}
-
-void deque_destroy(Deque** p_deque) {
-    if (p_deque && *p_deque) {
-        free((*p_deque)->data);
-        free(*p_deque);
-        *p_deque = NULL;
-    }
-}
-
-bool deque_is_empty(const Deque* dq) { return !dq || dq->size == 0; }
-bool deque_is_full(const Deque* dq) { return !dq || dq->size == dq->capacity; }
-size_t deque_get_size(const Deque* dq) { return dq ? dq->size : 0; }
-
-
-bool deque_push_back(Deque* dq, const void* element_data) {
-    /*
-     * º¯Êý¹¦ÄÜ: ÔÚ¶ÓÎ²Ìí¼ÓÔªËØ (ÓëÑ­»·¶ÓÁÐµÄ enqueue ÍêÈ«ÏàÍ¬)
-    */
-    // 1. ¼ì²é
-    if (!dq || !element_data || deque_is_full(dq)) {
-        return false;
-    }
-
-    // 2. ¿½±´Êý¾Ýµ½ rear Ö¸ÏòµÄÎ»ÖÃ
-    // °¸Àý: rear=4¡£Êý¾Ý 'C' ±»¿½±´µ½Ë÷Òý4¡£
-    // Êý×é: [ | | A | B | C ]
-    void* target_address = (char*)dq->data + dq->rear * dq->element_size;
-    memcpy(target_address, element_data, dq->element_size);
-
-    // 3. ¸üÐÂ rear Ö¸Õë (ÏòÇ°ÒÆ¶¯²¢Ñ­»·)
-    // °¸Àý: ÐÂ rear = (4 + 1) % 5 = 0¡£rear Ö¸ÕëÈÆ»Øµ½ÁËÊý×é¿ªÍ·¡£
-    dq->rear = (dq->rear + 1) % dq->capacity;
-
-    // 4. ¸üÐÂ´óÐ¡
-    dq->size++;
-    return true;
-}
-
-bool deque_push_front(Deque* dq, const void* element_data) {
-    /*
-     * capacity 5 
-     * size 2
-	 * front 2 => Ö¸Ïò A
-	 * rear 4 => Ö¸Ïò ¶ÓÎ²ÔªËØ B µÄºóÒ»¸öÎ»ÖÃ
-	 * index:  0 1  2   3  4
-	 * Array: [ | | A | B | ]
-     * A -> B
-	 * push_front(X)
-	 * X -> A -> B
-	 * new front  index 1 => Ö¸Ïò X
-     * 
-     * 
-    */
-    // 1. ¼ì²é
-    if (!dq || !element_data || deque_is_full(dq)) {
-        return false;
-    }
-
-    /*
-    * capacity 5
-    * size 2
-    * front 2 => Ö¸Ïò A
-    * rear 4 => Ö¸Ïò ¶ÓÎ²ÔªËØ B µÄºóÒ»¸öÎ»ÖÃ
-    * index:  0 1  2   3  4
-    * Array: [ | | A | B | ]
-    * A -> B
-    * push_front(X)
-    * X -> A -> B
-    * new front  index 1 => Ö¸Ïò X
-    *
-    * index:  0 1  2   3  4
-    * Array: [| | A | B | ]
-    * 
-    * front = 2
-	* 2 - 1 = 1
-	* new_front = (old_front - 1 + capacity) % capacity
-    * 
-    * dq->front = 2
-	* dq->capacity = 5
-	* new_front = (2 - 1 + 5) % 5 = 1
-    * ¼×ÓãµÄÍÎ²¿¡ª¡ª¹êëë ¡ª¡ª ¹æ¶¨
-    * 
-   */
-    dq->front = (dq->front - 1 + dq->capacity) % dq->capacity;
-	// index : 0    1   2   3   4
-	// Array: [ A | B | C |   |   ]
-    //          ^           ^
-	//		  front        rear
-	// new_front = (dq->front - 1) % dq->capacity
-
-    // front 0
-	// capacity 5
-	// new_front = (0 - 1) % 5
-	// -1 % 5
-    // È¡¾öÓÚ±àÒëÆ÷
-	// C99 , c11 ,c17 ¶¼ÊÇ -1 % 5 = -1
-	// a % b = a
-	// (x + N) % N and x % N ¶ÔÓÚÕýÊýxÀ´ËµÊÇµÈ¼ÛµÄ£¬µ«ÔÚÕâÀï¶ÔÓÚ¸ºÊýxÀ´Ëµ£¬(x + N) % NÄÜ¹»µÃµ½Ò»¸ö·Ç¸º½á¹û¡£
-	// ÔÚCÓïÑÔÖÐ£¬·²ÊÇÄÜ¹»Éæ¼°µ½¿ÉÄÜ²úÉú¸ºÊýµÄÑ­»·Êý×éË÷Òý¼ÆËã ¶¼ÐèÒªÊ¹ÓÃ (index - 1 + capacity) % capacity
-
-
-    void* target_address = (char*)dq->data + dq->front * dq->element_size;
-    memcpy(target_address, element_data, dq->element_size);
-
-    // 4. ¸üÐÂ´óÐ¡
-    dq->size++;
-    return true;
-}
-
-bool deque_pop_front(Deque* dq, void* output_buffer) {
-    /*
-     * º¯Êý¹¦ÄÜ: ´Ó¶ÓÍ·ÒÆ³ýÔªËØ (ÓëÑ­»·¶ÓÁÐµÄ dequeue ÍêÈ«ÏàÍ¬)¡£
-     * ½ÌÑ§°¸Àý: capacity=5, size=3, front=1, rear=4
-     * Êý×éÄÚÈÝ: [ | X | A | B | ]
-     *              ^           ^
-     *            front       rear
-     * ÎÒÃÇÒª pop_front()
-    */
-    // 1. ¼ì²é
-    if (!dq || !output_buffer || deque_is_empty(dq)) {
-        return false;
-    }
-
-    // 2. ´Ó front Ö¸ÏòµÄÎ»ÖÃ¿½±´Êý¾Ý
-    // °¸Àý: front=1¡£½« 'X' ¿½±´µ½ output_buffer¡£
-    void* source_address = (char*)dq->data + dq->front * dq->element_size;
-    memcpy(output_buffer, source_address, dq->element_size);
-
-    // 3. ¸üÐÂ front Ö¸Õë (ÏòÇ°ÒÆ¶¯²¢Ñ­»·)
-    // °¸Àý: ÐÂ front = (1 + 1) % 5 = 2¡£front Ö¸ÕëÏÖÔÚÖ¸ÏòÁË 'A'¡£
-    dq->front = (dq->front + 1) % dq->capacity;
-
-    // 4. ¸üÐÂ´óÐ¡
-    dq->size--;
-    return true;
-}
-
-bool deque_pop_back(Deque* dq, void* output_buffer) {
-    /*
-     * º¯Êý¹¦ÄÜ: ´Ó¶ÓÎ²ÒÆ³ýÔªËØ (ÕâÊÇË«¶Ë¶ÓÁÐµÄÐÂ¹¦ÄÜ)¡£
-     * ½ÌÑ§°¸Àý: capacity=5, size=2, front=2, rear=4
-     * Êý×éÄÚÈÝ: [ | | A | B |     ]
-     *                ^        ^
-     *              front    rear
-     * ÎÒÃÇÒª pop_back()
-    */
-    // 1. ¼ì²é
-    if (!dq || !output_buffer || deque_is_empty(dq)) {
-        return false;
-    }
-
-    // 2. [ºËÐÄÂß¼­] ¸üÐÂ rear Ö¸Õë (ÏòºóÒÆ¶¯²¢Ñ­»·)
-    // rear Ö¸ÏòµÄÊÇ¶ÓÎ²ÔªËØµÄ¡°ºóÒ»¸ö¡±Î»ÖÃ£¬ËùÒÔÕæÕýµÄ¶ÓÎ²ÔªËØÔÚ rear-1¡£
-    // ÎÒÃÇÏÈ½« rear Ö¸ÕëÒÆ»Ø¶ÓÎ²ÔªËØµÄÎ»ÖÃ¡£
-    // °¸Àý: rear=4, capacity=5¡£
-    //      ÐÂ rear = (4 - 1 + 5) % 5 = 8 % 5 = 3¡£
-    dq->rear = (dq->rear - 1 + dq->capacity) % dq->capacity;
-
-    // 3. ´ÓÐÂµÄ rear Ö¸ÏòµÄÎ»ÖÃ¿½±´Êý¾Ý
-    // °¸Àý: ÐÂ rear=3¡£½«¶ÓÎ²ÔªËØ 'B' ¿½±´µ½ output_buffer¡£
-    void* source_address = (char*)dq->data + dq->rear * dq->element_size;
-    memcpy(output_buffer, source_address, dq->element_size);
-
-    // 4. ¸üÐÂ´óÐ¡
-    dq->size--;
-    return true;
-}
-
-bool deque_peek_front(const Deque* dq, void* output_buffer) {
-    if (!dq || !output_buffer || deque_is_empty(dq)) return false;
-    void* source_address = (char*)dq->data + dq->front * dq->element_size;
-    memcpy(output_buffer, source_address, dq->element_size);
-    return true;
-}
-
-bool deque_peek_back(const Deque* dq, void* output_buffer) {
-    if (!dq || !output_buffer || deque_is_empty(dq)) return false;
-    // ÕæÕýµÄ¶ÓÎ²ÔªËØÔÚ rear µÄÇ°Ò»¸öÎ»ÖÃ
-    int last_element_index = (dq->rear - 1 + dq->capacity) % dq->capacity;
-    void* source_address = (char*)dq->data + last_element_index * dq->element_size;
-    memcpy(output_buffer, source_address, dq->element_size);
-    return true;
+#include "generic_deque.h"
+#include <stdlib.h>
+#include <string.h>
+
+// --- Private Structure Definition ---
+// ä¸Žå¾ªçŽ¯é˜Ÿåˆ—çš„ç»“æž„å®Œå…¨ç›¸åŒï¼Œåªæ˜¯å¯¹ front å’Œ rear çš„æ“ä½œæ–¹å¼æ›´å¤šæ ·
+struct Deque {
+    void* data;
+    size_t capacity;
+    size_t element_size;
+    size_t size;
+    int front; // æŒ‡å‘é˜Ÿå¤´å…ƒç´ çš„ç´¢å¼•
+    int rear;  // æŒ‡å‘é˜Ÿå°¾å…ƒç´ çš„åŽä¸€ä¸ªä½ç½®çš„ç´¢å¼•
+};
+
+// --- API Function Implementations ---
+
+Deque* deque_create(size_t capacity, size_t element_size) {
+    if (capacity == 0 || element_size == 0) return NULL;
+    Deque* dq = (Deque*)malloc(sizeof(Deque));
+    if (!dq) return NULL;
+    dq->data = malloc(capacity * element_size);
+    if (!dq->data) {
+        free(dq);
+        return NULL;
+    }
+    dq->capacity = capacity;
+    dq->element_size = element_size;
+    dq->size = 0;
+    dq->front = 0;
+    dq->rear = 0;
+    return dq;
+}
+
+void deque_destroy(Deque** p_deque) {
+    if (p_deque && *p_deque) {
+        free((*p_deque)->data);
+        free(*p_deque);
+        *p_deque = NULL;
+    }
+}
+
+bool deque_is_empty(const Deque* dq) { return !dq || dq->size == 0; }
+bool deque_is_full(const Deque* dq) { return !dq || dq->size == dq->capacity; }
+size_t deque_get_size(const Deque* dq) { return dq ? dq->size : 0; }
+
+
+bool deque_push_back(Deque* dq, const void* element_data) {
+    /*
+     * å‡½æ•°åŠŸèƒ½: åœ¨é˜Ÿå°¾æ·»åŠ å…ƒç´  (ä¸Žå¾ªçŽ¯é˜Ÿåˆ—çš„ enqueue å®Œå…¨ç›¸åŒ)
+    */
+    // 1. æ£€æŸ¥
+    if (!dq || !element_data || deque_is_full(dq)) {
+        return false;
+    }
+
+    // 2. æ‹·è´æ•°æ®åˆ° rear æŒ‡å‘çš„ä½ç½®
+    // æ¡ˆä¾‹: rear=4ã€‚æ•°æ® 'C' è¢«æ‹·è´åˆ°ç´¢å¼•4ã€‚
+    // æ•°ç»„: [ | | A | B | C ]
+    void* target_address = (char*)dq->data + dq->rear * dq->element_size;
+    memcpy(target_address, element_data, dq->element_size);
+
+    // 3. æ›´æ–° rear æŒ‡é’ˆ (å‘å‰ç§»åŠ¨å¹¶å¾ªçŽ¯)
+    // æ¡ˆä¾‹: æ–° rear = (4 + 1) % 5 = 0ã€‚rear æŒ‡é’ˆç»•å›žåˆ°äº†æ•°ç»„å¼€å¤´ã€‚
+    dq->rear = (dq->rear + 1) % dq->capacity;
+
+    // 4. æ›´æ–°å¤§å°
+    dq->size++;
+    return true;
+}
+
+bool deque_push_front(Deque* dq, const void* element_data) {
+    /*
+     * capacity 5 
+     * size 2
+	 * front 2 => æŒ‡å‘ A
+	 * rear 4 => æŒ‡å‘ é˜Ÿå°¾å…ƒç´  B çš„åŽä¸€ä¸ªä½ç½®
+	 * index:  0 1  2   3  4
+	 * Array: [ | | A | B | ]
+     * A -> B
+	 * push_front(X)
+	 * X -> A -> B
+	 * new front  index 1 => æŒ‡å‘ X
+     * 
+     * 
+    */
+    // 1. æ£€æŸ¥
+    if (!dq || !element_data || deque_is_full(dq)) {
+        return false;
+    }
+
+    /*
+    * capacity 5
+    * size 2
+    * front 2 => æŒ‡å‘ A
+    * rear 4 => æŒ‡å‘ é˜Ÿå°¾å…ƒç´  B çš„åŽä¸€ä¸ªä½ç½®
+    * index:  0 1  2   3  4
+    * Array: [ | | A | B | ]
+    * A -> B
+    * push_front(X)
+    * X -> A -> B
+    * new front  index 1 => æŒ‡å‘ X
+    *
+    * index:  0 1  2   3  4
+    * Array: [| | A | B | ]
+    * 
+    * front = 2
+	* 2 - 1 = 1
+	* new_front = (old_front - 1 + capacity) % capacity
+    * 
+    * dq->front = 2
+	* dq->capacity = 5
+	* new_front = (2 - 1 + 5) % 5 = 1
+    * ç”²é±¼çš„è‡€éƒ¨â€•â€•é¾Ÿè…š â€•â€• è§„å®š
+    * 
+   */
+    dq->front = (dq->front - 1 + dq->capacity) % dq->capacity;
+	// index : 0    1   2   3   4
+	// Array: [ A | B | C |   |   ]
+    //          ^           ^
+	//		  front        rear
+	// new_front = (dq->front - 1) % dq->capacity
+
+    // front 0
+	// capacity 5
+	// new_front = (0 - 1) % 5
+	// -1 % 5
+    // å–å†³äºŽç¼–è¯‘å™¨
+	// C99 , c11 ,c17 éƒ½æ˜¯ -1 % 5 = -1
+	// a % b = a
+	// (x + N) % N and x % N å¯¹äºŽæ­£æ•°xæ¥è¯´æ˜¯ç­‰ä»·çš„ï¼Œä½†åœ¨è¿™é‡Œå¯¹äºŽè´Ÿæ•°xæ¥è¯´ï¼Œ(x + N) % Nèƒ½å¤Ÿå¾—åˆ°ä¸€ä¸ªéžè´Ÿç»“æžœã€‚
+	// åœ¨Cè¯­è¨€ä¸­ï¼Œå‡¡æ˜¯èƒ½å¤Ÿæ¶‰åŠåˆ°å¯èƒ½äº§ç”Ÿè´Ÿæ•°çš„å¾ªçŽ¯æ•°ç»„ç´¢å¼•è®¡ç®— éƒ½éœ€è¦ä½¿ç”¨ (index - 1 + capacity) % capacity
+
+
+    void* target_address = (char*)dq->data + dq->front * dq->element_size;
+    memcpy(target_address, element_data, dq->element_size);
+
+    // 4. æ›´æ–°å¤§å°
+    dq->size++;
+    return true;
+}
+
+bool deque_pop_front(Deque* dq, void* output_buffer) {
+    /*
+     * å‡½æ•°åŠŸèƒ½: ä»Žé˜Ÿå¤´ç§»é™¤å…ƒç´  (ä¸Žå¾ªçŽ¯é˜Ÿåˆ—çš„ dequeue å®Œå…¨ç›¸åŒ)ã€‚
+     * æ•™å­¦æ¡ˆä¾‹: capacity=5, size=3, front=1, rear=4
+     * æ•°ç»„å†…å®¹: [ | X | A | B | ]
+     *              ^           ^
+     *            front       rear
+     * æˆ‘ä»¬è¦ pop_front()
+    */
+    // 1. æ£€æŸ¥
+    if (!dq || !output_buffer || deque_is_empty(dq)) {
+        return false;
+    }
+
+    // 2. ä»Ž front æŒ‡å‘çš„ä½ç½®æ‹·è´æ•°æ®
+    // æ¡ˆä¾‹: front=1ã€‚å°† 'X' æ‹·è´åˆ° output_bufferã€‚
+    void* source_address = (char*)dq->data + dq->front * dq->element_size;
+    memcpy(output_buffer, source_address, dq->element_size);
+
+    // 3. æ›´æ–° front æŒ‡é’ˆ (å‘å‰ç§»åŠ¨å¹¶å¾ªçŽ¯)
+    // æ¡ˆä¾‹: æ–° front = (1 + 1) % 5 = 2ã€‚front æŒ‡é’ˆçŽ°åœ¨æŒ‡å‘äº† 'A'ã€‚
+    dq->front = (dq->front + 1) % dq->capacity;
+
+    // 4. æ›´æ–°å¤§å°
+    dq->size--;
+    return true;
+}
+
+bool deque_pop_back(Deque* dq, void* output_buffer) {
+    /*
+     * å‡½æ•°åŠŸèƒ½: ä»Žé˜Ÿå°¾ç§»é™¤å…ƒç´  (è¿™æ˜¯åŒç«¯é˜Ÿåˆ—çš„æ–°åŠŸèƒ½)ã€‚
+     * æ•™å­¦æ¡ˆä¾‹: capacity=5, size=2, front=2, rear=4
+     * æ•°ç»„å†…å®¹: [ | | A | B |     ]
+     *                ^        ^
+     *              front    rear
+     * æˆ‘ä»¬è¦ pop_back()
+    */
+    // 1. æ£€æŸ¥
+    if (!dq || !output_buffer || deque_is_empty(dq)) {
+        return false;
+    }
+
+    // 2. [æ ¸å¿ƒé€»è¾‘] æ›´æ–° rear æŒ‡é’ˆ (å‘åŽç§»åŠ¨å¹¶å¾ªçŽ¯)
+    // rear æŒ‡å‘çš„æ˜¯é˜Ÿå°¾å…ƒç´ çš„â€œåŽä¸€ä¸ªâ€ä½ç½®ï¼Œæ‰€ä»¥çœŸæ­£çš„é˜Ÿå°¾å…ƒç´ åœ¨ rear-1ã€‚
+    // æˆ‘ä»¬å…ˆå°† rear æŒ‡é’ˆç§»å›žé˜Ÿå°¾å…ƒç´ çš„ä½ç½®ã€‚
+    // æ¡ˆä¾‹: rear=4, capacity=5ã€‚
+    //      æ–° rear = (4 - 1 + 5) % 5 = 8 % 5 = 3ã€‚
+    dq->rear = (dq->rear - 1 + dq->capacity) % dq->capacity;
+
+    // 3. ä»Žæ–°çš„ rear æŒ‡å‘çš„ä½ç½®æ‹·è´æ•°æ®
+    // æ¡ˆä¾‹: æ–° rear=3ã€‚å°†é˜Ÿå°¾å…ƒç´  'B' æ‹·è´åˆ° output_bufferã€‚
+    void* source_address = (char*)dq->data + dq->rear * dq->element_size;
+    memcpy(output_buffer, source_address, dq->element_size);
+
+    // 4. æ›´æ–°å¤§å°
+    dq->size--;
+    return true;
+}
+
+bool deque_peek_front(const Deque* dq, void* output_buffer) {
+    if (!dq || !output_buffer || deque_is_empty(dq)) return false;
+    void* source_address = (char*)dq->data + dq->front * dq->element_size;
+    memcpy(output_buffer, source_address, dq->element_size);
+    return true;
+}
+
+bool deque_peek_back(const Deque* dq, void* output_buffer) {
+    if (!dq || !output_buffer || deque_is_empty(dq)) return false;
+    // çœŸæ­£çš„é˜Ÿå°¾å…ƒç´ åœ¨ rear çš„å‰ä¸€ä¸ªä½ç½®
+    int last_element_index = (dq->rear - 1 + dq->capacity) % dq->capacity;
+    void* source_address = (char*)dq->data + last_element_index * dq->element_size;
+    memcpy(output_buffer, source_address, dq->element_size);
+    return true;
 }

@@ -1,106 +1,106 @@
-
-// main.c
-
-#include "safe_array.h"
-#include <stdio.h>
-
-void plain_c_array_example() {
-    printf("--- 1. ÆÕÍ¨CÊı×éµÄÎ£ÏÕĞÔ ---\n");
-    int normal_array[5] = { 10, 20, 30, 40, 50 };
-
-    printf("³¢ÊÔ¶ÁÈ¡Ô½½çË÷Òı 10...\n");
-    // ÕâĞĞ´úÂëÔÚ±àÒëÊ±¿ÉÄÜ²»»á±¨´í£¬µ«ÔËĞĞÊ±»á¶ÁÈ¡µ½Î´ÖªµÄÄÚ´æÀ¬»øÖµ£¬
-    // »òÕßÖ±½Óµ¼ÖÂ³ÌĞò±ÀÀ£¡£Õâ¾ÍÊÇ¡°²»°²È«¡±¡£
-    int garbage = normal_array[10];
-    printf("¶ÁÈ¡µ½µÄÀ¬»øÖµ: %d (ÕâÊÇÎ´¶¨ÒåĞĞÎª!)\n", garbage);
-
-	// update the value at index 2
-	normal_array[2] = 99; // Õı³£Ğ´Èë
-
-   
-
-    // MyIntArr* myarr = normal_array_create(5);
-    
-	// bool res = update_arr(myarr, 2, 99);
-    // ·â×°
-    printf("³¢ÊÔĞ´ÈëÔ½½çË÷Òı -5...\n");
-    // Õâ±È¶ÁÈ¡¸üÎ£ÏÕ£¬Ëü»áÎÛÈ¾³ÌĞòÆäËû²¿·ÖµÄÄÚ´æ£¬µ¼ÖÂÄÑÒÔ×·×ÙµÄbug¡£
-    // normal_array[-5] = 999; // (È¡Ïû×¢ÊÍÕâĞĞ¿ÉÄÜ»áµ¼ÖÂ³ÌĞò±ÀÀ£)
-    printf("Ğ´Èë²Ù×÷¿ÉÄÜÒÑÆÆ»µÁËÄÚ´æ£¡\n\n");
-
-
-	printf("ÆÕÍ¨CÊı×éµÄÊ¹ÓÃÊÇÎ£ÏÕµÄ£¬ÒòÎªËüÃ»ÓĞÈÎºÎ°²È«¼ì²é¡£\n");
-
-    
-}
-
-void safe_array_example() {
-    printf("--- 2. Ê¹ÓÃÎÒÃÇµÄ¡°°²È«Êı×é¡± ---\n");
-
-	// SafeArray my_array = { .data = NULL, .capacity = 0 };
-
-    // API º¯ÊıÔ­ĞÍ
-    // CÓïÑÔº¯Êı¿â CÔ­ĞÍ
-
-
-    // ´´½¨Ò»¸öÈİÁ¿Îª5µÄ°²È«Êı×é
-    SafeArray* sa = sarray_create(5);
-    if (!sa) {
-        printf("´´½¨°²È«Êı×éÊ§°Ü¡£\n");
-        return;
-    }
-    printf("°²È«Êı×é´´½¨³É¹¦¡£\n");
-    sarray_print(sa); // ³õÊ¼Ó¦Îª0£¨»òËæ»úÖµ£¬È¡¾öÓÚÏµÍ³£©
-
-
-
-
-    // °²È«µØÉèÖÃÖµ
-    printf("\n°²È«µØÉèÖÃÖµ...\n");
-    for (size_t i = 0; i < sarray_get_capacity(sa); i++) {
-        sarray_set(sa, i, (i + 1) * 11);
-    }
-    sarray_print(sa);
-
-    // ³¢ÊÔ°²È«µØĞ´ÈëÔ½½çË÷Òı
-    printf("\n³¢ÊÔ°²È«µØĞ´ÈëÔ½½çË÷Òı 10...\n");
-    if (sarray_set(sa, 10, 999)) {
-        printf("Ğ´Èë³É¹¦ (²»Ó¦·¢Éú!)\n");
-    }
-    else {
-        printf("Ğ´ÈëÊ§°Ü£¬ÒòÎªË÷ÒıÔ½½ç¡£³ÌĞò°²È«£¡\n");
-    }
-    sarray_print(sa); // Êı×éÄÚÈİÃ»ÓĞ±»ÆÆ»µ
-
-    // °²È«µØ»ñÈ¡Öµ
-    printf("\n°²È«µØ»ñÈ¡Öµ...\n");
-    int value;
-    if (sarray_get(sa, 3, &value)) {
-        printf("Ë÷Òı 3 µÄÖµÎª: %d\n", value);
-    }
-
-    // ³¢ÊÔ°²È«µØ¶ÁÈ¡Ô½½çË÷Òı
-    printf("\n³¢ÊÔ°²È«µØ¶ÁÈ¡Ô½½çË÷Òı 5...\n");
-
-    // SafeArray* sa = sarray_get(xxx);
-
-    // sa->data = "123";
-
-
-    if (sarray_get(sa, 5, &value)) {
-        printf("¶ÁÈ¡µ½µÄÖµ: %d (²»Ó¦·¢Éú!)\n", value);
-    }
-    else {
-        printf("¶ÁÈ¡Ê§°Ü£¬ÒòÎªË÷ÒıÔ½½ç¡£³ÌĞò°²È«£¡\n");
-    }
-
-    sarray_destroy(&sa);
-    printf("\n°²È«Êı×éÒÑÏú»Ù¡£\n");
-}
-
-int main() {
-    plain_c_array_example();
-    safe_array_example();
-
-    return 0;
+
+// main.c
+
+#include "safe_array.h"
+#include <stdio.h>
+
+void plain_c_array_example() {
+    printf("--- 1. æ™®é€šCæ•°ç»„çš„å±é™©æ€§ ---\n");
+    int normal_array[5] = { 10, 20, 30, 40, 50 };
+
+    printf("å°è¯•è¯»å–è¶Šç•Œç´¢å¼• 10...\n");
+    // è¿™è¡Œä»£ç åœ¨ç¼–è¯‘æ—¶å¯èƒ½ä¸ä¼šæŠ¥é”™ï¼Œä½†è¿è¡Œæ—¶ä¼šè¯»å–åˆ°æœªçŸ¥çš„å†…å­˜åƒåœ¾å€¼ï¼Œ
+    // æˆ–è€…ç›´æ¥å¯¼è‡´ç¨‹åºå´©æºƒã€‚è¿™å°±æ˜¯â€œä¸å®‰å…¨â€ã€‚
+    int garbage = normal_array[10];
+    printf("è¯»å–åˆ°çš„åƒåœ¾å€¼: %d (è¿™æ˜¯æœªå®šä¹‰è¡Œä¸º!)\n", garbage);
+
+	// update the value at index 2
+	normal_array[2] = 99; // æ­£å¸¸å†™å…¥
+
+   
+
+    // MyIntArr* myarr = normal_array_create(5);
+    
+	// bool res = update_arr(myarr, 2, 99);
+    // å°è£…
+    printf("å°è¯•å†™å…¥è¶Šç•Œç´¢å¼• -5...\n");
+    // è¿™æ¯”è¯»å–æ›´å±é™©ï¼Œå®ƒä¼šæ±¡æŸ“ç¨‹åºå…¶ä»–éƒ¨åˆ†çš„å†…å­˜ï¼Œå¯¼è‡´éš¾ä»¥è¿½è¸ªçš„bugã€‚
+    // normal_array[-5] = 999; // (å–æ¶ˆæ³¨é‡Šè¿™è¡Œå¯èƒ½ä¼šå¯¼è‡´ç¨‹åºå´©æºƒ)
+    printf("å†™å…¥æ“ä½œå¯èƒ½å·²ç ´åäº†å†…å­˜ï¼\n\n");
+
+
+	printf("æ™®é€šCæ•°ç»„çš„ä½¿ç”¨æ˜¯å±é™©çš„ï¼Œå› ä¸ºå®ƒæ²¡æœ‰ä»»ä½•å®‰å…¨æ£€æŸ¥ã€‚\n");
+
+    
+}
+
+void safe_array_example() {
+    printf("--- 2. ä½¿ç”¨æˆ‘ä»¬çš„â€œå®‰å…¨æ•°ç»„â€ ---\n");
+
+	// SafeArray my_array = { .data = NULL, .capacity = 0 };
+
+    // API å‡½æ•°åŸå‹
+    // Cè¯­è¨€å‡½æ•°åº“ CåŸå‹
+
+
+    // åˆ›å»ºä¸€ä¸ªå®¹é‡ä¸º5çš„å®‰å…¨æ•°ç»„
+    SafeArray* sa = sarray_create(5);
+    if (!sa) {
+        printf("åˆ›å»ºå®‰å…¨æ•°ç»„å¤±è´¥ã€‚\n");
+        return;
+    }
+    printf("å®‰å…¨æ•°ç»„åˆ›å»ºæˆåŠŸã€‚\n");
+    sarray_print(sa); // åˆå§‹åº”ä¸º0ï¼ˆæˆ–éšæœºå€¼ï¼Œå–å†³äºç³»ç»Ÿï¼‰
+
+
+
+
+    // å®‰å…¨åœ°è®¾ç½®å€¼
+    printf("\nå®‰å…¨åœ°è®¾ç½®å€¼...\n");
+    for (size_t i = 0; i < sarray_get_capacity(sa); i++) {
+        sarray_set(sa, i, (i + 1) * 11);
+    }
+    sarray_print(sa);
+
+    // å°è¯•å®‰å…¨åœ°å†™å…¥è¶Šç•Œç´¢å¼•
+    printf("\nå°è¯•å®‰å…¨åœ°å†™å…¥è¶Šç•Œç´¢å¼• 10...\n");
+    if (sarray_set(sa, 10, 999)) {
+        printf("å†™å…¥æˆåŠŸ (ä¸åº”å‘ç”Ÿ!)\n");
+    }
+    else {
+        printf("å†™å…¥å¤±è´¥ï¼Œå› ä¸ºç´¢å¼•è¶Šç•Œã€‚ç¨‹åºå®‰å…¨ï¼\n");
+    }
+    sarray_print(sa); // æ•°ç»„å†…å®¹æ²¡æœ‰è¢«ç ´å
+
+    // å®‰å…¨åœ°è·å–å€¼
+    printf("\nå®‰å…¨åœ°è·å–å€¼...\n");
+    int value;
+    if (sarray_get(sa, 3, &value)) {
+        printf("ç´¢å¼• 3 çš„å€¼ä¸º: %d\n", value);
+    }
+
+    // å°è¯•å®‰å…¨åœ°è¯»å–è¶Šç•Œç´¢å¼•
+    printf("\nå°è¯•å®‰å…¨åœ°è¯»å–è¶Šç•Œç´¢å¼• 5...\n");
+
+    // SafeArray* sa = sarray_get(xxx);
+
+    // sa->data = "123";
+
+
+    if (sarray_get(sa, 5, &value)) {
+        printf("è¯»å–åˆ°çš„å€¼: %d (ä¸åº”å‘ç”Ÿ!)\n", value);
+    }
+    else {
+        printf("è¯»å–å¤±è´¥ï¼Œå› ä¸ºç´¢å¼•è¶Šç•Œã€‚ç¨‹åºå®‰å…¨ï¼\n");
+    }
+
+    sarray_destroy(&sa);
+    printf("\nå®‰å…¨æ•°ç»„å·²é”€æ¯ã€‚\n");
+}
+
+int main() {
+    plain_c_array_example();
+    safe_array_example();
+
+    return 0;
 }

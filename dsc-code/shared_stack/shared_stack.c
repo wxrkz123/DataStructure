@@ -1,161 +1,161 @@
-#include "shared_stack.h"
-#include <stdlib.h>
-#include <string.h>
-
-// --- Private Structure Definition ---
-struct SharedStack {
-    void* data;          // Ö¸Ïò¹²ÏíÄÚ´æÇøÓòµÄÖ¸Õë
-    size_t capacity;     // ×ÜÈÝÁ¿ (ÔªËØ¸öÊý)
-    size_t element_size; // Ã¿¸öÔªËØµÄ´óÐ¡
-    int top1;            // Õ»1µÄÕ»¶¥Ë÷Òý
-    int top2;            // Õ»2µÄÕ»¶¥Ë÷Òý
-};
-
-// --- API Function Implementations ---
-
-Stack* stack_create(size_t total_capacity, size_t element_size) {
-    if (total_capacity == 0 || element_size == 0) {
-        return NULL;
-    }
-
-    Stack* s = (Stack*)malloc(sizeof(Stack));
-    if (!s) {
-        return NULL;
-    }
-
-    s->data = malloc(total_capacity * element_size);
-    if (!s->data) {
-        free(s);
-        return NULL;
-    }
-
-    s->capacity = total_capacity;
-    s->element_size = element_size;
-    s->top1 = -1; // Õ»1´ÓÍ·¿ªÊ¼£¬-1Îª¿Õ
-    s->top2 = (int)total_capacity; // Õ»2´ÓÎ²¿ªÊ¼£¬capacityÎª¿Õ
-
-    return s;
-}
-
-void stack_destroy(Stack** p_stack) {
-    if (p_stack && *p_stack) {
-        free((*p_stack)->data);
-        free(*p_stack);
-        *p_stack = NULL;
-    }
-}
-
-bool stack_is_full(const Stack* stack) {
-    if (!stack) {
-        return true; // ÎÞÐ§Õ»ÊÓ×÷Âú
-    }
-    return stack->top1 + 1 == stack->top2;
-}
-
-bool stack_is_empty(const Stack* stack, StackNumber num) {
-    if (!stack) {
-        return true; // ÎÞÐ§Õ»ÊÓ×÷¿Õ
-    }
-    if (num == STACK_ONE) {
-        return stack->top1 == -1;
-    }
-    else { // STACK_TWO
-        return stack->top2 == (int)stack->capacity;
-    }
-}
-
-bool stack_push(Stack* stack, StackNumber num, const void* element_data) {
-    if (!stack || !element_data || stack_is_full(stack)) {
-        return false;
-    }
-
-    void* target_address;
-    if (num == STACK_ONE) {
-        stack->top1++;
-        target_address = (char*)stack->data + (stack->top1 * stack->element_size);
-    }
-    else { // STACK_TWO
-        stack->top2--;
-        target_address = (char*)stack->data + (stack->top2 * stack->element_size);
-    }
-
-    memcpy(target_address, element_data, stack->element_size);
-    return true;
-}
-
-bool stack_pop(Stack* stack, StackNumber num, void* output_buffer) {
-    if (!stack || !output_buffer || stack_is_empty(stack, num)) {
-        return false;
-    }
-
-    void* source_address;
-    if (num == STACK_ONE) {
-        source_address = (char*)stack->data + (stack->top1 * stack->element_size);
-        memcpy(output_buffer, source_address, stack->element_size);
-        stack->top1--;
-    }
-    else { // STACK_TWO
-        source_address = (char*)stack->data + (stack->top2 * stack->element_size);
-        memcpy(output_buffer, source_address, stack->element_size);
-        stack->top2++;
-    }
-    return true;
-}
-
-bool stack_peek(const Stack* stack, StackNumber num, void* output_buffer) {
-    if (!stack || !output_buffer || stack_is_empty(stack, num)) {
-        return false;
-    }
-
-    void* source_address;
-    if (num == STACK_ONE) {
-        source_address = (char*)stack->data + (stack->top1 * stack->element_size);
-    }
-    else { // STACK_TWO
-        source_address = (char*)stack->data + (stack->top2 * stack->element_size);
-    }
-    memcpy(output_buffer, source_address, stack->element_size);
-    return true;
-}
-
-size_t stack_get_size(const Stack* stack, StackNumber num) {
-    if (!stack) {
-        return 0;
-    }
-    if (num == STACK_ONE) {
-        return (size_t)(stack->top1 + 1);
-    }
-    else { // STACK_TWO
-        return stack->capacity - stack->top2;
-
-		// Stack* ss = stack_create(10, sizeof(int));
-		// ss-> capacity = 10;
-		// 0, 1, 2, 3, 4, 5, 6, 7, 8, 9  => index
-		// top1 = -1; // Õ»1´ÓÍ·¿ªÊ¼£¬-1Îª¿Õ
-		// top2 = 10; // Õ»2´ÓÎ²¿ªÊ¼£¬capacityÎª¿Õ
-		// Index:  0  1  2  3  4  5  6  7  8  9
-		// Array: [ ][ ][ ][ ][ ][ ][ ][ ][ ][ ]
-		//                                       top2 (is at 10)
-		// size = capacity - top2;
-		// size = 10 - 10 = 0
-        // size = 0
-        // e.g 99
-        // stack_push()
-        // top2 10->9 top2--
-        // Index:  0  1  2  3  4  5  6  7  8  9
-        // Array: [ ][ ][ ][ ][ ][ ][ ][ ][ ][99]
-		// 								   top2 (is at 9)
-
-		// size = capacity - top2;
-        // size = 10 - 9 = 1
-		// size = 1
-
-    }
-}
-
-size_t stack_get_total_capacity(const Stack* stack) {
-    if (!stack) {
-        return 0;
-    }
-    return stack->capacity;
+#include "shared_stack.h"
+#include <stdlib.h>
+#include <string.h>
+
+// --- Private Structure Definition ---
+struct SharedStack {
+    void* data;          // æŒ‡å‘å…±äº«å†…å­˜åŒºåŸŸçš„æŒ‡é’ˆ
+    size_t capacity;     // æ€»å®¹é‡ (å…ƒç´ ä¸ªæ•°)
+    size_t element_size; // æ¯ä¸ªå…ƒç´ çš„å¤§å°
+    int top1;            // æ ˆ1çš„æ ˆé¡¶ç´¢å¼•
+    int top2;            // æ ˆ2çš„æ ˆé¡¶ç´¢å¼•
+};
+
+// --- API Function Implementations ---
+
+Stack* stack_create(size_t total_capacity, size_t element_size) {
+    if (total_capacity == 0 || element_size == 0) {
+        return NULL;
+    }
+
+    Stack* s = (Stack*)malloc(sizeof(Stack));
+    if (!s) {
+        return NULL;
+    }
+
+    s->data = malloc(total_capacity * element_size);
+    if (!s->data) {
+        free(s);
+        return NULL;
+    }
+
+    s->capacity = total_capacity;
+    s->element_size = element_size;
+    s->top1 = -1; // æ ˆ1ä»Žå¤´å¼€å§‹ï¼Œ-1ä¸ºç©º
+    s->top2 = (int)total_capacity; // æ ˆ2ä»Žå°¾å¼€å§‹ï¼Œcapacityä¸ºç©º
+
+    return s;
+}
+
+void stack_destroy(Stack** p_stack) {
+    if (p_stack && *p_stack) {
+        free((*p_stack)->data);
+        free(*p_stack);
+        *p_stack = NULL;
+    }
+}
+
+bool stack_is_full(const Stack* stack) {
+    if (!stack) {
+        return true; // æ— æ•ˆæ ˆè§†ä½œæ»¡
+    }
+    return stack->top1 + 1 == stack->top2;
+}
+
+bool stack_is_empty(const Stack* stack, StackNumber num) {
+    if (!stack) {
+        return true; // æ— æ•ˆæ ˆè§†ä½œç©º
+    }
+    if (num == STACK_ONE) {
+        return stack->top1 == -1;
+    }
+    else { // STACK_TWO
+        return stack->top2 == (int)stack->capacity;
+    }
+}
+
+bool stack_push(Stack* stack, StackNumber num, const void* element_data) {
+    if (!stack || !element_data || stack_is_full(stack)) {
+        return false;
+    }
+
+    void* target_address;
+    if (num == STACK_ONE) {
+        stack->top1++;
+        target_address = (char*)stack->data + (stack->top1 * stack->element_size);
+    }
+    else { // STACK_TWO
+        stack->top2--;
+        target_address = (char*)stack->data + (stack->top2 * stack->element_size);
+    }
+
+    memcpy(target_address, element_data, stack->element_size);
+    return true;
+}
+
+bool stack_pop(Stack* stack, StackNumber num, void* output_buffer) {
+    if (!stack || !output_buffer || stack_is_empty(stack, num)) {
+        return false;
+    }
+
+    void* source_address;
+    if (num == STACK_ONE) {
+        source_address = (char*)stack->data + (stack->top1 * stack->element_size);
+        memcpy(output_buffer, source_address, stack->element_size);
+        stack->top1--;
+    }
+    else { // STACK_TWO
+        source_address = (char*)stack->data + (stack->top2 * stack->element_size);
+        memcpy(output_buffer, source_address, stack->element_size);
+        stack->top2++;
+    }
+    return true;
+}
+
+bool stack_peek(const Stack* stack, StackNumber num, void* output_buffer) {
+    if (!stack || !output_buffer || stack_is_empty(stack, num)) {
+        return false;
+    }
+
+    void* source_address;
+    if (num == STACK_ONE) {
+        source_address = (char*)stack->data + (stack->top1 * stack->element_size);
+    }
+    else { // STACK_TWO
+        source_address = (char*)stack->data + (stack->top2 * stack->element_size);
+    }
+    memcpy(output_buffer, source_address, stack->element_size);
+    return true;
+}
+
+size_t stack_get_size(const Stack* stack, StackNumber num) {
+    if (!stack) {
+        return 0;
+    }
+    if (num == STACK_ONE) {
+        return (size_t)(stack->top1 + 1);
+    }
+    else { // STACK_TWO
+        return stack->capacity - stack->top2;
+
+		// Stack* ss = stack_create(10, sizeof(int));
+		// ss-> capacity = 10;
+		// 0, 1, 2, 3, 4, 5, 6, 7, 8, 9  => index
+		// top1 = -1; // æ ˆ1ä»Žå¤´å¼€å§‹ï¼Œ-1ä¸ºç©º
+		// top2 = 10; // æ ˆ2ä»Žå°¾å¼€å§‹ï¼Œcapacityä¸ºç©º
+		// Index:  0  1  2  3  4  5  6  7  8  9
+		// Array: [ ][ ][ ][ ][ ][ ][ ][ ][ ][ ]
+		//                                       top2 (is at 10)
+		// size = capacity - top2;
+		// size = 10 - 10 = 0
+        // size = 0
+        // e.g 99
+        // stack_push()
+        // top2 10->9 top2--
+        // Index:  0  1  2  3  4  5  6  7  8  9
+        // Array: [ ][ ][ ][ ][ ][ ][ ][ ][ ][99]
+		// 								   top2 (is at 9)
+
+		// size = capacity - top2;
+        // size = 10 - 9 = 1
+		// size = 1
+
+    }
+}
+
+size_t stack_get_total_capacity(const Stack* stack) {
+    if (!stack) {
+        return 0;
+    }
+    return stack->capacity;
 }

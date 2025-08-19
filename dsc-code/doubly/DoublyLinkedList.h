@@ -1,48 +1,48 @@
-#pragma once
-#include <stdbool.h>
-
-// Ä£Äâ½Úµã´æ´¢Êı¾İ
-typedef struct {
-	// char title[100]; const Ò»µ©¶¨Òå£¬¾Í²»ÄÜ¸ü¸Ä£¬Ò»Ö±¶¼ÊÇ100
-	// ÕâÀïÊ¹ÓÃ¶¯Ì¬ÄÚ´æ·ÖÅäÀ´´æ´¢×Ö·û´®
-	// Ö¸ÏòÒ»¸öÖ¸Õë
-	// ÕâÑù¿ÉÒÔÔÚÔËĞĞÊ±¶¯Ì¬·ÖÅäÄÚ´æ
-	char* title;
-	char* artist;
-	int duration; // µ¥Î»ÎªÃë
-} Song;
-
-
-// Ë«ÏòÁ´±í
-typedef struct Node {
-	Song data;
-	struct Node* next;
-	struct Node* prev;
-} Node;
-
-
-//  ¶¨ÒåÒ»¸ö¹ÜÀíÆ÷
-typedef struct {
-	Node* head;
-	Node* tail;
-	int size;
-} DoublyLinkedList;
-
-DoublyLinkedList* createList();
-
-void freeList(DoublyLinkedList* list);
-
-bool append(DoublyLinkedList* list, Song songData);
-
-bool prepend(DoublyLinkedList* list, Song songData);
-
-bool insertAfter(DoublyLinkedList* list, Node* targetNode, Song songData);
-
-// list Ö¸ÏòÁ´±íµÄÖ¸Õë£¬ nodeToDeleteÊÇÖ¸ÏòÒªÉ¾³ıµÄ½ÚµãµÄÖ¸Õë
-bool deleteNode(DoublyLinkedList* list, Node* nodeToDelete);
-
-Node* findByTitle(const DoublyLinkedList* list, const char* title);
-
-void printListForward(const DoublyLinkedList* list);
-
+#pragma once
+#include <stdbool.h>
+
+// æ¨¡æ‹ŸèŠ‚ç‚¹å­˜å‚¨æ•°æ®
+typedef struct {
+	// char title[100]; const ä¸€æ—¦å®šä¹‰ï¼Œå°±ä¸èƒ½æ›´æ”¹ï¼Œä¸€ç›´éƒ½æ˜¯100
+	// è¿™é‡Œä½¿ç”¨åŠ¨æ€å†…å­˜åˆ†é…æ¥å­˜å‚¨å­—ç¬¦ä¸²
+	// æŒ‡å‘ä¸€ä¸ªæŒ‡é’ˆ
+	// è¿™æ ·å¯ä»¥åœ¨è¿è¡Œæ—¶åŠ¨æ€åˆ†é…å†…å­˜
+	char* title;
+	char* artist;
+	int duration; // å•ä½ä¸ºç§’
+} Song;
+
+
+// åŒå‘é“¾è¡¨
+typedef struct Node {
+	Song data;
+	struct Node* next;
+	struct Node* prev;
+} Node;
+
+
+//  å®šä¹‰ä¸€ä¸ªç®¡ç†å™¨
+typedef struct {
+	Node* head;
+	Node* tail;
+	int size;
+} DoublyLinkedList;
+
+DoublyLinkedList* createList();
+
+void freeList(DoublyLinkedList* list);
+
+bool append(DoublyLinkedList* list, Song songData);
+
+bool prepend(DoublyLinkedList* list, Song songData);
+
+bool insertAfter(DoublyLinkedList* list, Node* targetNode, Song songData);
+
+// list æŒ‡å‘é“¾è¡¨çš„æŒ‡é’ˆï¼Œ nodeToDeleteæ˜¯æŒ‡å‘è¦åˆ é™¤çš„èŠ‚ç‚¹çš„æŒ‡é’ˆ
+bool deleteNode(DoublyLinkedList* list, Node* nodeToDelete);
+
+Node* findByTitle(const DoublyLinkedList* list, const char* title);
+
+void printListForward(const DoublyLinkedList* list);
+
 void printListBackward(const DoublyLinkedList* list);

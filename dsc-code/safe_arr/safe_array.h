@@ -1,67 +1,67 @@
-#pragma once
-#include <stddef.h>  // for size_t
-#include <stdbool.h> // for bool
-
-
-// 1. safety£¬ ÒªÇóÌá¹©Ò»×é½Ó¿Ú£¬È·±£ÈÎºÎ¶ÔÊı×éµÄ·ÃÎÊ¶¼ÔÚÆäºÏ·¨·¶Î§ÄÚ¡£
-// 2. encapsulation£¬ ·â×°ĞÔ¡£Òş²ØÄÚ²¿µÄÔ­Ê¼Êı×é£¬ÒªÇóÓÃ»§£¨ÏÂÊô³ÌĞòÔ±£©Ö»ÄÜÍ¨¹ıÕâĞ©
-// ½Ó¿Ú·ÃÎÊÊı×é£¬¶ø²»ÄÜÖ±½Ó·ÃÎÊÄÚ²¿Êı¾İ¡£
-// 3. usability Ò×ÓÃĞÔ ±©Â¶¸øÓÃ»§µÄAPI±ØĞëÇåÎúÖ±¹Û¡£
-// interface & information hiding
-// --- Opaque Pointer Declaration ²»Í¸Ã÷Ö¸Õë ---
-// ¡°°²È«Êı×é¡±µÄÄ§·¨£ºÓÃ»§Ö»ÖªµÀÓĞ SafeArray Õâ¸öÀàĞÍ£¬
-// µ«ÍêÈ«²»ÖªµÀËüÄÚ²¿ÊÇÓÃÊ²Ã´ÊµÏÖµÄ¡£ËûÃÇÎŞ·¨Ö±½Ó·ÃÎÊÄÚ²¿µÄÔ­Ê¼Êı×é¡£
-// Forward Declaration of SafeArray Ç°ÏòÉùÃ÷
-// ËüÏò±àÒëÆ÷ÉùÃ÷ SafeArray ÊÇÒ»¸ö½á¹¹ÌåÀàĞÍ£¬µ«²»¶¨ÒåËüµÄÄÚÈİ¡£
-// ÕâÑù×öµÄºÃ´¦ÊÇ£¬ÓÃ»§ÎŞ·¨Ö±½Ó·ÃÎÊ SafeArray µÄÄÚ²¿Êı¾İ£¬Òò´ËÎÒÃÇ¿ÉÒÔ¶¨ÒåÖ¸ÏòËüµÄÖ¸Õë SafeArray*
-typedef struct SafeArray SafeArray;
-
-// --- Public API Prototypes ---
-
-/**
- * @brief ´´½¨Ò»¸öĞÂµÄ°²È«Êı×é¡£
- *
- * @param capacity Êı×é¿ÉÒÔÈİÄÉµÄÔªËØÊıÁ¿¡£
- * @return ³É¹¦Ê±·µ»ØÖ¸ÏòĞÂ°²È«Êı×éµÄÖ¸Õë£¬Ê§°Ü·µ»Ø NULL¡£
- */
-SafeArray* sarray_create(size_t capacity);
-
-/**
- * @brief Ïú»ÙÒ»¸ö°²È«Êı×é²¢ÊÍ·ÅËùÓĞÄÚ´æ¡£
- *
- * @param p_sarray Ö¸Ïò°²È«Êı×éÖ¸ÕëµÄÖ¸Õë£¬º¯Êı»á½«ÆäÖÃÎª NULL¡£
- */
-void sarray_destroy(SafeArray** p_sarray);
-
-/**
- * @brief °²È«µØÉèÖÃÖ¸¶¨Ë÷ÒıÎ»ÖÃµÄÖµ¡£
- *
- * @param sarray Ö¸ÏòÒª²Ù×÷µÄ°²È«Êı×é¡£
- * @param index  ÒªÉèÖÃµÄÔªËØµÄË÷Òı¡£
- * @param value  ÒªÉèÖÃµÄÕûÊıÖµ¡£
- * @return ³É¹¦·µ»Ø true£¬Èç¹ûË÷ÒıÔ½½ç»òÊı×éÎªNULLÔò·µ»Ø false¡£
- */
-bool sarray_set(SafeArray* sarray, size_t index, int value);
-
-/**
- * @brief °²È«µØ»ñÈ¡Ö¸¶¨Ë÷ÒıÎ»ÖÃµÄÖµ¡£
- *
- * @param sarray Ö¸ÏòÒª²Ù×÷µÄ°²È«Êı×é¡£
- * @param index  Òª»ñÈ¡µÄÔªËØµÄË÷Òı¡£
- * @param out_value Ö¸ÏòÒ»¸öÕûÊıµÄÖ¸Õë£¬ÓÃÓÚ½ÓÊÕ»ñÈ¡µ½µÄÖµ¡£out-parameter Êä³ö²ÎÊı
- * @return ³É¹¦·µ»Ø true£¬Èç¹ûË÷ÒıÔ½½ç»ò²ÎÊıÎŞĞ§Ôò·µ»Ø false¡£
- */
-bool sarray_get(const SafeArray* sarray, size_t index, int* out_value);
-
-/**
- * @brief »ñÈ¡°²È«Êı×éµÄÈİÁ¿¡£
- *
- * @param sarray Ö¸ÏòÒª²éÑ¯µÄÊı×é¡£
- * @return ·µ»ØÊı×éµÄÈİÁ¿£¬Èç¹ûÊı×éÎªNULLÔò·µ»Ø0¡£
- */
-size_t sarray_get_capacity(const SafeArray* sarray);
-
-/**
- * @brief (½ÌÑ§ÓÃ) ´òÓ¡°²È«Êı×éµÄÄÚÈİ¡£
- */
+#pragma once
+#include <stddef.h>  // for size_t
+#include <stdbool.h> // for bool
+
+
+// 1. safetyï¼Œ è¦æ±‚æä¾›ä¸€ç»„æ¥å£ï¼Œç¡®ä¿ä»»ä½•å¯¹æ•°ç»„çš„è®¿é—®éƒ½åœ¨å…¶åˆæ³•èŒƒå›´å†…ã€‚
+// 2. encapsulationï¼Œ å°è£…æ€§ã€‚éšè—å†…éƒ¨çš„åŸå§‹æ•°ç»„ï¼Œè¦æ±‚ç”¨æˆ·ï¼ˆä¸‹å±ç¨‹åºå‘˜ï¼‰åªèƒ½é€šè¿‡è¿™äº›
+// æ¥å£è®¿é—®æ•°ç»„ï¼Œè€Œä¸èƒ½ç›´æ¥è®¿é—®å†…éƒ¨æ•°æ®ã€‚
+// 3. usability æ˜“ç”¨æ€§ æš´éœ²ç»™ç”¨æˆ·çš„APIå¿…é¡»æ¸…æ™°ç›´è§‚ã€‚
+// interface & information hiding
+// --- Opaque Pointer Declaration ä¸é€æ˜æŒ‡é’ˆ ---
+// â€œå®‰å…¨æ•°ç»„â€çš„é­”æ³•ï¼šç”¨æˆ·åªçŸ¥é“æœ‰ SafeArray è¿™ä¸ªç±»å‹ï¼Œ
+// ä½†å®Œå…¨ä¸çŸ¥é“å®ƒå†…éƒ¨æ˜¯ç”¨ä»€ä¹ˆå®ç°çš„ã€‚ä»–ä»¬æ— æ³•ç›´æ¥è®¿é—®å†…éƒ¨çš„åŸå§‹æ•°ç»„ã€‚
+// Forward Declaration of SafeArray å‰å‘å£°æ˜
+// å®ƒå‘ç¼–è¯‘å™¨å£°æ˜ SafeArray æ˜¯ä¸€ä¸ªç»“æ„ä½“ç±»å‹ï¼Œä½†ä¸å®šä¹‰å®ƒçš„å†…å®¹ã€‚
+// è¿™æ ·åšçš„å¥½å¤„æ˜¯ï¼Œç”¨æˆ·æ— æ³•ç›´æ¥è®¿é—® SafeArray çš„å†…éƒ¨æ•°æ®ï¼Œå› æ­¤æˆ‘ä»¬å¯ä»¥å®šä¹‰æŒ‡å‘å®ƒçš„æŒ‡é’ˆ SafeArray*
+typedef struct SafeArray SafeArray;
+
+// --- Public API Prototypes ---
+
+/**
+ * @brief åˆ›å»ºä¸€ä¸ªæ–°çš„å®‰å…¨æ•°ç»„ã€‚
+ *
+ * @param capacity æ•°ç»„å¯ä»¥å®¹çº³çš„å…ƒç´ æ•°é‡ã€‚
+ * @return æˆåŠŸæ—¶è¿”å›æŒ‡å‘æ–°å®‰å…¨æ•°ç»„çš„æŒ‡é’ˆï¼Œå¤±è´¥è¿”å› NULLã€‚
+ */
+SafeArray* sarray_create(size_t capacity);
+
+/**
+ * @brief é”€æ¯ä¸€ä¸ªå®‰å…¨æ•°ç»„å¹¶é‡Šæ”¾æ‰€æœ‰å†…å­˜ã€‚
+ *
+ * @param p_sarray æŒ‡å‘å®‰å…¨æ•°ç»„æŒ‡é’ˆçš„æŒ‡é’ˆï¼Œå‡½æ•°ä¼šå°†å…¶ç½®ä¸º NULLã€‚
+ */
+void sarray_destroy(SafeArray** p_sarray);
+
+/**
+ * @brief å®‰å…¨åœ°è®¾ç½®æŒ‡å®šç´¢å¼•ä½ç½®çš„å€¼ã€‚
+ *
+ * @param sarray æŒ‡å‘è¦æ“ä½œçš„å®‰å…¨æ•°ç»„ã€‚
+ * @param index  è¦è®¾ç½®çš„å…ƒç´ çš„ç´¢å¼•ã€‚
+ * @param value  è¦è®¾ç½®çš„æ•´æ•°å€¼ã€‚
+ * @return æˆåŠŸè¿”å› trueï¼Œå¦‚æœç´¢å¼•è¶Šç•Œæˆ–æ•°ç»„ä¸ºNULLåˆ™è¿”å› falseã€‚
+ */
+bool sarray_set(SafeArray* sarray, size_t index, int value);
+
+/**
+ * @brief å®‰å…¨åœ°è·å–æŒ‡å®šç´¢å¼•ä½ç½®çš„å€¼ã€‚
+ *
+ * @param sarray æŒ‡å‘è¦æ“ä½œçš„å®‰å…¨æ•°ç»„ã€‚
+ * @param index  è¦è·å–çš„å…ƒç´ çš„ç´¢å¼•ã€‚
+ * @param out_value æŒ‡å‘ä¸€ä¸ªæ•´æ•°çš„æŒ‡é’ˆï¼Œç”¨äºæ¥æ”¶è·å–åˆ°çš„å€¼ã€‚out-parameter è¾“å‡ºå‚æ•°
+ * @return æˆåŠŸè¿”å› trueï¼Œå¦‚æœç´¢å¼•è¶Šç•Œæˆ–å‚æ•°æ— æ•ˆåˆ™è¿”å› falseã€‚
+ */
+bool sarray_get(const SafeArray* sarray, size_t index, int* out_value);
+
+/**
+ * @brief è·å–å®‰å…¨æ•°ç»„çš„å®¹é‡ã€‚
+ *
+ * @param sarray æŒ‡å‘è¦æŸ¥è¯¢çš„æ•°ç»„ã€‚
+ * @return è¿”å›æ•°ç»„çš„å®¹é‡ï¼Œå¦‚æœæ•°ç»„ä¸ºNULLåˆ™è¿”å›0ã€‚
+ */
+size_t sarray_get_capacity(const SafeArray* sarray);
+
+/**
+ * @brief (æ•™å­¦ç”¨) æ‰“å°å®‰å…¨æ•°ç»„çš„å†…å®¹ã€‚
+ */
 void sarray_print(const SafeArray* sarray);

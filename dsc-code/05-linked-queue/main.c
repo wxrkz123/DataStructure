@@ -1,88 +1,88 @@
-// main.c
-
-#include "generic_linked_queue.h"
-#include <stdio.h>
-
-// ¶¨ÒåÒ»¸ö½á¹¹ÌåÓÃÓÚ²âÊÔ
-typedef struct {
-    int id;
-    char name[16];
-} Person;
-
-void print_person(const Person* p) {
-    if (p) printf("Person(id: %d, name: \"%s\")", p->id, p->name);
-}
-
-void print_queue_status(const Queue* q, const char* title) {
-    printf("--- %s ---\n", title);
-    if (!q) {
-        printf("¶ÓÁĞÎª NULL\n\n");
-        return;
-    }
-    printf("´óĞ¡: %zu, ¿Õ? %s\n", queue_get_size(q), queue_is_empty(q) ? "ÊÇ" : "·ñ");
-
-    Person peeked_person;
-    if (queue_peek(q, &peeked_person)) {
-        printf("¶ÓÍ·ÊÇ: ");
-        print_person(&peeked_person);
-        printf("\n");
-    }
-    else {
-        printf("¶ÓÍ·Îª¿Õ¡£\n");
-    }
-    printf("\n");
-}
-
-
-int main() {
-    // 1. ´´½¨Ò»¸öPersonÀàĞÍµÄÁ´Ê½¶ÓÁĞ
-    Queue* q = queue_create(sizeof(Person));
-    print_queue_status(q, "1. ³õÊ¼×´Ì¬");
-
-    // 2. Èë¶ÓµÚÒ»¸öÔªËØ
-    Person p1 = { 101, "Alice" };
-    printf("Èë¶Ó: "); print_person(&p1); printf("\n");
-    queue_enqueue(q, &p1);
-    print_queue_status(q, "2. Èë¶ÓµÚÒ»¸öÔªËØºó");
-
-    // 3. Èë¶Ó¸ü¶àÔªËØ
-    Person p2 = { 102, "Bob" };
-    Person p3 = { 103, "Charlie" };
-    printf("Èë¶Ó: "); print_person(&p2); printf("\n");
-    queue_enqueue(q, &p2);
-    printf("Èë¶Ó: "); print_person(&p3); printf("\n");
-    queue_enqueue(q, &p3);
-    print_queue_status(q, "3. ¼ÌĞøÈë¶Óºó");
-
-    // 4. ³ö¶ÓÒ»¸öÔªËØ
-    Person dequeued_person;
-    if (queue_dequeue(q, &dequeued_person)) {
-        printf("³ö¶Ó³É¹¦: ");
-        print_person(&dequeued_person);
-        printf("\n");
-    }
-    print_queue_status(q, "4. ³ö¶ÓÒ»¸öÔªËØºó");
-
-    // 5. È«²¿³ö¶Ó£¬²âÊÔ¶ÓÁĞ±ä¿ÕµÄÂß¼­
-    printf("½«ËùÓĞÊ£ÓàÔªËØ³ö¶Ó...\n");
-    while (!queue_is_empty(q)) {
-        if (queue_dequeue(q, &dequeued_person)) {
-            printf("³ö¶Ó: ");
-            print_person(&dequeued_person);
-            printf("\n");
-        }
-    }
-    print_queue_status(q, "5. È«²¿³ö¶Óºó");
-
-    // 6. ³¢ÊÔ¶Ô¿Õ¶ÓÁĞ½øĞĞ²Ù×÷
-    printf("³¢ÊÔ¶Ô¿Õ¶ÓÁĞ³ö¶Ó...\n");
-    if (!queue_dequeue(q, &dequeued_person)) {
-        printf("³ö¶ÓÊ§°Ü£¬·ûºÏÔ¤ÆÚ¡£\n\n");
-    }
-
-    // 7. Ïú»Ù¶ÓÁĞ
-    queue_destroy(&q);
-    printf("¶ÓÁĞÒÑÏú»Ù£¬Ö¸ÕëÎª: %s\n", q == NULL ? "NULL" : "Not NULL");
-
-    return 0;
+// main.c
+
+#include "generic_linked_queue.h"
+#include <stdio.h>
+
+// å®šä¹‰ä¸€ä¸ªç»“æ„ä½“ç”¨äºæµ‹è¯•
+typedef struct {
+    int id;
+    char name[16];
+} Person;
+
+void print_person(const Person* p) {
+    if (p) printf("Person(id: %d, name: \"%s\")", p->id, p->name);
+}
+
+void print_queue_status(const Queue* q, const char* title) {
+    printf("--- %s ---\n", title);
+    if (!q) {
+        printf("é˜Ÿåˆ—ä¸º NULL\n\n");
+        return;
+    }
+    printf("å¤§å°: %zu, ç©º? %s\n", queue_get_size(q), queue_is_empty(q) ? "æ˜¯" : "å¦");
+
+    Person peeked_person;
+    if (queue_peek(q, &peeked_person)) {
+        printf("é˜Ÿå¤´æ˜¯: ");
+        print_person(&peeked_person);
+        printf("\n");
+    }
+    else {
+        printf("é˜Ÿå¤´ä¸ºç©ºã€‚\n");
+    }
+    printf("\n");
+}
+
+
+int main() {
+    // 1. åˆ›å»ºä¸€ä¸ªPersonç±»å‹çš„é“¾å¼é˜Ÿåˆ—
+    Queue* q = queue_create(sizeof(Person));
+    print_queue_status(q, "1. åˆå§‹çŠ¶æ€");
+
+    // 2. å…¥é˜Ÿç¬¬ä¸€ä¸ªå…ƒç´ 
+    Person p1 = { 101, "Alice" };
+    printf("å…¥é˜Ÿ: "); print_person(&p1); printf("\n");
+    queue_enqueue(q, &p1);
+    print_queue_status(q, "2. å…¥é˜Ÿç¬¬ä¸€ä¸ªå…ƒç´ å");
+
+    // 3. å…¥é˜Ÿæ›´å¤šå…ƒç´ 
+    Person p2 = { 102, "Bob" };
+    Person p3 = { 103, "Charlie" };
+    printf("å…¥é˜Ÿ: "); print_person(&p2); printf("\n");
+    queue_enqueue(q, &p2);
+    printf("å…¥é˜Ÿ: "); print_person(&p3); printf("\n");
+    queue_enqueue(q, &p3);
+    print_queue_status(q, "3. ç»§ç»­å…¥é˜Ÿå");
+
+    // 4. å‡ºé˜Ÿä¸€ä¸ªå…ƒç´ 
+    Person dequeued_person;
+    if (queue_dequeue(q, &dequeued_person)) {
+        printf("å‡ºé˜ŸæˆåŠŸ: ");
+        print_person(&dequeued_person);
+        printf("\n");
+    }
+    print_queue_status(q, "4. å‡ºé˜Ÿä¸€ä¸ªå…ƒç´ å");
+
+    // 5. å…¨éƒ¨å‡ºé˜Ÿï¼Œæµ‹è¯•é˜Ÿåˆ—å˜ç©ºçš„é€»è¾‘
+    printf("å°†æ‰€æœ‰å‰©ä½™å…ƒç´ å‡ºé˜Ÿ...\n");
+    while (!queue_is_empty(q)) {
+        if (queue_dequeue(q, &dequeued_person)) {
+            printf("å‡ºé˜Ÿ: ");
+            print_person(&dequeued_person);
+            printf("\n");
+        }
+    }
+    print_queue_status(q, "5. å…¨éƒ¨å‡ºé˜Ÿå");
+
+    // 6. å°è¯•å¯¹ç©ºé˜Ÿåˆ—è¿›è¡Œæ“ä½œ
+    printf("å°è¯•å¯¹ç©ºé˜Ÿåˆ—å‡ºé˜Ÿ...\n");
+    if (!queue_dequeue(q, &dequeued_person)) {
+        printf("å‡ºé˜Ÿå¤±è´¥ï¼Œç¬¦åˆé¢„æœŸã€‚\n\n");
+    }
+
+    // 7. é”€æ¯é˜Ÿåˆ—
+    queue_destroy(&q);
+    printf("é˜Ÿåˆ—å·²é”€æ¯ï¼ŒæŒ‡é’ˆä¸º: %s\n", q == NULL ? "NULL" : "Not NULL");
+
+    return 0;
 }

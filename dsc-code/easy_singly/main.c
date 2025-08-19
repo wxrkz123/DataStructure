@@ -1,171 +1,341 @@
 #define _CRT_SECURE_NO_WARNINGS
+
 #include <stdio.h>
+
 #include <stdlib.h>
+
 #include <string.h>
 
-// ¶¨Òå½Úµã½á¹¹
+
+
+// å®šä¹‰èŠ‚ç‚¹ç»“æž„
+
 // 1. data int
-// 2. Ö¸ÏòÏÂÒ»¸ö½ÚµãµÄÖ¸Õë
+
+// 2. æŒ‡å‘ä¸‹ä¸€ä¸ªèŠ‚ç‚¹çš„æŒ‡é’ˆ
+
 typedef struct Node {
+
     int data;
+
     struct Node* next;
+
 } Node;
 
+
+
 Node* createNote(int data) {
+
     Node* newNode = (Node*)malloc(sizeof(Node));
 
+
+
     if (newNode == NULL) {
-        printf("´íÎó£º·ÖÅäÊ§°Ü!\n");
+
+        printf("é”™è¯¯ï¼šåˆ†é…å¤±è´¥!\n");
+
         return NULL;
+
     } 
 
+
+
     newNode->data = data;
+
     newNode->next = NULL;
 
 
+
+
+
     return newNode;
+
 }
 
-// headRefÊÇÖ¸ÏòheadÖ¸ÕëµÄÖ¸Õë
-// ÕâÑùÎÒÃÇ²ÅÄÜ¹»ÔÚÁ´±íÎª¿ÕµÄÊ±ºò£¬ÐÞ¸Ähead
+
+
+// headRefæ˜¯æŒ‡å‘headæŒ‡é’ˆçš„æŒ‡é’ˆ
+
+// è¿™æ ·æˆ‘ä»¬æ‰èƒ½å¤Ÿåœ¨é“¾è¡¨ä¸ºç©ºçš„æ—¶å€™ï¼Œä¿®æ”¹head
+
 void list_append(Node** headRef, int data) {
+
     Node* newNode = createNote(data);
+
     if (newNode == NULL) return;
 
+
+
     if (*headRef == NULL) {
+
         *headRef = newNode;
+
         return;
+
     }
 
-    // head ÊÇÄã¼ÒµÄÒ»ÕÅ±ãÇ©Ö½£¬ÉÏÃæÐ´×ÅÄãºÃÅóÓÑ¼ÒµÄµØÖ·
-    // head Ò»¼¶Ö¸Õë Node* ¾ÍÊÇÊÇ±ãÇ©Ö½
-    // Á´±íÊý¾Ý£ºÄãÅóÓÑ¼Ò£¬ÒÔ¼°Ëû¼ÒµÄÁ¬×ÅËû¼Ò»§¿Ú±¾...
-    // Node* list_append ÅÜÍÈÐ¡¸ç
+
+
+    // head æ˜¯ä½ å®¶çš„ä¸€å¼ ä¾¿ç­¾çº¸ï¼Œä¸Šé¢å†™ç€ä½ å¥½æœ‹å‹å®¶çš„åœ°å€
+
+    // head ä¸€çº§æŒ‡é’ˆ Node* å°±æ˜¯æ˜¯ä¾¿ç­¾çº¸
+
+    // é“¾è¡¨æ•°æ®ï¼šä½ æœ‹å‹å®¶ï¼Œä»¥åŠä»–å®¶çš„è¿žç€ä»–å®¶æˆ·å£æœ¬...
+
+    // Node* list_append è·‘è…¿å°å“¥
+
+
 
     // head NULL
 
+
+
     Node* last = *headRef;
+
     while (last->next != NULL) {
+
         last = last->next;
+
     }
+
+
 
     last->next = newNode;
 
+
+
 }
+
+
+
 
 
 void prependNode(Node** headRef, int data) {
+
     Node* newNode = createNote(data);
+
     
+
     newNode->next = *headRef;
+
     *headRef = newNode;
 
+
+
 }
+
+
+
 
 
 void printList(Node* head) {
+
     Node* current = head;
 
-    printf("µ±Ç°ÁÐ±í:");
+
+
+    printf("å½“å‰åˆ—è¡¨:");
+
     while (current != NULL) {
+
         printf("%d => ", current->data);
+
         current = current->next;
+
     }
+
+
 
     printf("NULL\n");
 
+
+
 }
+
+
 
 Node* findNode(Node* head, int data) {
+
     Node* current = head;
+
     while (current != NULL) {
+
         if (current->data == data) {
+
             return current;
+
         }
 
+
+
         current = current->next;
+
     }
+
+
 
     return NULL;
+
 }
+
+
 
 void updateNode(Node* head, int oldData, int newData) {
+
     Node* nodeToUpdate = findNode(head, oldData);
+
     if (nodeToUpdate != NULL) {
+
         nodeToUpdate->data = newData;
-        printf("Êý¾Ý %d ÒÑ¾­³É¹¦¸üÐÂÖÁ %d .\n", oldData, newData);
+
+        printf("æ•°æ® %d å·²ç»æˆåŠŸæ›´æ–°è‡³ %d .\n", oldData, newData);
+
     }
+
     else {
-        printf("Î´ÕÒµ½!\n");
+
+        printf("æœªæ‰¾åˆ°!\n");
+
     }
+
 }
+
+
 
 void deleteNode(Node** headRef, int data) {
+
     Node* temp = *headRef;
+
     Node* prev = NULL;
 
-    // Èç¹ûÉ¾³ýµÄÊÇÍ·½Úµã
+
+
+    // å¦‚æžœåˆ é™¤çš„æ˜¯å¤´èŠ‚ç‚¹
+
     if (temp != NULL && temp->data == data) {
+
         *headRef = temp->next;
+
         free(temp);
+
         return;
+
     }
+
+
 
     // head --> [10 | next] --> [20 | next] --> [30 | next] --> NULL
+
     //              head
+
     //                                              temp
+
     //                              prev
-    // Èç¹ûÊÇÔÚÎ²²¿»òÕßÖÐ¼ä
+
+    // å¦‚æžœæ˜¯åœ¨å°¾éƒ¨æˆ–è€…ä¸­é—´
+
     while (temp != NULL && temp->data != data) {
+
         prev = temp;
+
         temp = temp->next;
+
     }
+
+
 
     if (temp == NULL) {
+
         return;
+
     }
 
+
+
     prev->next = temp->next;
+
     free(temp);
+
 }
 
+
+
 void list_free(Node** headRef) {
+
     if (headRef == NULL) return;
+
     Node* current = *headRef;
+
+
 
     Node* nextNode;
 
+
+
     while (current != NULL) {
+
         nextNode = current->next;
+
         free(current);
+
         current = nextNode;
+
     }
 
+
+
     *headRef = NULL;
+
 }
 
+
+
 int main(void) {
+
    
+
     Node* head = NULL;
 
+
+
     list_append(&head, 10);
+
     list_append(&head, 20);
+
     list_append(&head, 30);
+
    
+
     printList(head);
+
+
+
 
 
     list_append(&head, 40);
+
     printList(head);
+
+
+
 
 
     prependNode(&head, 5);
+
     printList(head);
+
+
 
     list_free(&head);
 
+
+
     printList(head);
 
 
+
+
+
     return 0;
+
 }

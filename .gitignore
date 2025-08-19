@@ -43,6 +43,7 @@
 *.ipch
 *.vsidx
 *.sln
+*.code-workspace
 
 # 构建结果
 [Dd]ebug/

@@ -1,181 +1,181 @@
-#include <stdio.h>
-#include "linked_stack.h"
-
-// ¶¨ÒåÒ»¸ö×Ô¶¨Òå½á¹¹ÌåÓÃÓÚ²âÊÔ
-typedef struct {
-	int id;
-	char name[20];
-} Record;
-
-void print_record(const Record* r) {
-	if (r) {
-		printf("Record(id: %d, name: \"%s\")", r->id, r->name);
-	}
-}
-
-void test_record_stack() {
-	printf("--- Testing Struct (Record) Linked Stack ---\n");
-	// ´´½¨Ê±²»ÔÙĞèÒªÈİÁ¿
-	Stack* record_stack = stack_create(sizeof(Record));
-
-	if (!record_stack) {
-		printf("Failed to create record stack.\n");
-		return;
-	}
-
-	printf("Stack created. Is empty? %s\n", stack_is_empty(record_stack) ? "Yes" : "No");
-
-	// ´´½¨Ò»Ğ©Êı¾İ²¢Ñ¹Õ»
-	Record r1 = { 1, "Alice" };
-	Record r2 = { 2, "Bob" };
-	Record r3 = { 3, "Charlie" };
-
-	printf("Pushing "); print_record(&r1); printf("...\n");
-	stack_push(record_stack, &r1);
-
-	printf("Pushing "); print_record(&r2); printf("...\n");
-	stack_push(record_stack, &r2);
-
-	printf("Pushing "); print_record(&r3); printf("...\n");
-	stack_push(record_stack, &r3);
-
-	printf("Current stack size: %zu\n", stack_get_size(record_stack));
-
-	Record peeked_record;
-	if (stack_peek(record_stack, &peeked_record)) {
-		printf("Peek at top: ");
-		print_record(&peeked_record);
-		printf("\n");
-	}
-
-	printf("\nPopping all elements:\n");
-	while (!stack_is_empty(record_stack)) {
-		Record popped_record;
-		if (stack_pop(record_stack, &popped_record)) {
-			printf("Popped: ");
-			print_record(&popped_record);
-			printf(" | New size: %zu\n", stack_get_size(record_stack));
-		}
-	}
-
-	printf("\nIs stack empty now? %s\n", stack_is_empty(record_stack) ? "Yes" : "No");
-
-	// Ïú»ÙÕ»
-	stack_destroy(&record_stack);
-	printf("Stack destroyed. Pointer is now %s\n", record_stack == NULL ? "NULL" : "Not NULL");
-}
-
-
-// ------------------------ÒÔÏÂÄÚÈİµÄº¯ÊıÊÇºóÃæµÄ¿Î³Ì--------------------------------------
-// ¼ì²éÀ¨ºÅÊÇ·ñÆ¥ÅäµÄ¸¨Öúº¯Êı
-bool is_opener(char c) {
-	return c == '(' || c == '{' || c == '[';
-}
-
-bool matches(char opener, char closer) {
-	return (opener == '(' && closer == ')') ||
-		(opener == '{' && closer == '}') ||
-		(opener == '[' && closer == ']');
-}
-
-bool check_brackets(const char* code) {
-
-	Stack* stack = stack_create(sizeof(char));
-
-	if (!stack) {
-
-		fprintf(stderr, "Failed to create stack for bracket checking.\n");
-		return false;
-	}
-
-	size_t len = strlen(code);
-	for (size_t i = 0; i < len; i++) {
-		char current_char = code[i];
-
-		//  Èç¹ûÊÇ¿ªÀ¨ºÅ£¬ÔòÑ¹ÈëÕ»
-		if (is_opener(current_char)) {
-			stack_push(stack, &current_char);
-
-			// Èç¹ûÊÇ±ÕÀ¨ºÅ£¬Ôò¼ì²éÕ»¶¥ÔªËØ
-		}
-		else if (current_char == ')' || current_char == '}' || current_char == ']') {
-
-			// ´íÎóÇé¿ö1£ºÕ»Îª¿Õ£¬±ÕÀ¨ºÅ¶àÓà
-			if (stack_is_empty(stack)) {
-				fprintf(stderr, "Unmatched closing bracket '%c' found.\n", current_char);
-				stack_destroy(&stack);
-				return false; // ±ÕÀ¨ºÅ¶àÓà
-			}
-
-			char popped_opener;
-			// ´ÓÕ»¶¥µ¯³öÒ»¸ö¿ªÀ¨ºÅ½øĞĞ±È½Ï
-			stack_pop(stack, &popped_opener);// ½«µ¯³öµÄchar´æÈëpopped_opener
-
-			// ´íÎóÇé¿ö2£º¿ªÀ¨ºÅºÍ±ÕÀ¨ºÅ²»Æ¥Åä £¨ÀàĞÍ²»Æ¥Åä£©
-			if (!matches(popped_opener, current_char)) {
-
-				fprintf(stderr, "Mismatched brackets: '%c' does not match '%c'.\n", popped_opener, current_char);
-				stack_destroy(&stack);
-				return false; // ¿ª±ÕÀ¨ºÅ²»Æ¥Åä
-			}
-		}
-	}
-
-	// ´íÎóÇé¿ö3£º±éÀú½áÊø£¬µ«ÊÇÕ»ÖĞÈÔÈ»ÓĞÎ´¹Ø±ÕµÄ¿ªÀ¨ºÅ
-	if (!stack_is_empty(stack)) {
-
-		char unclosed_opener;
-
-		// ²é¿´Ò»ÏÂÊÇÄÄÒ»¸ö¿ªÀ¨ºÅÃ»ÓĞ¹Ø±Õ
-		stack_peek(stack, &unclosed_opener);
-		fprintf(stderr, "Unmatched opening brackets remain in stack.\n");
-		stack_destroy(&stack);
-		return false; // ÓĞÎ´¹Ø±ÕµÄ¿ªÀ¨ºÅ
-	}
-
-
-	// Ïú»ÙÕ»
-	stack_destroy(&stack);
-	return true;
-}
-
-void check() {
-	const char* test_cases[] = {
-	   "int main() { int x = (1 + 2); return 0; }", // ÓĞĞ§
-	   "void func(int a[]);",                        // ÓĞĞ§
-	   "([{}])",                                     // ÓĞĞ§
-	   "int arr[5] = {1, 2, 3};",                     // ÓĞĞ§
-	   "",                                           // ÓĞĞ§ (¿Õ×Ö·û´®)
-	   "abc",                                        // ÓĞĞ§ (ÎŞÀ¨ºÅ)
-	   "([)]",                                       // ÎŞĞ§: ½»²æ²»Æ¥Åä
-	   "((()",                                       // ÎŞĞ§: ¿ªÀ¨ºÅÎ´¹Ø±Õ
-	   "())",                                        // ÎŞĞ§: ±ÕÀ¨ºÅÎŞ¶ÔÓ¦
-	   "if (x > 0) { printf(\"hello\");",             // ÎŞĞ§: } Î´¹Ø±Õ
-	   "int y = { ( [ ] ) };"                         // ÓĞĞ§: ¸´ÔÓÇ¶Ì×
-	};
-
-	int num_cases = sizeof(test_cases) / sizeof(test_cases[0]);
-
-	for (int i = 0; i < num_cases; i++) {
-		printf("ÕıÔÚ¼ì²é: \"%s\"\n", test_cases[i]);
-		if (check_brackets(test_cases[i])) {
-			printf("½á¹û: -> ÓĞĞ§\n\n");
-		}
-		else {
-			printf("½á¹û: -> ÎŞĞ§\n\n");
-		}
-	}
-}
-
-int main() {
-	// ---------------²âÊÔÁ´Ê½Õ»--------------------ÏÂÃæµÄ×¢ÊÍÈ¡Ïû¼´¿É--------------------
-	// test_record_stack();
-
-
-	// ------------------------ÒÔÏÂÄÚÈİµÄº¯ÊıÊÇºóÃæµÄ¿Î³Ì--------------------------------------
-
-	// ²âÊÔÀ¨ºÅÆ¥ÅäÆ÷£¨ºóÃæµÄ¿Î³Ì£©
-	check();
-
-	return 0;
+#include <stdio.h>
+#include "linked_stack.h"
+
+// å®šä¹‰ä¸€ä¸ªè‡ªå®šä¹‰ç»“æ„ä½“ç”¨äºæµ‹è¯•
+typedef struct {
+	int id;
+	char name[20];
+} Record;
+
+void print_record(const Record* r) {
+	if (r) {
+		printf("Record(id: %d, name: \"%s\")", r->id, r->name);
+	}
+}
+
+void test_record_stack() {
+	printf("--- Testing Struct (Record) Linked Stack ---\n");
+	// åˆ›å»ºæ—¶ä¸å†éœ€è¦å®¹é‡
+	Stack* record_stack = stack_create(sizeof(Record));
+
+	if (!record_stack) {
+		printf("Failed to create record stack.\n");
+		return;
+	}
+
+	printf("Stack created. Is empty? %s\n", stack_is_empty(record_stack) ? "Yes" : "No");
+
+	// åˆ›å»ºä¸€äº›æ•°æ®å¹¶å‹æ ˆ
+	Record r1 = { 1, "Alice" };
+	Record r2 = { 2, "Bob" };
+	Record r3 = { 3, "Charlie" };
+
+	printf("Pushing "); print_record(&r1); printf("...\n");
+	stack_push(record_stack, &r1);
+
+	printf("Pushing "); print_record(&r2); printf("...\n");
+	stack_push(record_stack, &r2);
+
+	printf("Pushing "); print_record(&r3); printf("...\n");
+	stack_push(record_stack, &r3);
+
+	printf("Current stack size: %zu\n", stack_get_size(record_stack));
+
+	Record peeked_record;
+	if (stack_peek(record_stack, &peeked_record)) {
+		printf("Peek at top: ");
+		print_record(&peeked_record);
+		printf("\n");
+	}
+
+	printf("\nPopping all elements:\n");
+	while (!stack_is_empty(record_stack)) {
+		Record popped_record;
+		if (stack_pop(record_stack, &popped_record)) {
+			printf("Popped: ");
+			print_record(&popped_record);
+			printf(" | New size: %zu\n", stack_get_size(record_stack));
+		}
+	}
+
+	printf("\nIs stack empty now? %s\n", stack_is_empty(record_stack) ? "Yes" : "No");
+
+	// é”€æ¯æ ˆ
+	stack_destroy(&record_stack);
+	printf("Stack destroyed. Pointer is now %s\n", record_stack == NULL ? "NULL" : "Not NULL");
+}
+
+
+// ------------------------ä»¥ä¸‹å†…å®¹çš„å‡½æ•°æ˜¯åé¢çš„è¯¾ç¨‹--------------------------------------
+// æ£€æŸ¥æ‹¬å·æ˜¯å¦åŒ¹é…çš„è¾…åŠ©å‡½æ•°
+bool is_opener(char c) {
+	return c == '(' || c == '{' || c == '[';
+}
+
+bool matches(char opener, char closer) {
+	return (opener == '(' && closer == ')') ||
+		(opener == '{' && closer == '}') ||
+		(opener == '[' && closer == ']');
+}
+
+bool check_brackets(const char* code) {
+
+	Stack* stack = stack_create(sizeof(char));
+
+	if (!stack) {
+
+		fprintf(stderr, "Failed to create stack for bracket checking.\n");
+		return false;
+	}
+
+	size_t len = strlen(code);
+	for (size_t i = 0; i < len; i++) {
+		char current_char = code[i];
+
+		//  å¦‚æœæ˜¯å¼€æ‹¬å·ï¼Œåˆ™å‹å…¥æ ˆ
+		if (is_opener(current_char)) {
+			stack_push(stack, &current_char);
+
+			// å¦‚æœæ˜¯é—­æ‹¬å·ï¼Œåˆ™æ£€æŸ¥æ ˆé¡¶å…ƒç´ 
+		}
+		else if (current_char == ')' || current_char == '}' || current_char == ']') {
+
+			// é”™è¯¯æƒ…å†µ1ï¼šæ ˆä¸ºç©ºï¼Œé—­æ‹¬å·å¤šä½™
+			if (stack_is_empty(stack)) {
+				fprintf(stderr, "Unmatched closing bracket '%c' found.\n", current_char);
+				stack_destroy(&stack);
+				return false; // é—­æ‹¬å·å¤šä½™
+			}
+
+			char popped_opener;
+			// ä»æ ˆé¡¶å¼¹å‡ºä¸€ä¸ªå¼€æ‹¬å·è¿›è¡Œæ¯”è¾ƒ
+			stack_pop(stack, &popped_opener);// å°†å¼¹å‡ºçš„charå­˜å…¥popped_opener
+
+			// é”™è¯¯æƒ…å†µ2ï¼šå¼€æ‹¬å·å’Œé—­æ‹¬å·ä¸åŒ¹é… ï¼ˆç±»å‹ä¸åŒ¹é…ï¼‰
+			if (!matches(popped_opener, current_char)) {
+
+				fprintf(stderr, "Mismatched brackets: '%c' does not match '%c'.\n", popped_opener, current_char);
+				stack_destroy(&stack);
+				return false; // å¼€é—­æ‹¬å·ä¸åŒ¹é…
+			}
+		}
+	}
+
+	// é”™è¯¯æƒ…å†µ3ï¼šéå†ç»“æŸï¼Œä½†æ˜¯æ ˆä¸­ä»ç„¶æœ‰æœªå…³é—­çš„å¼€æ‹¬å·
+	if (!stack_is_empty(stack)) {
+
+		char unclosed_opener;
+
+		// æŸ¥çœ‹ä¸€ä¸‹æ˜¯å“ªä¸€ä¸ªå¼€æ‹¬å·æ²¡æœ‰å…³é—­
+		stack_peek(stack, &unclosed_opener);
+		fprintf(stderr, "Unmatched opening brackets remain in stack.\n");
+		stack_destroy(&stack);
+		return false; // æœ‰æœªå…³é—­çš„å¼€æ‹¬å·
+	}
+
+
+	// é”€æ¯æ ˆ
+	stack_destroy(&stack);
+	return true;
+}
+
+void check() {
+	const char* test_cases[] = {
+	   "int main() { int x = (1 + 2); return 0; }", // æœ‰æ•ˆ
+	   "void func(int a[]);",                        // æœ‰æ•ˆ
+	   "([{}])",                                     // æœ‰æ•ˆ
+	   "int arr[5] = {1, 2, 3};",                     // æœ‰æ•ˆ
+	   "",                                           // æœ‰æ•ˆ (ç©ºå­—ç¬¦ä¸²)
+	   "abc",                                        // æœ‰æ•ˆ (æ— æ‹¬å·)
+	   "([)]",                                       // æ— æ•ˆ: äº¤å‰ä¸åŒ¹é…
+	   "((()",                                       // æ— æ•ˆ: å¼€æ‹¬å·æœªå…³é—­
+	   "())",                                        // æ— æ•ˆ: é—­æ‹¬å·æ— å¯¹åº”
+	   "if (x > 0) { printf(\"hello\");",             // æ— æ•ˆ: } æœªå…³é—­
+	   "int y = { ( [ ] ) };"                         // æœ‰æ•ˆ: å¤æ‚åµŒå¥—
+	};
+
+	int num_cases = sizeof(test_cases) / sizeof(test_cases[0]);
+
+	for (int i = 0; i < num_cases; i++) {
+		printf("æ­£åœ¨æ£€æŸ¥: \"%s\"\n", test_cases[i]);
+		if (check_brackets(test_cases[i])) {
+			printf("ç»“æœ: -> æœ‰æ•ˆ\n\n");
+		}
+		else {
+			printf("ç»“æœ: -> æ— æ•ˆ\n\n");
+		}
+	}
+}
+
+int main() {
+	// ---------------æµ‹è¯•é“¾å¼æ ˆ--------------------ä¸‹é¢çš„æ³¨é‡Šå–æ¶ˆå³å¯--------------------
+	// test_record_stack();
+
+
+	// ------------------------ä»¥ä¸‹å†…å®¹çš„å‡½æ•°æ˜¯åé¢çš„è¯¾ç¨‹--------------------------------------
+
+	// æµ‹è¯•æ‹¬å·åŒ¹é…å™¨ï¼ˆåé¢çš„è¯¾ç¨‹ï¼‰
+	check();
+
+	return 0;
 }

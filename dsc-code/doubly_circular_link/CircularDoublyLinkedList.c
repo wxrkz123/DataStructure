@@ -1,329 +1,329 @@
-#define _CRT_SECURE_NO_WARNINGS
-#include "CircularDoublyLinkedList.h"
-#include <stdlib.h>
-#include <stdio.h>
-#include <threads.h>
-#include <errno.h>
-// Windows -> Windows.h Linux/MacOS -> thread.h
-//#include <Windows.h>
-
-
-
-// Internal structure of the circular doubly linked list
-struct CDListNode {
-	void* data;
-	CDListNode* next;
-	CDListNode* prev;
-};
-
-typedef struct MemoryPool {
-	CDListNode* pool_memory;
-	CDListNode* free_list_head;
-} MemoryPool;
-
-
-struct CircularDoublyLinkedList {
-	CDListNode* head; // Pointer to the head of the list
-	size_t size; // Number of elements in the list
-	mtx_t lock; // Mutex for thread safety
-	MemoryPool* pool; // Memory pool for node allocation
-	FreeFunc user_free_func; // User-defined function to free data
-};
-
-static MemoryPool* MemoryPool_Create(size_t initial_capacity) {
-
-	if (initial_capacity == 0) {
-		return NULL; // Invalid initial capacity
-	}
-	MemoryPool* pool = malloc(sizeof(MemoryPool));
-	if (!pool) {
-		return NULL;
-	}
-
-	pool->free_list_head = NULL;
-
-
-	pool->pool_memory = malloc(initial_capacity * sizeof(CDListNode));
-	if (!pool->pool_memory) {
-		free(pool);
-		return NULL;
-	}
-
-	// Important: Initialize the pool memory
-	pool->free_list_head = &pool->pool_memory[0]; // Initialize the free list head
-
-	for (size_t i = 0; i < initial_capacity - 1; ++i) {
-		pool->pool_memory[i].next = &pool->pool_memory[i + 1];
-	}
-	pool->pool_memory[initial_capacity - 1].next = NULL;
-
-	return pool;
-}
-
-static void MemoryPool_Destroy(MemoryPool* pool) {
-	if (!pool) {
-		return;
-	}
-	free(pool->pool_memory);
-	free(pool);
-}
-
-static CDListNode* MemoryPool_AllocateNode(MemoryPool* pool) {
-	if (!pool->free_list_head) {
-		return NULL; // No free nodes available
-	}
-	CDListNode* node = pool->free_list_head;
-	pool->free_list_head = node->next;
-	return node;
-}
-
-static void MemoryPool_FreeNode(MemoryPool* pool, CDListNode* node) {
-
-	if (!pool || !node) {
-		return; // Invalid pool or node
-	}
-
-	node->data = NULL; // Clear the data pointer
-	node->next = NULL; // Clear the next pointer
-
-	node->next = pool->free_list_head;
-	pool->free_list_head = node;
-}
-
-CircularDoublyLinkedList* List_Create(size_t initial_capacity, FreeFunc free_func) {
-	CircularDoublyLinkedList* list = malloc(sizeof(CircularDoublyLinkedList));
-	if (!list) {
-		return NULL;
-	}
-
-	list->pool = MemoryPool_Create(initial_capacity);
-	if (!list->pool) {
-		free(list);
-		return NULL;
-	}
-
-	list->head = NULL;
-	list->size = 0;
-	list->user_free_func = free_func;
-
-	if (mtx_init(&list->lock, mtx_plain) != thrd_success) {
-		MemoryPool_Destroy(list->pool);
-		free(list);
-		return NULL;
-	}
-	return list;
-}
-
-void List_Destroy(CircularDoublyLinkedList** list_ptr) {
-	if (!list_ptr || !*list_ptr) {
-		return;
-	}
-	CircularDoublyLinkedList* list = *list_ptr;
-
-	mtx_lock(&list->lock);
-
-	if (list->head != NULL) {
-		CDListNode* current = list->head;
-		for (size_t i = 0; i < list->size; i++)
-		{
-			CDListNode* next_node = current->next;
-			if (list->user_free_func && current->data) {
-				list->user_free_func(current->data);
-			}
-			current = next_node;
-		}
-	}
-
-	MemoryPool_Destroy(list->pool);
-	mtx_unlock(&list->lock);
-	mtx_destroy(&list->lock);
-	
-	free(list);
-	*list_ptr = NULL;
-
-	// List_Destroy(&list_ptr);
-}
-
-
-bool List_Append(CircularDoublyLinkedList* list, void* data) {
-	if (!list) {
-		return false;
-	}
-	mtx_lock(&list->lock);
-
-	CDListNode* new_node = MemoryPool_AllocateNode(list->pool);
-
-	if (!new_node) {
-		mtx_unlock(&list->lock);
-		return false; // Memory allocation failed
-	}
-
-	new_node->data = data;
-	
-	if (list->head == NULL) {
-		// List is empty
-		list->head = new_node;
-		new_node->next = new_node;
-		new_node->prev = new_node;
-	} else {
-		// Insert at the end
-		CDListNode* tail = list->head->prev; // 1. ÕÒµ½µ±Ç°µÄÎ²½Úµã
-		new_node->next = list->head; // 2. ÐÂ½ÚµãµÄ next Ö¸ÏòÍ·½Úµã
-		new_node->prev = tail; // 3. ÐÂ½ÚµãµÄ prev Ö¸Ïò¾ÉÎ²½Úµã
-		tail->next = new_node; // 4. ¾ÉÎ²½ÚµãµÄ next Ö¸ÏòÐÂ½Úµã
-		list->head->prev = new_node; // 5. Í·½ÚµãµÄ prev Ö¸ÏòÐÂ½Úµã
-
-
-		// A->next => A , A->prev => A, tail===A
-
-		// B->prev => A
-		// A->next => B
-		// A->prev => B
-
-
-	}
-
-	list->size++;
-	mtx_unlock(&list->lock);
-	return true;
-}
-
-bool List_Prepend(CircularDoublyLinkedList* list, void* data) {
-	List_Append(list, data); // ÏÈÌí¼Óµ½Ä©Î²
-
-	if (list->size > 1) {
-		// Èç¹ûÁÐ±íÖÐÓÐ¶à¸ö½Úµã£¬Ðý×ªÒ»´ÎÊ¹µÃÐÂ½Úµã³ÉÎªÍ·½Úµã
-
-		// NOTE£º ½«ÐÂ½ÚµãÉèÖÃÎªÍ·½ÚµãµÄ²Ù×÷·ÅÔÚ Append ÖÐÍê³É
-		// List_RotateBackward(list);
-		list->head = list->head->prev; // ½«Í·½ÚµãÖ¸ÏòÉÏÒ»¸ö½Úµã
-	}
-
-	return true;
-}
-
-void List_DeleteNode(CircularDoublyLinkedList* list, CDListNode* node) {
-	if (!list || !node) {
-		return;
-	}
-	mtx_lock(&list->lock);
-
-	// TODO.. Ó¦¸ÃÓÐ¸ü¸´ÔÓµÄÂß¼­À´ÑéÖ¤¸Ã½ÚµãÊÇ·ñÔÚÁÐ±íÖÐ
-
-	if (list->size ==1 || list->head == node) {
-		// É¾³ýÍ·½Úµã»òÁÐ±íÖÐÖ»ÓÐÒ»¸ö½ÚµãµÄÇé¿ö
-		list->head = NULL; // Çå¿ÕÁÐ±í
-	} else {
-		// É¾³ý·ÇÍ·½Úµã
-		node->prev->next = node->next; // Ç°Ò»¸ö½ÚµãµÄ next Ö¸ÏòÏÂÒ»¸ö½Úµã
-		node->next->prev = node->prev; // ÏÂÒ»¸ö½ÚµãµÄ prev Ö¸ÏòÇ°Ò»¸ö½Úµã
-		
-		if (list->head == node) {
-			// Èç¹ûÉ¾³ýµÄÊÇÍ·½Úµã£¬¸üÐÂÍ·½Úµã
-			list->head = node->next;
-		}
-
-
-		// A <-> B <-> C	node=>B, node->prev=>A, node->next=>C
-		// A->next => C
-		// C->prev => A
-
-		// A <-> B <-> C  node=>A, node->prev=>C, node->next=>B
-		// C->next => B
-		// B->prev => C
-		// B <=> C
-
-
-
-	}
-
-	if (list->user_free_func && node->data) {
-		list->user_free_func(node->data);
-	}
-
-	MemoryPool_FreeNode(list->pool, node);
-	list->size--;
-	mtx_unlock(&list->lock);
-}
-
-CDListNode* List_Find(CircularDoublyLinkedList* list, const void* data_to_find,
-	CompareFunc compare_func) {
-	if (!list || !data_to_find || !compare_func) {
-		return NULL;
-	}
-	mtx_lock(&list->lock);
-
-	CDListNode* found_node = NULL;
-	CDListNode* current = list->head;
-
-	for (size_t i = 0; i < list->size; i++)
-	{
-		if (compare_func(current->data, data_to_find) == 0) {
-			found_node = current; // ÕÒµ½Æ¥ÅäµÄ½Úµã
-			break;
-		}
-		current = current->next; // ¼ÌÐø±éÀúÏÂÒ»¸ö½Úµã
-	}
-
-
-	mtx_unlock(&list->lock);
-	return found_node;
-}
-
-// µ±Ç°µÄÍ·½Úµã±ä³ÉÎ²½Úµã£¬ËüÔ­À´µÄÏÂÒ»¸ö½Úµã½«³ÉÎªÐÂµÄÍ·½Úµã
-void List_RotateForward(CircularDoublyLinkedList* list) {
-	if (!list || list->size < 2) {
-		return; // ÎÞÐèÐý×ª
-	}
-	mtx_lock(&list->lock);
-	list->head = list->head->next; // ½«Í·½ÚµãÖ¸ÏòÏÂÒ»¸ö½Úµã
-	mtx_unlock(&list->lock);
-}
-
-void List_RotateBackward(CircularDoublyLinkedList* list) {
-	if (!list || list->size < 2) {
-		return; // ÎÞÐèÐý×ª
-	}
-	mtx_lock(&list->lock);
-
-	list->head = list->head->prev; // ½«Í·½ÚµãÖ¸ÏòÉÏÒ»¸ö½Úµã
-	mtx_unlock(&list->lock);
-}
-
-
-void List_ForEach(CircularDoublyLinkedList* list, ActionFunc action_func,
-	void* context) {
-
-	if (!list || !action_func || !list->head) return;
-
-	mtx_lock(&list->lock);
-
-	CDListNode* current = list->head;
-
-	for (size_t i = 0; i < list->size; i++)
-	{
-		action_func(current->data, context);
-		current = current->next; // ¼ÌÐø±éÀúÏÂÒ»¸ö½Úµã
-	}
-	mtx_unlock(&list->lock);
-}
-
-void* CDListNode_GetData(const CDListNode* node) {
-	return node ? node->data : NULL;
-    
-}
-
-size_t List_GetSize(const CircularDoublyLinkedList* list) {
-	return list ? list->size : 0;
-}
-
-CDListNode* List_GetHeadNode(CircularDoublyLinkedList* list) {
-	if (!list) {
-		return NULL;
-	}	
-
-	mtx_lock(&list->lock);
-	CDListNode* head_node = list->head;
-	mtx_unlock(&list->lock);
-	return head_node;
+#define _CRT_SECURE_NO_WARNINGS
+#include "CircularDoublyLinkedList.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <threads.h>
+#include <errno.h>
+// Windows -> Windows.h Linux/MacOS -> thread.h
+//#include <Windows.h>
+
+
+
+// Internal structure of the circular doubly linked list
+struct CDListNode {
+	void* data;
+	CDListNode* next;
+	CDListNode* prev;
+};
+
+typedef struct MemoryPool {
+	CDListNode* pool_memory;
+	CDListNode* free_list_head;
+} MemoryPool;
+
+
+struct CircularDoublyLinkedList {
+	CDListNode* head; // Pointer to the head of the list
+	size_t size; // Number of elements in the list
+	mtx_t lock; // Mutex for thread safety
+	MemoryPool* pool; // Memory pool for node allocation
+	FreeFunc user_free_func; // User-defined function to free data
+};
+
+static MemoryPool* MemoryPool_Create(size_t initial_capacity) {
+
+	if (initial_capacity == 0) {
+		return NULL; // Invalid initial capacity
+	}
+	MemoryPool* pool = malloc(sizeof(MemoryPool));
+	if (!pool) {
+		return NULL;
+	}
+
+	pool->free_list_head = NULL;
+
+
+	pool->pool_memory = malloc(initial_capacity * sizeof(CDListNode));
+	if (!pool->pool_memory) {
+		free(pool);
+		return NULL;
+	}
+
+	// Important: Initialize the pool memory
+	pool->free_list_head = &pool->pool_memory[0]; // Initialize the free list head
+
+	for (size_t i = 0; i < initial_capacity - 1; ++i) {
+		pool->pool_memory[i].next = &pool->pool_memory[i + 1];
+	}
+	pool->pool_memory[initial_capacity - 1].next = NULL;
+
+	return pool;
+}
+
+static void MemoryPool_Destroy(MemoryPool* pool) {
+	if (!pool) {
+		return;
+	}
+	free(pool->pool_memory);
+	free(pool);
+}
+
+static CDListNode* MemoryPool_AllocateNode(MemoryPool* pool) {
+	if (!pool->free_list_head) {
+		return NULL; // No free nodes available
+	}
+	CDListNode* node = pool->free_list_head;
+	pool->free_list_head = node->next;
+	return node;
+}
+
+static void MemoryPool_FreeNode(MemoryPool* pool, CDListNode* node) {
+
+	if (!pool || !node) {
+		return; // Invalid pool or node
+	}
+
+	node->data = NULL; // Clear the data pointer
+	node->next = NULL; // Clear the next pointer
+
+	node->next = pool->free_list_head;
+	pool->free_list_head = node;
+}
+
+CircularDoublyLinkedList* List_Create(size_t initial_capacity, FreeFunc free_func) {
+	CircularDoublyLinkedList* list = malloc(sizeof(CircularDoublyLinkedList));
+	if (!list) {
+		return NULL;
+	}
+
+	list->pool = MemoryPool_Create(initial_capacity);
+	if (!list->pool) {
+		free(list);
+		return NULL;
+	}
+
+	list->head = NULL;
+	list->size = 0;
+	list->user_free_func = free_func;
+
+	if (mtx_init(&list->lock, mtx_plain) != thrd_success) {
+		MemoryPool_Destroy(list->pool);
+		free(list);
+		return NULL;
+	}
+	return list;
+}
+
+void List_Destroy(CircularDoublyLinkedList** list_ptr) {
+	if (!list_ptr || !*list_ptr) {
+		return;
+	}
+	CircularDoublyLinkedList* list = *list_ptr;
+
+	mtx_lock(&list->lock);
+
+	if (list->head != NULL) {
+		CDListNode* current = list->head;
+		for (size_t i = 0; i < list->size; i++)
+		{
+			CDListNode* next_node = current->next;
+			if (list->user_free_func && current->data) {
+				list->user_free_func(current->data);
+			}
+			current = next_node;
+		}
+	}
+
+	MemoryPool_Destroy(list->pool);
+	mtx_unlock(&list->lock);
+	mtx_destroy(&list->lock);
+	
+	free(list);
+	*list_ptr = NULL;
+
+	// List_Destroy(&list_ptr);
+}
+
+
+bool List_Append(CircularDoublyLinkedList* list, void* data) {
+	if (!list) {
+		return false;
+	}
+	mtx_lock(&list->lock);
+
+	CDListNode* new_node = MemoryPool_AllocateNode(list->pool);
+
+	if (!new_node) {
+		mtx_unlock(&list->lock);
+		return false; // Memory allocation failed
+	}
+
+	new_node->data = data;
+	
+	if (list->head == NULL) {
+		// List is empty
+		list->head = new_node;
+		new_node->next = new_node;
+		new_node->prev = new_node;
+	} else {
+		// Insert at the end
+		CDListNode* tail = list->head->prev; // 1. æ‰¾åˆ°å½“å‰çš„å°¾èŠ‚ç‚¹
+		new_node->next = list->head; // 2. æ–°èŠ‚ç‚¹çš„ next æŒ‡å‘å¤´èŠ‚ç‚¹
+		new_node->prev = tail; // 3. æ–°èŠ‚ç‚¹çš„ prev æŒ‡å‘æ—§å°¾èŠ‚ç‚¹
+		tail->next = new_node; // 4. æ—§å°¾èŠ‚ç‚¹çš„ next æŒ‡å‘æ–°èŠ‚ç‚¹
+		list->head->prev = new_node; // 5. å¤´èŠ‚ç‚¹çš„ prev æŒ‡å‘æ–°èŠ‚ç‚¹
+
+
+		// A->next => A , A->prev => A, tail===A
+
+		// B->prev => A
+		// A->next => B
+		// A->prev => B
+
+
+	}
+
+	list->size++;
+	mtx_unlock(&list->lock);
+	return true;
+}
+
+bool List_Prepend(CircularDoublyLinkedList* list, void* data) {
+	List_Append(list, data); // å…ˆæ·»åŠ åˆ°æœ«å°¾
+
+	if (list->size > 1) {
+		// å¦‚æžœåˆ—è¡¨ä¸­æœ‰å¤šä¸ªèŠ‚ç‚¹ï¼Œæ—‹è½¬ä¸€æ¬¡ä½¿å¾—æ–°èŠ‚ç‚¹æˆä¸ºå¤´èŠ‚ç‚¹
+
+		// NOTEï¼š å°†æ–°èŠ‚ç‚¹è®¾ç½®ä¸ºå¤´èŠ‚ç‚¹çš„æ“ä½œæ”¾åœ¨ Append ä¸­å®Œæˆ
+		// List_RotateBackward(list);
+		list->head = list->head->prev; // å°†å¤´èŠ‚ç‚¹æŒ‡å‘ä¸Šä¸€ä¸ªèŠ‚ç‚¹
+	}
+
+	return true;
+}
+
+void List_DeleteNode(CircularDoublyLinkedList* list, CDListNode* node) {
+	if (!list || !node) {
+		return;
+	}
+	mtx_lock(&list->lock);
+
+	// TODO.. åº”è¯¥æœ‰æ›´å¤æ‚çš„é€»è¾‘æ¥éªŒè¯è¯¥èŠ‚ç‚¹æ˜¯å¦åœ¨åˆ—è¡¨ä¸­
+
+	if (list->size ==1 || list->head == node) {
+		// åˆ é™¤å¤´èŠ‚ç‚¹æˆ–åˆ—è¡¨ä¸­åªæœ‰ä¸€ä¸ªèŠ‚ç‚¹çš„æƒ…å†µ
+		list->head = NULL; // æ¸…ç©ºåˆ—è¡¨
+	} else {
+		// åˆ é™¤éžå¤´èŠ‚ç‚¹
+		node->prev->next = node->next; // å‰ä¸€ä¸ªèŠ‚ç‚¹çš„ next æŒ‡å‘ä¸‹ä¸€ä¸ªèŠ‚ç‚¹
+		node->next->prev = node->prev; // ä¸‹ä¸€ä¸ªèŠ‚ç‚¹çš„ prev æŒ‡å‘å‰ä¸€ä¸ªèŠ‚ç‚¹
+		
+		if (list->head == node) {
+			// å¦‚æžœåˆ é™¤çš„æ˜¯å¤´èŠ‚ç‚¹ï¼Œæ›´æ–°å¤´èŠ‚ç‚¹
+			list->head = node->next;
+		}
+
+
+		// A <-> B <-> C	node=>B, node->prev=>A, node->next=>C
+		// A->next => C
+		// C->prev => A
+
+		// A <-> B <-> C  node=>A, node->prev=>C, node->next=>B
+		// C->next => B
+		// B->prev => C
+		// B <=> C
+
+
+
+	}
+
+	if (list->user_free_func && node->data) {
+		list->user_free_func(node->data);
+	}
+
+	MemoryPool_FreeNode(list->pool, node);
+	list->size--;
+	mtx_unlock(&list->lock);
+}
+
+CDListNode* List_Find(CircularDoublyLinkedList* list, const void* data_to_find,
+	CompareFunc compare_func) {
+	if (!list || !data_to_find || !compare_func) {
+		return NULL;
+	}
+	mtx_lock(&list->lock);
+
+	CDListNode* found_node = NULL;
+	CDListNode* current = list->head;
+
+	for (size_t i = 0; i < list->size; i++)
+	{
+		if (compare_func(current->data, data_to_find) == 0) {
+			found_node = current; // æ‰¾åˆ°åŒ¹é…çš„èŠ‚ç‚¹
+			break;
+		}
+		current = current->next; // ç»§ç»­éåŽ†ä¸‹ä¸€ä¸ªèŠ‚ç‚¹
+	}
+
+
+	mtx_unlock(&list->lock);
+	return found_node;
+}
+
+// å½“å‰çš„å¤´èŠ‚ç‚¹å˜æˆå°¾èŠ‚ç‚¹ï¼Œå®ƒåŽŸæ¥çš„ä¸‹ä¸€ä¸ªèŠ‚ç‚¹å°†æˆä¸ºæ–°çš„å¤´èŠ‚ç‚¹
+void List_RotateForward(CircularDoublyLinkedList* list) {
+	if (!list || list->size < 2) {
+		return; // æ— éœ€æ—‹è½¬
+	}
+	mtx_lock(&list->lock);
+	list->head = list->head->next; // å°†å¤´èŠ‚ç‚¹æŒ‡å‘ä¸‹ä¸€ä¸ªèŠ‚ç‚¹
+	mtx_unlock(&list->lock);
+}
+
+void List_RotateBackward(CircularDoublyLinkedList* list) {
+	if (!list || list->size < 2) {
+		return; // æ— éœ€æ—‹è½¬
+	}
+	mtx_lock(&list->lock);
+
+	list->head = list->head->prev; // å°†å¤´èŠ‚ç‚¹æŒ‡å‘ä¸Šä¸€ä¸ªèŠ‚ç‚¹
+	mtx_unlock(&list->lock);
+}
+
+
+void List_ForEach(CircularDoublyLinkedList* list, ActionFunc action_func,
+	void* context) {
+
+	if (!list || !action_func || !list->head) return;
+
+	mtx_lock(&list->lock);
+
+	CDListNode* current = list->head;
+
+	for (size_t i = 0; i < list->size; i++)
+	{
+		action_func(current->data, context);
+		current = current->next; // ç»§ç»­éåŽ†ä¸‹ä¸€ä¸ªèŠ‚ç‚¹
+	}
+	mtx_unlock(&list->lock);
+}
+
+void* CDListNode_GetData(const CDListNode* node) {
+	return node ? node->data : NULL;
+    
+}
+
+size_t List_GetSize(const CircularDoublyLinkedList* list) {
+	return list ? list->size : 0;
+}
+
+CDListNode* List_GetHeadNode(CircularDoublyLinkedList* list) {
+	if (!list) {
+		return NULL;
+	}	
+
+	mtx_lock(&list->lock);
+	CDListNode* head_node = list->head;
+	mtx_unlock(&list->lock);
+	return head_node;
 }

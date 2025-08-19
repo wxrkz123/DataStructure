@@ -1,56 +1,56 @@
-#pragma once
-#include <stddef.h>
-#include <stdbool.h>
-
-// --- Opaque Pointer Declaration ---
-typedef struct Deque Deque;
-
-// --- Public API Prototypes ---
-
-/**
- * @brief ´´½¨Ò»¸öĞÂµÄ·ºĞÍË«¶Ë¶ÓÁĞ£¨»ùÓÚÑ­»·Êı×é£©¡£
- *
- * @param capacity ¶ÓÁĞµÄ×î´óÈİÁ¿¡£
- * @param element_size Ã¿¸öÔªËØµÄ´óĞ¡£¨×Ö½Ú£©¡£
- * @return ³É¹¦Ê±·µ»ØÖ¸ÏòĞÂ¶ÓÁĞµÄÖ¸Õë£¬Ê§°Ü·µ»Ø NULL¡£
- */
-Deque* deque_create(size_t capacity, size_t element_size);
-
-/**
- * @brief Ïú»ÙË«¶Ë¶ÓÁĞ²¢ÊÍ·ÅËùÓĞÄÚ´æ¡£
- */
-void deque_destroy(Deque** p_deque);
-
-/**
- * @brief ÔÚ¶ÓÍ·Ìí¼ÓÒ»¸öÔªËØ¡£
- */
-bool deque_push_front(Deque* dq, const void* element_data);
-
-/**
- * @brief ÔÚ¶ÓÎ²Ìí¼ÓÒ»¸öÔªËØ¡£
- */
-bool deque_push_back(Deque* dq, const void* element_data);
-
-/**
- * @brief ´Ó¶ÓÍ·ÒÆ³ıÒ»¸öÔªËØ¡£
- */
-bool deque_pop_front(Deque* dq, void* output_buffer);
-
-/**
- * @brief ´Ó¶ÓÎ²ÒÆ³ıÒ»¸öÔªËØ¡£
- */
-bool deque_pop_back(Deque* dq, void* output_buffer);
-
-/**
- * @brief ²é¿´¶ÓÍ·ÔªËØ¡£
- */
-bool deque_peek_front(const Deque* dq, void* output_buffer);
-
-/**
- * @brief ²é¿´¶ÓÎ²ÔªËØ¡£
- */
-bool deque_peek_back(const Deque* dq, void* output_buffer);
-
-bool deque_is_empty(const Deque* dq);
-bool deque_is_full(const Deque* dq);
+#pragma once
+#include <stddef.h>
+#include <stdbool.h>
+
+// --- Opaque Pointer Declaration ---
+typedef struct Deque Deque;
+
+// --- Public API Prototypes ---
+
+/**
+ * @brief åˆ›å»ºä¸€ä¸ªæ–°çš„æ³›å‹åŒç«¯é˜Ÿåˆ—ï¼ˆåŸºäºå¾ªç¯æ•°ç»„ï¼‰ã€‚
+ *
+ * @param capacity é˜Ÿåˆ—çš„æœ€å¤§å®¹é‡ã€‚
+ * @param element_size æ¯ä¸ªå…ƒç´ çš„å¤§å°ï¼ˆå­—èŠ‚ï¼‰ã€‚
+ * @return æˆåŠŸæ—¶è¿”å›æŒ‡å‘æ–°é˜Ÿåˆ—çš„æŒ‡é’ˆï¼Œå¤±è´¥è¿”å› NULLã€‚
+ */
+Deque* deque_create(size_t capacity, size_t element_size);
+
+/**
+ * @brief é”€æ¯åŒç«¯é˜Ÿåˆ—å¹¶é‡Šæ”¾æ‰€æœ‰å†…å­˜ã€‚
+ */
+void deque_destroy(Deque** p_deque);
+
+/**
+ * @brief åœ¨é˜Ÿå¤´æ·»åŠ ä¸€ä¸ªå…ƒç´ ã€‚
+ */
+bool deque_push_front(Deque* dq, const void* element_data);
+
+/**
+ * @brief åœ¨é˜Ÿå°¾æ·»åŠ ä¸€ä¸ªå…ƒç´ ã€‚
+ */
+bool deque_push_back(Deque* dq, const void* element_data);
+
+/**
+ * @brief ä»é˜Ÿå¤´ç§»é™¤ä¸€ä¸ªå…ƒç´ ã€‚
+ */
+bool deque_pop_front(Deque* dq, void* output_buffer);
+
+/**
+ * @brief ä»é˜Ÿå°¾ç§»é™¤ä¸€ä¸ªå…ƒç´ ã€‚
+ */
+bool deque_pop_back(Deque* dq, void* output_buffer);
+
+/**
+ * @brief æŸ¥çœ‹é˜Ÿå¤´å…ƒç´ ã€‚
+ */
+bool deque_peek_front(const Deque* dq, void* output_buffer);
+
+/**
+ * @brief æŸ¥çœ‹é˜Ÿå°¾å…ƒç´ ã€‚
+ */
+bool deque_peek_back(const Deque* dq, void* output_buffer);
+
+bool deque_is_empty(const Deque* dq);
+bool deque_is_full(const Deque* dq);
 size_t deque_get_size(const Deque* dq);

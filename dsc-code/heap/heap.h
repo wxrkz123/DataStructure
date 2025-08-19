@@ -1,70 +1,70 @@
-#pragma once
-#include <stdlib.h> // for size_t
-
-// ÎªÁË´úÂëµÄ¿É¶ÁĞÔºÍ¿ÉÎ¬»¤ĞÔ£¬¶¨ÒåÒ»¸ö Item ÀàĞÍ
-// Èç¹ûĞèÒª´æ´¢ÆäËûÀàĞÍÊı¾İ£¬Ö»ĞèĞŞ¸ÄÕâÀï
-typedef int Item;
-
-// ¶Ñ½á¹¹Ìå¶¨Òå
-typedef struct {
-    Item* data;         // Ö¸Ïò´æ´¢¶ÑÔªËØµÄ¶¯Ì¬Êı×é
-    size_t size;        // ¶ÑÖĞµ±Ç°µÄÔªËØÊıÁ¿
-    size_t capacity;    // ¶ÑµÄµ±Ç°ÈİÁ¿
-} Heap;
-
-/**
- * @brief ´´½¨Ò»¸öÖ¸¶¨³õÊ¼ÈİÁ¿µÄ×î´ó¶Ñ
- * @param initial_capacity ¶ÑµÄ³õÊ¼ÈİÁ¿
- * @return ³É¹¦Ôò·µ»ØÖ¸Ïò¶ÑµÄÖ¸Õë£¬Ê§°ÜÔò·µ»Ø NULL
- */
-Heap* heap_create(size_t initial_capacity);
-
-/**
- * @brief Ïú»ÙÒ»¸ö¶Ñ£¬ÊÍ·ÅËùÓĞÏà¹ØÄÚ´æ
- * @param h Ö¸ÏòÒªÏú»ÙµÄ¶ÑµÄÖ¸ÕëµÄÖ¸Õë
- */
-void heap_destroy(Heap** h);
-
-/**
- * @brief Ïò¶ÑÖĞ²åÈëÒ»¸öĞÂÔªËØ
- * @param h Ö¸Ïò¶ÑµÄÖ¸Õë
- * @param value Òª²åÈëµÄÖµ
- * @return ³É¹¦·µ»Ø 0£¬Ê§°Ü£¨ÈçÄÚ´æ·ÖÅäÊ§°Ü£©·µ»Ø -1
- */
-int heap_insert(Heap* h, Item value);
-
-/**
- * @brief ´Ó¶ÑÖĞÌáÈ¡£¨²¢ÒÆ³ı£©×î´óÖµ
- * @param h Ö¸Ïò¶ÑµÄÖ¸Õë
- * @param p_max_value Ö¸ÏòÓÃÓÚ´æ´¢×î´óÖµµÄ±äÁ¿µÄÖ¸Õë
- * @return ³É¹¦ÌáÈ¡·µ»Ø 0£¬Èç¹û¶ÑÎª¿ÕÔò·µ»Ø -1
- */
-int heap_extract_max(Heap* h, Item* p_max_value);
-
-/**
- * @brief ²é¿´¶Ñ¶¥µÄ×î´óÖµ£¨²»ÒÆ³ı£©
- * @param h Ö¸Ïò¶ÑµÄÖ¸Õë
- * @param p_peek_value Ö¸ÏòÓÃÓÚ´æ´¢×î´óÖµµÄ±äÁ¿µÄÖ¸Õë
- * @return ³É¹¦²é¿´·µ»Ø 0£¬Èç¹û¶ÑÎª¿ÕÔò·µ»Ø -1
- */
-int heap_peek(const Heap* h, Item* p_peek_value);
-
-/**
- * @brief ¼ì²é¶ÑÊÇ·ñÎª¿Õ
- * @param h Ö¸Ïò¶ÑµÄÖ¸Õë
- * @return Èç¹û¶ÑÎª¿Õ·µ»Ø 1£¬·ñÔò·µ»Ø 0
- */
-int is_heap_empty(const Heap* h);
-
-/**
- * @brief »ñÈ¡¶ÑÖĞÔªËØµÄÊıÁ¿
- * @param h Ö¸Ïò¶ÑµÄÖ¸Õë
- * @return ¶ÑÖĞÔªËØµÄÊıÁ¿
- */
-size_t heap_size(const Heap* h);
-
-/**
- * @brief (¿ÉÑ¡) ´òÓ¡¶ÑµÄÄÚ²¿Êı×é±íÊ¾£¬Ö÷ÒªÓÃÓÚµ÷ÊÔ
- * @param h Ö¸Ïò¶ÑµÄÖ¸Õë
- */
+#pragma once
+#include <stdlib.h> // for size_t
+
+// ä¸ºäº†ä»£ç çš„å¯è¯»æ€§å’Œå¯ç»´æŠ¤æ€§ï¼Œå®šä¹‰ä¸€ä¸ª Item ç±»å‹
+// å¦‚æœéœ€è¦å­˜å‚¨å…¶ä»–ç±»å‹æ•°æ®ï¼Œåªéœ€ä¿®æ”¹è¿™é‡Œ
+typedef int Item;
+
+// å †ç»“æ„ä½“å®šä¹‰
+typedef struct {
+    Item* data;         // æŒ‡å‘å­˜å‚¨å †å…ƒç´ çš„åŠ¨æ€æ•°ç»„
+    size_t size;        // å †ä¸­å½“å‰çš„å…ƒç´ æ•°é‡
+    size_t capacity;    // å †çš„å½“å‰å®¹é‡
+} Heap;
+
+/**
+ * @brief åˆ›å»ºä¸€ä¸ªæŒ‡å®šåˆå§‹å®¹é‡çš„æœ€å¤§å †
+ * @param initial_capacity å †çš„åˆå§‹å®¹é‡
+ * @return æˆåŠŸåˆ™è¿”å›æŒ‡å‘å †çš„æŒ‡é’ˆï¼Œå¤±è´¥åˆ™è¿”å› NULL
+ */
+Heap* heap_create(size_t initial_capacity);
+
+/**
+ * @brief é”€æ¯ä¸€ä¸ªå †ï¼Œé‡Šæ”¾æ‰€æœ‰ç›¸å…³å†…å­˜
+ * @param h æŒ‡å‘è¦é”€æ¯çš„å †çš„æŒ‡é’ˆçš„æŒ‡é’ˆ
+ */
+void heap_destroy(Heap** h);
+
+/**
+ * @brief å‘å †ä¸­æ’å…¥ä¸€ä¸ªæ–°å…ƒç´ 
+ * @param h æŒ‡å‘å †çš„æŒ‡é’ˆ
+ * @param value è¦æ’å…¥çš„å€¼
+ * @return æˆåŠŸè¿”å› 0ï¼Œå¤±è´¥ï¼ˆå¦‚å†…å­˜åˆ†é…å¤±è´¥ï¼‰è¿”å› -1
+ */
+int heap_insert(Heap* h, Item value);
+
+/**
+ * @brief ä»å †ä¸­æå–ï¼ˆå¹¶ç§»é™¤ï¼‰æœ€å¤§å€¼
+ * @param h æŒ‡å‘å †çš„æŒ‡é’ˆ
+ * @param p_max_value æŒ‡å‘ç”¨äºå­˜å‚¨æœ€å¤§å€¼çš„å˜é‡çš„æŒ‡é’ˆ
+ * @return æˆåŠŸæå–è¿”å› 0ï¼Œå¦‚æœå †ä¸ºç©ºåˆ™è¿”å› -1
+ */
+int heap_extract_max(Heap* h, Item* p_max_value);
+
+/**
+ * @brief æŸ¥çœ‹å †é¡¶çš„æœ€å¤§å€¼ï¼ˆä¸ç§»é™¤ï¼‰
+ * @param h æŒ‡å‘å †çš„æŒ‡é’ˆ
+ * @param p_peek_value æŒ‡å‘ç”¨äºå­˜å‚¨æœ€å¤§å€¼çš„å˜é‡çš„æŒ‡é’ˆ
+ * @return æˆåŠŸæŸ¥çœ‹è¿”å› 0ï¼Œå¦‚æœå †ä¸ºç©ºåˆ™è¿”å› -1
+ */
+int heap_peek(const Heap* h, Item* p_peek_value);
+
+/**
+ * @brief æ£€æŸ¥å †æ˜¯å¦ä¸ºç©º
+ * @param h æŒ‡å‘å †çš„æŒ‡é’ˆ
+ * @return å¦‚æœå †ä¸ºç©ºè¿”å› 1ï¼Œå¦åˆ™è¿”å› 0
+ */
+int is_heap_empty(const Heap* h);
+
+/**
+ * @brief è·å–å †ä¸­å…ƒç´ çš„æ•°é‡
+ * @param h æŒ‡å‘å †çš„æŒ‡é’ˆ
+ * @return å †ä¸­å…ƒç´ çš„æ•°é‡
+ */
+size_t heap_size(const Heap* h);
+
+/**
+ * @brief (å¯é€‰) æ‰“å°å †çš„å†…éƒ¨æ•°ç»„è¡¨ç¤ºï¼Œä¸»è¦ç”¨äºè°ƒè¯•
+ * @param h æŒ‡å‘å †çš„æŒ‡é’ˆ
+ */
 void heap_print_debug(const Heap* h);

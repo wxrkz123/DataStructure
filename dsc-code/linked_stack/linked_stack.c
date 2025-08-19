@@ -1,132 +1,132 @@
-#include "linked_stack.h"
-#include <stdlib.h>
-#include <string.h>
-
-// --- Private Structure Definitions ---
-
-// ÄÚ²¿½Úµã½á¹¹£¬¶ÔÓÃ»§²»¿É¼û
-typedef struct Node {
-    void* data;         // Ö¸ÏòÎª¸Ã½ÚµãÔªËØ·ÖÅäµÄÄÚ´æ
-    struct Node* next;  // Ö¸ÏòÕ»ÖÐµÄÏÂÒ»¸ö½Úµã
-} Node;
-
-// Á´Ê½Õ»µÄÊµ¼Ê¹ÜÀí½á¹¹
-struct LinkedStack {
-    Node* top;              // Ö¸ÏòÕ»¶¥µÄ½Úµã
-    size_t element_size;    // Ã¿¸öÔªËØµÄ´óÐ¡
-    size_t size;            // Õ»ÖÐµ±Ç°µÄÔªËØÊýÁ¿
-};
-
-// --- API Function Implementations ---
-
-Stack* stack_create(size_t element_size) {
-    if (element_size == 0) {
-        return NULL;
-    }
-
-    Stack* stack = (Stack*)malloc(sizeof(Stack));
-    if (stack == NULL) {
-        return NULL;
-    }
-
-    stack->top = NULL; // ³õÊ¼»¯Ê±£¬Õ»¶¥Ã»ÓÐ½Úµã
-    stack->element_size = element_size;
-    stack->size = 0;
-
-    return stack;
-}
-
-void stack_destroy(Stack** p_stack) {
-    if (p_stack == NULL || *p_stack == NULL) {
-        return;
-    }
-
-    Stack* stack = *p_stack;
-    Node* current = stack->top;
-
-    // ±éÀúÕû¸öÁ´±í£¬ÊÍ·ÅÃ¿Ò»¸ö½ÚµãºÍËüËù°üº¬µÄÊý¾Ý
-    while (current != NULL) {
-        Node* temp = current;
-        current = current->next; // ÒÆ¶¯µ½ÏÂÒ»¸ö½Úµã
-        free(temp->data);        // ÊÍ·Å½ÚµãµÄÊý¾Ý
-        free(temp);              // ÊÍ·Å½Úµã±¾Éí
-    }
-
-    free(stack);      // ×îºóÊÍ·ÅÕ»µÄ¹ÜÀí½á¹¹
-    *p_stack = NULL;  // ÉèÖÃÍâ²¿Ö¸ÕëÎªNULL
-}
-
-bool stack_push(Stack* stack, const void* element_data) {
-    if (stack == NULL || element_data == NULL) {
-        return false;
-    }
-
-    // 1. ÎªÐÂ½Úµã·ÖÅäÄÚ´æ
-    Node* new_node = (Node*)malloc(sizeof(Node));
-    if (new_node == NULL) {
-        return false; // ÄÚ´æ·ÖÅäÊ§°Ü
-    }
-
-    // 2. ÎªÐÂ½ÚµãµÄÊý¾ÝÇø·ÖÅäÄÚ´æ
-    new_node->data = malloc(stack->element_size);
-    if (new_node->data == NULL) {
-        free(new_node); // ÇåÀíÒÑ·ÖÅäµÄ½Úµã£¬·ÀÖ¹Ð¹Â©
-        return false;
-    }
-
-    // 3. ½«ÓÃ»§Êý¾Ý¿½±´µ½ÐÂ½ÚµãµÄÊý¾ÝÇø
-    memcpy(new_node->data, element_data, stack->element_size);
-
-    // 4. ½«ÐÂ½ÚµãÁ´½Óµ½Õ»¶¥
-    new_node->next = stack->top; // ÐÂ½ÚµãµÄÏÂÒ»¸öÊÇµ±Ç°µÄÕ»¶¥ (¾ÉÕ»¶¥)
-    stack->top = new_node;       // ¸üÐÂÕ»¶¥ÎªÐÂ½Úµã
-
-    stack->size++;
-    return true;
-}
-
-bool stack_pop(Stack* stack, void* output_buffer) {
-    if (stack_is_empty(stack) || output_buffer == NULL) {
-        return false;
-    }
-
-    // 1. ÔÝ´æÕ»¶¥½Úµã
-    Node* node_to_pop = stack->top;
-
-    // 2. ½«Êý¾Ý´Ó½Úµã¿½±´µ½ÓÃ»§µÄ»º³åÇø
-    memcpy(output_buffer, node_to_pop->data, stack->element_size);
-
-    // 3. ¸üÐÂÕ»¶¥Ö¸Õë£¬Ê¹ÆäÖ¸ÏòÏÂÒ»¸ö½Úµã
-    stack->top = node_to_pop->next;
-
-    // 4. ÊÍ·Å±»µ¯³ö½ÚµãµÄËùÓÐÄÚ´æ
-    free(node_to_pop->data);
-    free(node_to_pop);
-
-    stack->size--;
-    return true;
-}
-
-bool stack_peek(const Stack* stack, void* output_buffer) {
-    if (stack_is_empty(stack) || output_buffer == NULL) {
-        return false;
-    }
-
-    // Ö»Ðè¿½±´Êý¾Ý£¬²»ÐÞ¸ÄÈÎºÎÖ¸Õë»òÊÍ·ÅÄÚ´æ
-    memcpy(output_buffer, stack->top->data, stack->element_size);
-    return true;
-}
-
-bool stack_is_empty(const Stack* stack) {
-    if (stack == NULL) {
-        return true;
-    }
-    return stack->top == NULL; // »ò stack->size == 0
-}
-
-size_t stack_get_size(const Stack* stack) {
-    if (stack == NULL) {
-        return 0;
-    }
-    return stack->size;
+#include "linked_stack.h"
+#include <stdlib.h>
+#include <string.h>
+
+// --- Private Structure Definitions ---
+
+// å†…éƒ¨èŠ‚ç‚¹ç»“æž„ï¼Œå¯¹ç”¨æˆ·ä¸å¯è§
+typedef struct Node {
+    void* data;         // æŒ‡å‘ä¸ºè¯¥èŠ‚ç‚¹å…ƒç´ åˆ†é…çš„å†…å­˜
+    struct Node* next;  // æŒ‡å‘æ ˆä¸­çš„ä¸‹ä¸€ä¸ªèŠ‚ç‚¹
+} Node;
+
+// é“¾å¼æ ˆçš„å®žé™…ç®¡ç†ç»“æž„
+struct LinkedStack {
+    Node* top;              // æŒ‡å‘æ ˆé¡¶çš„èŠ‚ç‚¹
+    size_t element_size;    // æ¯ä¸ªå…ƒç´ çš„å¤§å°
+    size_t size;            // æ ˆä¸­å½“å‰çš„å…ƒç´ æ•°é‡
+};
+
+// --- API Function Implementations ---
+
+Stack* stack_create(size_t element_size) {
+    if (element_size == 0) {
+        return NULL;
+    }
+
+    Stack* stack = (Stack*)malloc(sizeof(Stack));
+    if (stack == NULL) {
+        return NULL;
+    }
+
+    stack->top = NULL; // åˆå§‹åŒ–æ—¶ï¼Œæ ˆé¡¶æ²¡æœ‰èŠ‚ç‚¹
+    stack->element_size = element_size;
+    stack->size = 0;
+
+    return stack;
+}
+
+void stack_destroy(Stack** p_stack) {
+    if (p_stack == NULL || *p_stack == NULL) {
+        return;
+    }
+
+    Stack* stack = *p_stack;
+    Node* current = stack->top;
+
+    // éåŽ†æ•´ä¸ªé“¾è¡¨ï¼Œé‡Šæ”¾æ¯ä¸€ä¸ªèŠ‚ç‚¹å’Œå®ƒæ‰€åŒ…å«çš„æ•°æ®
+    while (current != NULL) {
+        Node* temp = current;
+        current = current->next; // ç§»åŠ¨åˆ°ä¸‹ä¸€ä¸ªèŠ‚ç‚¹
+        free(temp->data);        // é‡Šæ”¾èŠ‚ç‚¹çš„æ•°æ®
+        free(temp);              // é‡Šæ”¾èŠ‚ç‚¹æœ¬èº«
+    }
+
+    free(stack);      // æœ€åŽé‡Šæ”¾æ ˆçš„ç®¡ç†ç»“æž„
+    *p_stack = NULL;  // è®¾ç½®å¤–éƒ¨æŒ‡é’ˆä¸ºNULL
+}
+
+bool stack_push(Stack* stack, const void* element_data) {
+    if (stack == NULL || element_data == NULL) {
+        return false;
+    }
+
+    // 1. ä¸ºæ–°èŠ‚ç‚¹åˆ†é…å†…å­˜
+    Node* new_node = (Node*)malloc(sizeof(Node));
+    if (new_node == NULL) {
+        return false; // å†…å­˜åˆ†é…å¤±è´¥
+    }
+
+    // 2. ä¸ºæ–°èŠ‚ç‚¹çš„æ•°æ®åŒºåˆ†é…å†…å­˜
+    new_node->data = malloc(stack->element_size);
+    if (new_node->data == NULL) {
+        free(new_node); // æ¸…ç†å·²åˆ†é…çš„èŠ‚ç‚¹ï¼Œé˜²æ­¢æ³„æ¼
+        return false;
+    }
+
+    // 3. å°†ç”¨æˆ·æ•°æ®æ‹·è´åˆ°æ–°èŠ‚ç‚¹çš„æ•°æ®åŒº
+    memcpy(new_node->data, element_data, stack->element_size);
+
+    // 4. å°†æ–°èŠ‚ç‚¹é“¾æŽ¥åˆ°æ ˆé¡¶
+    new_node->next = stack->top; // æ–°èŠ‚ç‚¹çš„ä¸‹ä¸€ä¸ªæ˜¯å½“å‰çš„æ ˆé¡¶ (æ—§æ ˆé¡¶)
+    stack->top = new_node;       // æ›´æ–°æ ˆé¡¶ä¸ºæ–°èŠ‚ç‚¹
+
+    stack->size++;
+    return true;
+}
+
+bool stack_pop(Stack* stack, void* output_buffer) {
+    if (stack_is_empty(stack) || output_buffer == NULL) {
+        return false;
+    }
+
+    // 1. æš‚å­˜æ ˆé¡¶èŠ‚ç‚¹
+    Node* node_to_pop = stack->top;
+
+    // 2. å°†æ•°æ®ä»ŽèŠ‚ç‚¹æ‹·è´åˆ°ç”¨æˆ·çš„ç¼“å†²åŒº
+    memcpy(output_buffer, node_to_pop->data, stack->element_size);
+
+    // 3. æ›´æ–°æ ˆé¡¶æŒ‡é’ˆï¼Œä½¿å…¶æŒ‡å‘ä¸‹ä¸€ä¸ªèŠ‚ç‚¹
+    stack->top = node_to_pop->next;
+
+    // 4. é‡Šæ”¾è¢«å¼¹å‡ºèŠ‚ç‚¹çš„æ‰€æœ‰å†…å­˜
+    free(node_to_pop->data);
+    free(node_to_pop);
+
+    stack->size--;
+    return true;
+}
+
+bool stack_peek(const Stack* stack, void* output_buffer) {
+    if (stack_is_empty(stack) || output_buffer == NULL) {
+        return false;
+    }
+
+    // åªéœ€æ‹·è´æ•°æ®ï¼Œä¸ä¿®æ”¹ä»»ä½•æŒ‡é’ˆæˆ–é‡Šæ”¾å†…å­˜
+    memcpy(output_buffer, stack->top->data, stack->element_size);
+    return true;
+}
+
+bool stack_is_empty(const Stack* stack) {
+    if (stack == NULL) {
+        return true;
+    }
+    return stack->top == NULL; // æˆ– stack->size == 0
+}
+
+size_t stack_get_size(const Stack* stack) {
+    if (stack == NULL) {
+        return 0;
+    }
+    return stack->size;
 }

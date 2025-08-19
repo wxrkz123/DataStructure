@@ -1,97 +1,97 @@
-#pragma once
-
-#include <stddef.h>  // for size_t
-#include <stdbool.h> // for bool
-
-// --- Public Enumeration and Opaque Pointer ---
-
-// Ê¹ÓÃÃ¶¾ÙÀ´ÇåÎúµØ±êÊ¶Òª²Ù×÷µÄÕ»
-typedef enum {
-    STACK_ONE = 1, // Õ»1£¬´ÓÊı×éÍ·²¿¿ªÊ¼
-    STACK_TWO = 2  // Õ»2£¬´ÓÊı×éÎ²²¿¿ªÊ¼
-} StackNumber;
-
-// ²»Í¸Ã÷Ö¸Õë£¬ÓÃ»§ÎŞ·¨¿´µ½ÄÚ²¿½á¹¹
-typedef struct SharedStack Stack;
-
-// --- Public API Prototypes ---
-
-/**
- * @brief ´´½¨Ò»¸öĞÂµÄ¹²ÏíÕ»¡£
- *
- * @param total_capacity Á½¸öÕ»¹²ÏíµÄ×ÜÈİÁ¿£¨ÔªËØ¸öÊı£©¡£
- * @param element_size   Ã¿¸öÔªËØµÄ´óĞ¡£¨ÒÔ×Ö½ÚÎªµ¥Î»£©¡£
- * @return ³É¹¦Ê±·µ»ØÖ¸ÏòĞÂÕ»µÄÖ¸Õë£¬Ê§°Ü·µ»Ø NULL¡£
- */
-Stack* stack_create(size_t total_capacity, size_t element_size);
-
-/**
- * @brief Ïú»ÙÒ»¸ö¹²ÏíÕ»²¢ÊÍ·ÅËùÓĞÄÚ´æ¡£
- *
- * @param p_stack Ö¸ÏòÕ»Ö¸ÕëµÄÖ¸Õë£¬º¯Êı»á½«ÆäÖÃÎª NULL¡£
- */
-void stack_destroy(Stack** p_stack);
-
-/**
- * @brief ½«Ò»¸öÔªËØÑ¹ÈëÖ¸¶¨µÄÕ»¡£
- *
- * @param stack Ö¸ÏòÒª²Ù×÷µÄÕ»¡£
- * @param num   Òª²Ù×÷µÄÕ»±àºÅ (STACK_ONE »ò STACK_TWO)¡£
- * @param element_data Ö¸ÏòÒªÑ¹ÈëµÄÔªËØÊı¾İµÄÖ¸Õë¡£
- * @return ³É¹¦·µ»Ø true£¬Èç¹ûÕ»Âú»ò²ÎÊıÎŞĞ§Ôò·µ»Ø false¡£
- */
-bool stack_push(Stack* stack, StackNumber num, const void* element_data);
-
-/**
- * @brief ´ÓÖ¸¶¨µÄÕ»µ¯³öÒ»¸öÔªËØ¡£
- *
- * @param stack Ö¸ÏòÒª²Ù×÷µÄÕ»¡£
- * @param num   Òª²Ù×÷µÄÕ»±àºÅ (STACK_ONE »ò STACK_TWO)¡£
- * @param output_buffer Ö¸ÏòÓÃÓÚ½ÓÊÕµ¯³öÔªËØÊı¾İµÄ»º³åÇø¡£
- * @return ³É¹¦·µ»Ø true£¬Èç¹ûÕ»¿Õ»ò²ÎÊıÎŞĞ§Ôò·µ»Ø false¡£
- */
-bool stack_pop(Stack* stack, StackNumber num, void* output_buffer);
-
-/**
- * @brief ²é¿´Ö¸¶¨Õ»µÄÕ»¶¥ÔªËØ£¬µ«²»µ¯³ö¡£
- *
- * @param stack Ö¸ÏòÒª²Ù×÷µÄÕ»¡£
- * @param num   Òª²Ù×÷µÄÕ»±àºÅ (STACK_ONE »ò STACK_TWO)¡£
- * @param output_buffer Ö¸ÏòÓÃÓÚ½ÓÊÕÕ»¶¥ÔªËØÊı¾İµÄ»º³åÇø¡£
- * @return ³É¹¦·µ»Ø true£¬Èç¹ûÕ»¿Õ»ò²ÎÊıÎŞĞ§Ôò·µ»Ø false¡£
- */
-bool stack_peek(const Stack* stack, StackNumber num, void* output_buffer);
-
-/**
- * @brief ¼ì²é¹²Ïí¿Õ¼äÊÇ·ñÒÑÂú¡£
- *
- * @param stack Ö¸ÏòÒª¼ì²éµÄÕ»¡£
- * @return Èç¹ûÒÑÂú·µ»Ø true£¬·ñÔò·µ»Ø false¡£
- */
-bool stack_is_full(const Stack* stack);
-
-/**
- * @brief ¼ì²éÖ¸¶¨µÄÕ»ÊÇ·ñÎª¿Õ¡£
- *
- * @param stack Ö¸ÏòÒª¼ì²éµÄÕ»¡£
- * @param num   Òª¼ì²éµÄÕ»±àºÅ (STACK_ONE »ò STACK_TWO)¡£
- * @return Èç¹û¸ÃÕ»Îª¿Õ·µ»Ø true£¬·ñÔò·µ»Ø false¡£
- */
-bool stack_is_empty(const Stack* stack, StackNumber num);
-
-/**
- * @brief »ñÈ¡Ö¸¶¨Õ»µÄµ±Ç°ÔªËØÊıÁ¿¡£
- *
- * @param stack Ö¸ÏòÒª²Ù×÷µÄÕ»¡£
- * @param num   Òª»ñÈ¡´óĞ¡µÄÕ»±àºÅ (STACK_ONE »ò STACK_TWO)¡£
- * @return ·µ»Ø¸ÃÕ»µÄÔªËØÊıÁ¿¡£
- */
-size_t stack_get_size(const Stack* stack, StackNumber num);
-
-/**
- * @brief »ñÈ¡¹²ÏíÕ»µÄ×ÜÈİÁ¿¡£
- *
- * @param stack Ö¸ÏòÒª²Ù×÷µÄÕ»¡£
- * @return ·µ»Ø×ÜÈİÁ¿¡£
- */
-size_t stack_get_total_capacity(const Stack* stack);
+#pragma once
+
+#include <stddef.h>  // for size_t
+#include <stdbool.h> // for bool
+
+// --- Public Enumeration and Opaque Pointer ---
+
+// ä½¿ç”¨æšä¸¾æ¥æ¸…æ™°åœ°æ ‡è¯†è¦æ“ä½œçš„æ ˆ
+typedef enum {
+    STACK_ONE = 1, // æ ˆ1ï¼Œä»æ•°ç»„å¤´éƒ¨å¼€å§‹
+    STACK_TWO = 2  // æ ˆ2ï¼Œä»æ•°ç»„å°¾éƒ¨å¼€å§‹
+} StackNumber;
+
+// ä¸é€æ˜æŒ‡é’ˆï¼Œç”¨æˆ·æ— æ³•çœ‹åˆ°å†…éƒ¨ç»“æ„
+typedef struct SharedStack Stack;
+
+// --- Public API Prototypes ---
+
+/**
+ * @brief åˆ›å»ºä¸€ä¸ªæ–°çš„å…±äº«æ ˆã€‚
+ *
+ * @param total_capacity ä¸¤ä¸ªæ ˆå…±äº«çš„æ€»å®¹é‡ï¼ˆå…ƒç´ ä¸ªæ•°ï¼‰ã€‚
+ * @param element_size   æ¯ä¸ªå…ƒç´ çš„å¤§å°ï¼ˆä»¥å­—èŠ‚ä¸ºå•ä½ï¼‰ã€‚
+ * @return æˆåŠŸæ—¶è¿”å›æŒ‡å‘æ–°æ ˆçš„æŒ‡é’ˆï¼Œå¤±è´¥è¿”å› NULLã€‚
+ */
+Stack* stack_create(size_t total_capacity, size_t element_size);
+
+/**
+ * @brief é”€æ¯ä¸€ä¸ªå…±äº«æ ˆå¹¶é‡Šæ”¾æ‰€æœ‰å†…å­˜ã€‚
+ *
+ * @param p_stack æŒ‡å‘æ ˆæŒ‡é’ˆçš„æŒ‡é’ˆï¼Œå‡½æ•°ä¼šå°†å…¶ç½®ä¸º NULLã€‚
+ */
+void stack_destroy(Stack** p_stack);
+
+/**
+ * @brief å°†ä¸€ä¸ªå…ƒç´ å‹å…¥æŒ‡å®šçš„æ ˆã€‚
+ *
+ * @param stack æŒ‡å‘è¦æ“ä½œçš„æ ˆã€‚
+ * @param num   è¦æ“ä½œçš„æ ˆç¼–å· (STACK_ONE æˆ– STACK_TWO)ã€‚
+ * @param element_data æŒ‡å‘è¦å‹å…¥çš„å…ƒç´ æ•°æ®çš„æŒ‡é’ˆã€‚
+ * @return æˆåŠŸè¿”å› trueï¼Œå¦‚æœæ ˆæ»¡æˆ–å‚æ•°æ— æ•ˆåˆ™è¿”å› falseã€‚
+ */
+bool stack_push(Stack* stack, StackNumber num, const void* element_data);
+
+/**
+ * @brief ä»æŒ‡å®šçš„æ ˆå¼¹å‡ºä¸€ä¸ªå…ƒç´ ã€‚
+ *
+ * @param stack æŒ‡å‘è¦æ“ä½œçš„æ ˆã€‚
+ * @param num   è¦æ“ä½œçš„æ ˆç¼–å· (STACK_ONE æˆ– STACK_TWO)ã€‚
+ * @param output_buffer æŒ‡å‘ç”¨äºæ¥æ”¶å¼¹å‡ºå…ƒç´ æ•°æ®çš„ç¼“å†²åŒºã€‚
+ * @return æˆåŠŸè¿”å› trueï¼Œå¦‚æœæ ˆç©ºæˆ–å‚æ•°æ— æ•ˆåˆ™è¿”å› falseã€‚
+ */
+bool stack_pop(Stack* stack, StackNumber num, void* output_buffer);
+
+/**
+ * @brief æŸ¥çœ‹æŒ‡å®šæ ˆçš„æ ˆé¡¶å…ƒç´ ï¼Œä½†ä¸å¼¹å‡ºã€‚
+ *
+ * @param stack æŒ‡å‘è¦æ“ä½œçš„æ ˆã€‚
+ * @param num   è¦æ“ä½œçš„æ ˆç¼–å· (STACK_ONE æˆ– STACK_TWO)ã€‚
+ * @param output_buffer æŒ‡å‘ç”¨äºæ¥æ”¶æ ˆé¡¶å…ƒç´ æ•°æ®çš„ç¼“å†²åŒºã€‚
+ * @return æˆåŠŸè¿”å› trueï¼Œå¦‚æœæ ˆç©ºæˆ–å‚æ•°æ— æ•ˆåˆ™è¿”å› falseã€‚
+ */
+bool stack_peek(const Stack* stack, StackNumber num, void* output_buffer);
+
+/**
+ * @brief æ£€æŸ¥å…±äº«ç©ºé—´æ˜¯å¦å·²æ»¡ã€‚
+ *
+ * @param stack æŒ‡å‘è¦æ£€æŸ¥çš„æ ˆã€‚
+ * @return å¦‚æœå·²æ»¡è¿”å› trueï¼Œå¦åˆ™è¿”å› falseã€‚
+ */
+bool stack_is_full(const Stack* stack);
+
+/**
+ * @brief æ£€æŸ¥æŒ‡å®šçš„æ ˆæ˜¯å¦ä¸ºç©ºã€‚
+ *
+ * @param stack æŒ‡å‘è¦æ£€æŸ¥çš„æ ˆã€‚
+ * @param num   è¦æ£€æŸ¥çš„æ ˆç¼–å· (STACK_ONE æˆ– STACK_TWO)ã€‚
+ * @return å¦‚æœè¯¥æ ˆä¸ºç©ºè¿”å› trueï¼Œå¦åˆ™è¿”å› falseã€‚
+ */
+bool stack_is_empty(const Stack* stack, StackNumber num);
+
+/**
+ * @brief è·å–æŒ‡å®šæ ˆçš„å½“å‰å…ƒç´ æ•°é‡ã€‚
+ *
+ * @param stack æŒ‡å‘è¦æ“ä½œçš„æ ˆã€‚
+ * @param num   è¦è·å–å¤§å°çš„æ ˆç¼–å· (STACK_ONE æˆ– STACK_TWO)ã€‚
+ * @return è¿”å›è¯¥æ ˆçš„å…ƒç´ æ•°é‡ã€‚
+ */
+size_t stack_get_size(const Stack* stack, StackNumber num);
+
+/**
+ * @brief è·å–å…±äº«æ ˆçš„æ€»å®¹é‡ã€‚
+ *
+ * @param stack æŒ‡å‘è¦æ“ä½œçš„æ ˆã€‚
+ * @return è¿”å›æ€»å®¹é‡ã€‚
+ */
+size_t stack_get_total_capacity(const Stack* stack);

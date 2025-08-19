@@ -1,180 +1,180 @@
-#define _CRT_SECURE_NO_WARNINGS
-#include "Node.h"
-#include <stdio.h>
-#include <stdlib.h>
-
-
-Node* createNode(Data data) {
-	Node* newNode = (Node*)malloc(sizeof(Node));
-	if (newNode == NULL) {
-		perror("´´½¨½ÚµãÊ§°Ü£ºÄÚ´æ·ÖÅä´íÎó");
-		return NULL;
-	}
-	
-	newNode->data = data;
-	newNode->next = NULL;
-	return newNode;
-}
-
-
-void appendNode(Node** headRef, Data data) {
-	Node* newNode = createNode(data);
-
-	if (newNode == NULL) return;
-
-	if (*headRef == NULL) {
-		*headRef = newNode;
-		return;
-	}
-
-	// head -> [10 | next] ---> [20 | next] --->  newNode --> [30 | next] ---> NULL
-	//				head
-	//											last newNode
-
-	// newNode --> [30 | next]
-
-	Node* last = *headRef;
-	//  Node* last = head;
-	while (last->next != NULL) {
-		last = last->next;
-	}
-
-	last->next = newNode;
-
-}
-
-void prependNode(Node** headRef, Data data) {
-	Node* newNode = createNode(data);
-
-	if (newNode == NULL) return;
-	newNode->next = *headRef;
-	*headRef = newNode;
-
-	// head -> [10 | next] ---> [20 | next] --->  newNode --> [30 | next] ---> NULL
-	//				head
-	//											last newNode
-
-	// newNode --> [5 | next]
-}
-
-void printList(Node* head, void (*print_func)(const void* data)) {
-	if (print_func == NULL) {
-		printf("´íÎó: Î´Ìá¹©´òÓ¡º¯Êý.\n");
-		return;
-	}
-
-	printf("Á´±íÄÚÈÝ: ");
-	Node* current = head;
-	while (current != NULL) {
-		print_func(&(current->data));
-		printf(" -> ");
-		current = current->next;
-	}
-	printf("NULL\n");
-}
-
-Node* findNode(
-	Node* head,
-	const void* target_data,
-	int (*compare_func) (const void* a, const void* b, void* context),
-	void* context
-) {
-	if (compare_func == NULL) {
-		printf("´íÎó: Î´Ìá¹©±È½Ïº¯Êý.\n");
-		return NULL;
-	}
-
-	Node* current = head;
-	while (current != NULL) {
-		// µ÷ÓÃ»Øµ÷
-		if (compare_func(&(current->data), target_data, context) == 0) {
-			return current;
-		}
-		current = current->next;
-	}
-
-	return NULL;
-}
-
-void deleteNode(
-	Node** headRef,
-	const void* target_data,
-	int (*compare_func) (const void* a, const void* b, void* context),
-	void* context
-) {
-	if (headRef == NULL || *headRef == NULL || compare_func == NULL) {
-		printf("´íÎó: ÎÞÐ§µÄ²ÎÊý.\n");
-		return;
-	}
-
-	Node* temp = *headRef;
-	Node* prev = NULL;
-
-	// ¼ì²éÍ·½ÚµãÊÇ·ñÊÇÄ¿±ê
-	if (compare_func(&(temp->data), target_data, context) == 0) {
-		*headRef = temp->next;
-		free(temp);
-		printf("ÐÅÏ¢£ºÍ·½ÚµãÒÑ¾­É¾³ý£¡\n");
-		return;
-	
-	}
-
-	while (temp != NULL && compare_func(&temp->data, target_data, context) != 0) {
-		prev = temp;
-		temp = temp->next;
-	}
-
-	if (temp == NULL) {
-		printf("¾¯¸æ£ºÎ´ÕÒµ½Ä¿±ê½Úµã£¬ÎÞ·¨É¾³ý!\n");
-		return;
-	}
-
-	// ¼ì²é prev ÊÇ·ñÎª NULL  
-	if (prev != NULL) {
-		prev->next = temp->next;
-	}
-
-	free(temp);
-	printf("ÐÅÏ¢£º½ÚµãÒÑ¾­É¾³ý!\n");
-	
-}
-
-void updateNode(Node** headRef, const void* target_data, Data newData, int(*compare_func)(const void* a, const void* b, void* context), void* context)
-{
-	Node* nodeToUpdate = findNode(headRef, target_data, compare_func, context);
-	if (nodeToUpdate != NULL) {
-		nodeToUpdate->data = newData;
-		printf("ÐÅÏ¢£º½ÚµãÒÑ¾­³É¹¦¸üÐÂ!\n");
-	}
-	else {
-		printf("¾¯¸æ: Î´ÕÒµ½Ä¿±ê½Úµã£¬ÎÞ·¨¸üÐÂ£¡\n");
-	}
-}
-
-//void updateNode(
-//	Node* headRef,
-//	const void* target_data,
-//	Data newData,
-//	int (*compare_func) (const void* a, const void* b, void* context),
-//	void* context
-//) {
-//	
-//}
-
-void freeList(Node** headRef, void (*free_data_func)(void* data)) {
-	if (headRef == NULL) return;
-
-	Node* current = *headRef;
-	Node* nextNode;
-
-	while (current != NULL) {
-		nextNode = current->next;
-		if (free_data_func != NULL) {
-			free_data_func(&current->data);
-		}
-		free(current);
-		current = nextNode;
-	}
-
-	*headRef = NULL;
-}
+#define _CRT_SECURE_NO_WARNINGS
+#include "Node.h"
+#include <stdio.h>
+#include <stdlib.h>
+
+
+Node* createNode(Data data) {
+	Node* newNode = (Node*)malloc(sizeof(Node));
+	if (newNode == NULL) {
+		perror("åˆ›å»ºèŠ‚ç‚¹å¤±è´¥ï¼šå†…å­˜åˆ†é…é”™è¯¯");
+		return NULL;
+	}
+	
+	newNode->data = data;
+	newNode->next = NULL;
+	return newNode;
+}
+
+
+void appendNode(Node** headRef, Data data) {
+	Node* newNode = createNode(data);
+
+	if (newNode == NULL) return;
+
+	if (*headRef == NULL) {
+		*headRef = newNode;
+		return;
+	}
+
+	// head -> [10 | next] ---> [20 | next] --->  newNode --> [30 | next] ---> NULL
+	//				head
+	//											last newNode
+
+	// newNode --> [30 | next]
+
+	Node* last = *headRef;
+	//  Node* last = head;
+	while (last->next != NULL) {
+		last = last->next;
+	}
+
+	last->next = newNode;
+
+}
+
+void prependNode(Node** headRef, Data data) {
+	Node* newNode = createNode(data);
+
+	if (newNode == NULL) return;
+	newNode->next = *headRef;
+	*headRef = newNode;
+
+	// head -> [10 | next] ---> [20 | next] --->  newNode --> [30 | next] ---> NULL
+	//				head
+	//											last newNode
+
+	// newNode --> [5 | next]
+}
+
+void printList(Node* head, void (*print_func)(const void* data)) {
+	if (print_func == NULL) {
+		printf("é”™è¯¯: æœªæä¾›æ‰“å°å‡½æ•°.\n");
+		return;
+	}
+
+	printf("é“¾è¡¨å†…å®¹: ");
+	Node* current = head;
+	while (current != NULL) {
+		print_func(&(current->data));
+		printf(" -> ");
+		current = current->next;
+	}
+	printf("NULL\n");
+}
+
+Node* findNode(
+	Node* head,
+	const void* target_data,
+	int (*compare_func) (const void* a, const void* b, void* context),
+	void* context
+) {
+	if (compare_func == NULL) {
+		printf("é”™è¯¯: æœªæä¾›æ¯”è¾ƒå‡½æ•°.\n");
+		return NULL;
+	}
+
+	Node* current = head;
+	while (current != NULL) {
+		// è°ƒç”¨å›žè°ƒ
+		if (compare_func(&(current->data), target_data, context) == 0) {
+			return current;
+		}
+		current = current->next;
+	}
+
+	return NULL;
+}
+
+void deleteNode(
+	Node** headRef,
+	const void* target_data,
+	int (*compare_func) (const void* a, const void* b, void* context),
+	void* context
+) {
+	if (headRef == NULL || *headRef == NULL || compare_func == NULL) {
+		printf("é”™è¯¯: æ— æ•ˆçš„å‚æ•°.\n");
+		return;
+	}
+
+	Node* temp = *headRef;
+	Node* prev = NULL;
+
+	// æ£€æŸ¥å¤´èŠ‚ç‚¹æ˜¯å¦æ˜¯ç›®æ ‡
+	if (compare_func(&(temp->data), target_data, context) == 0) {
+		*headRef = temp->next;
+		free(temp);
+		printf("ä¿¡æ¯ï¼šå¤´èŠ‚ç‚¹å·²ç»åˆ é™¤ï¼\n");
+		return;
+	
+	}
+
+	while (temp != NULL && compare_func(&temp->data, target_data, context) != 0) {
+		prev = temp;
+		temp = temp->next;
+	}
+
+	if (temp == NULL) {
+		printf("è­¦å‘Šï¼šæœªæ‰¾åˆ°ç›®æ ‡èŠ‚ç‚¹ï¼Œæ— æ³•åˆ é™¤!\n");
+		return;
+	}
+
+	// æ£€æŸ¥ prev æ˜¯å¦ä¸º NULL  
+	if (prev != NULL) {
+		prev->next = temp->next;
+	}
+
+	free(temp);
+	printf("ä¿¡æ¯ï¼šèŠ‚ç‚¹å·²ç»åˆ é™¤!\n");
+	
+}
+
+void updateNode(Node** headRef, const void* target_data, Data newData, int(*compare_func)(const void* a, const void* b, void* context), void* context)
+{
+	Node* nodeToUpdate = findNode(headRef, target_data, compare_func, context);
+	if (nodeToUpdate != NULL) {
+		nodeToUpdate->data = newData;
+		printf("ä¿¡æ¯ï¼šèŠ‚ç‚¹å·²ç»æˆåŠŸæ›´æ–°!\n");
+	}
+	else {
+		printf("è­¦å‘Š: æœªæ‰¾åˆ°ç›®æ ‡èŠ‚ç‚¹ï¼Œæ— æ³•æ›´æ–°ï¼\n");
+	}
+}
+
+//void updateNode(
+//	Node* headRef,
+//	const void* target_data,
+//	Data newData,
+//	int (*compare_func) (const void* a, const void* b, void* context),
+//	void* context
+//) {
+//	
+//}
+
+void freeList(Node** headRef, void (*free_data_func)(void* data)) {
+	if (headRef == NULL) return;
+
+	Node* current = *headRef;
+	Node* nextNode;
+
+	while (current != NULL) {
+		nextNode = current->next;
+		if (free_data_func != NULL) {
+			free_data_func(&current->data);
+		}
+		free(current);
+		current = nextNode;
+	}
+
+	*headRef = NULL;
+}

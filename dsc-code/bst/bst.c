@@ -1,285 +1,285 @@
-// bst.c
-
-#include "bst.h"
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-
-// --- Private Structure Definitions ---
-
-typedef struct Node {
-    void* data;
-    struct Node* left;
-    struct Node* right;
-} Node;
-
-struct BST {
-    Node* root;
-    size_t element_size;
-    size_t size;
-    CompareFunc compare;
-};
-
-// --- Static Helper Functions (Recursive Implementations) ---
-
-// Ë½ÓĞ¸¨Öúº¯Êı£º´´½¨Ò»¸öĞÂ½Úµã
-static Node* _create_node(const void* data, size_t element_size) {
-    Node* new_node = (Node*)malloc(sizeof(Node));
-    if (!new_node) return NULL;
-
-    new_node->data = malloc(element_size);
-    if (!new_node->data) {
-        free(new_node);
-        return NULL;
-    }
-    memcpy(new_node->data, data, element_size);
-    new_node->left = NULL;
-    new_node->right = NULL;
-    return new_node;
-}
-
-// Ë½ÓĞ¸¨Öúº¯Êı£ºµİ¹éÏú»ÙÊ÷£¨ºóĞò±éÀú£©
-static void _destroy_recursive(Node* node) {
-    if (node == NULL) return;
-    _destroy_recursive(node->left);
-    _destroy_recursive(node->right);
-    free(node->data);
-    free(node);
-}
-
-// Ë½ÓĞ¸¨Öúº¯Êı£ºµİ¹é²åÈëĞÂ½Úµã
-static Node* _insert_recursive(BST* bst, Node* node, const void* data) {
-    /*
-     * º¯Êı¹¦ÄÜ: ÔÚÒÔ `node` Îª¸ùµÄ×ÓÊ÷ÖĞµİ¹éµØ²åÈëÊı¾İ¡£
-     * ·µ»ØÖµÊÇ¹Ø¼ü: Ëü·µ»ØÕâ¿Ã×ÓÊ÷µÄĞÂ¸ù¡£´ó¶àÊıÇé¿öÏÂ¸ù²»±ä£¬
-     * µ«ÔÚ²åÈëµ½¿Õ×ÓÊ÷Ê±£¬ĞÂ´´½¨µÄ½Úµã½«×÷ÎªĞÂ¸ù·µ»Ø£¬
-     * Æä¸¸½ÚµãµÄ left »ò right Ö¸Õë½«±»ÕıÈ·¸³Öµ¡£
-     *
-     * ½ÌÑ§°¸Àı: ¼ÙÉèÊ÷ÖĞÒÑÓĞ {10, 5}¡£ÎÒÃÇÒª²åÈë 7¡£
-     *            10
-     *           /
-     *          5
-     * 1. µ÷ÓÃ _insert(bst, root(10), 7)¡£7 < 10£¬½øÈë×ó×ÓÊ÷¡£
-     *    Ö´ĞĞ: root->left = _insert(bst, root->left(5), 7);
-     * 2. ÔÚ²½Öè1µÄµİ¹éµ÷ÓÃÖĞ: _insert(bst, node(5), 7)¡£7 > 5£¬½øÈëÓÒ×ÓÊ÷¡£
-     *    Ö´ĞĞ: node->right = _insert(bst, node->right(NULL), 7);
-     * 3. ÔÚ²½Öè2µÄµİ¹éµ÷ÓÃÖĞ: _insert(bst, NULL, 7)¡£node Îª NULL£¬ÕâÊÇ»ù±¾Çé¿ö¡£
-     *    ´´½¨Ò»¸öĞÂ½Úµã [7]£¬²¢½«Æä·µ»Ø¡£
-     * 4. ·µ»Øµ½²½Öè2: node->right (5µÄÓÒ×Ó½Úµã) ±»¸³ÖµÎªĞÂ·µ»ØµÄ½Úµã [7]¡£
-     *    È»ºó²½Öè2·µ»Ø½Úµã [5] (ËüµÄ¸ùÃ»±ä)¡£
-     * 5. ·µ»Øµ½²½Öè1: root->left (10µÄ×ó×Ó½Úµã) ±»¸³ÖµÎª·µ»ØµÄ½Úµã [5] (ËüµÄ¸ùÒ²Ã»±ä)¡£
-     *    ×îÖÕÍê³É²åÈë¡£
-    */
-    // »ù±¾Çé¿ö£ºÈç¹ûµ±Ç°½ÚµãÎª¿Õ£¬ËµÃ÷ÎÒÃÇÕÒµ½ÁË²åÈëÎ»ÖÃ¡£
-    if (node == NULL) {
-        bst->size++;
-        return _create_node(data, bst->element_size);
-    }
-
-    int cmp = bst->compare(data, node->data);
-
-	// compare(a, b) 
-    // cmp 
-	// cpm < 0 ±íÊ¾ a < b
-    // cmp > 0 ±íÊ¾ a > b
-    // cmp == 0 ±íÊ¾ a == b
-    // ÕâÀïµÄÂß¼­ÊÇ£ºÈç¹ûĞÂÊı¾İĞ¡ÓÚµ±Ç°½ÚµãÊı¾İ£¬¾ÍÈ¥×ó×ÓÊ÷²åÈë£»Èç¹û´óÓÚ£¬¾ÍÈ¥ÓÒ×ÓÊ÷²åÈë¡£
-	// ×¢Òâ£ºÈç¹û cmp == 0£¬ËµÃ÷Êı¾İÒÑ´æÔÚ£¬ÎÒÃÇÊ²Ã´¶¼²»×ö£¬Ö±½Ó·µ»ØÔ­½Úµã¡£
-
-	// if (new data < current_node_data) {
-
-    if (cmp < 0) {
-        // ĞÂÊı¾İ±Èµ±Ç°½ÚµãĞ¡£¬µİ¹éµØ²åÈëµ½×ó×ÓÊ÷
-        node->left = _insert_recursive(bst, node->left, data);
-        // node->leftÊÇÊ²Ã´£¿
-        // node->left NULL
-
-        // 20 tree insert 10
-		// node->left = _insert_recursive(bst, node->left, data);
-        // Node 20 address : 0x4000
-		// node: ÔÚµ±Ç°Õ»Ö¡ÖĞ£¬²ÎÊınodeµÄÖµÊÇÒ»¸öpointer£¬Ö¸Ïòµ±Ç°½Úµã(20)µÄµØÖ·¡£
-		// data: 20 a pointer, => int 20 ÄÚ´æ
-        // left: NULL
-		// right : NULL
-		// data: 10 a pointer, => int 10 ÄÚ´æ µÈ´ı±»²åÈëµÄÖµµÄÄÚ´æµØÖ·
-        // Call stack:
-        // µ÷ÓÃÕ»
-		// 1. _insert_recursive(bst, node(20), 10)
-		//  => _insert_recursive(node=0x4000, data=&10)  Õ»¶¥
-        //_insert_recursive(bst, node->left, data);
-		// bst ´«ÈëBSTµÄ½á¹¹Ö¸Õë
-		// node->left ¶ÁÈ¡µ±Ç°µÄNode£¨µØÖ·0x4000£©µÄleft³ÉÔ±
-		// data ´«ÈëÖ¸ÏòÕûÊı10µÄÖ¸Õë£¨&10£©
-        // 2. ·¢Æğµİ¹éµ÷ÓÃ
-        // PUSH
-        // //  => _insert_recursive(node=NULL, data=&10)  Õ»¶¥
-        // //  => _insert_recursive(node=0x4000, data=&10)  
-
-    }
-    else if (cmp > 0) {
-        // ĞÂÊı¾İ±Èµ±Ç°½Úµã´ó£¬µİ¹éµØ²åÈëµ½ÓÒ×ÓÊ÷
-        node->right = _insert_recursive(bst, node->right, data);
-    }
-    // Èç¹û cmp == 0£¬ËµÃ÷Êı¾İÒÑ´æÔÚ£¬ÎÒÃÇÊ²Ã´¶¼²»×ö£¬Ö±½Ó·µ»ØÔ­½Úµã¡£
-
-    return node; // ·µ»Øµ±Ç°×ÓÊ÷µÄ¸ù£¨¿ÉÄÜÒÑ¸üĞÂÁËÆä×Ó½Úµã£©
-}
-
-// Ë½ÓĞ¸¨Öúº¯Êı£º²éÕÒ×ÓÊ÷ÖĞ×îĞ¡µÄ½Úµã£¨ÓÃÓÚÉ¾³ı£©
-static Node* _find_min_recursive(Node* node) {
-    // ÔÚBSTÖĞ£¬×î×ó±ßµÄ½ÚµãÓÀÔ¶ÊÇ×îĞ¡µÄ¡£
-    while (node && node->left != NULL) {
-        node = node->left;
-    }
-    return node;
-}
-
-// ======================================================================
-// ====================  É¾³ı²Ù×÷ - ½ÌÑ§ºËĞÄÇøÓò  ======================
-// ======================================================================
-static Node* _remove_recursive(BST* bst, Node* node, const void* key) {
-    /*
-     * º¯Êı¹¦ÄÜ: ÔÚÒÔ `node` Îª¸ùµÄ×ÓÊ÷ÖĞµİ¹éµØÉ¾³ıÖµÎª `key` µÄ½Úµã¡£
-     * ÕâÊÇBSTÖĞ×î¸´ÔÓµÄ²Ù×÷£¬ÓĞÈıÖÖÖ÷ÒªÇé¿ö¡£
-    */
-
-    // »ù±¾Çé¿ö£ºÈç¹û½ÚµãÎª¿Õ£¬ËµÃ÷Ã»ÕÒµ½ÒªÉ¾³ıµÄ¼ü£¬Ö±½Ó·µ»Ø¡£
-    if (node == NULL) return NULL;
-
-    // ²½Öè 1: ÏñËÑË÷Ò»Ñù£¬ÕÒµ½ÒªÉ¾³ıµÄ½Úµã¡£
-    int cmp = bst->compare(key, node->data);
-    if (cmp < 0) {
-        node->left = _remove_recursive(bst, node->left, key);
-    }
-    else if (cmp > 0) {
-        node->right = _remove_recursive(bst, node->right, key);
-    }
-    else {
-        // Çé¿ö 1: ÒªÉ¾³ıµÄ½ÚµãÊÇÒ¶×Ó½Úµã (Ã»ÓĞ×Ó½Úµã)¡£
-       
-        if (node->left == NULL && node->right == NULL) {
-            // --- ÕÒµ½ÁËÒªÉ¾³ıµÄ½Úµã (node) ---
-            bst->size--; // ÏÈ°Ñsize¼õµô
-            free(node->data);
-            free(node);
-            return NULL; // 
-        }
-
-        // Çé¿ö 2: ÒªÉ¾³ıµÄ½ÚµãÖ»ÓĞÒ»¸ö×Ó½Úµã (×ó»òÓÒ)¡£
-        
-        if (node->left == NULL) {
-            // --- ÕÒµ½ÁËÒªÉ¾³ıµÄ½Úµã (node) ---
-            bst->size--; // ÏÈ°Ñsize¼õµô
-            Node* temp = node->right; // ±£´æÓÒ×Ó½ÚµãµÄÒıÓÃ
-            free(node->data);
-            free(node);
-            return temp; // ·µ»ØÓÒ×Ó½Úµã¸ø¸¸½Úµã£¬Íê³É¡°ÁìÑø¡±¡£
-        }
-        else if (node->right == NULL) {
-            // --- ÕÒµ½ÁËÒªÉ¾³ıµÄ½Úµã (node) ---
-            bst->size--; // ÏÈ°Ñsize¼õµô
-            Node* temp = node->left; // ±£´æ×ó×Ó½ÚµãµÄÒıÓÃ
-            free(node->data);
-            free(node);
-            return temp; // ·µ»Ø×ó×Ó½Úµã¸ø¸¸½Úµã¡£
-        }
-
-        // Çé¿ö 3: ÒªÉ¾³ıµÄ½ÚµãÓĞÁ½¸ö×Ó½Úµã (×î¸´ÔÓµÄÇé¿ö)¡£
-
-        // ²ßÂÔ:
-        //  a. ÕÒµ½Õâ¸ö½ÚµãµÄ¡°ÖĞĞòºó¼ÌÕß¡±(In-order Successor)¡£
-        //     ÖĞĞòºó¼ÌÕß¾ÍÊÇËüÓÒ×ÓÊ÷ÖĞ×îĞ¡µÄÄÇ¸ö½Úµã¡£
-        //     ¶ÔÓÚ½Úµã10£¬ËüµÄÓÒ×ÓÊ÷ÊÇ {15}£¬ÆäÖĞ×îĞ¡µÄ½Úµã¾ÍÊÇ 15¡£
-        //     °¸Àı: É¾³ı 20¡£ÓÒ×ÓÊ÷ÊÇ {30,25,40}£¬ÆäÖĞ×îĞ¡µÄ½ÚµãÊÇ 25¡£
-        //  b. ½«ºó¼ÌÕßµÄ¡°Êı¾İ¡±¸´ÖÆµ½µ±Ç°ÒªÉ¾³ıµÄ½ÚµãÖĞ¡£
-        //     °¸Àı: ÕÒµ½ 10 µÄºó¼ÌÕß 15¡£½« 15 µÄÊı¾İ¿½±´µ½ 10 µÄ½ÚµãÀï¡£
-        //     Ê÷ÔÚÂß¼­ÉÏ±ä³ÉÁË:
-        //              15 (µ«ÎïÀíÉÏ»¹ÊÇÔ­À´µÄ10ºÅ½Úµã)
-        //            /    \
-        //          5      15
-        //         / \     
-        //        3   7
-        //  c. ÏÖÔÚÎÊÌâ×ª»¯Îª£º´ÓÓÒ×ÓÊ÷ÖĞÉ¾³ıÄÇ¸öºó¼ÌÕß¡£
-        //     Õâ·Ç³£ÇÉÃî£¬ÒòÎªºó¼ÌÕß(ÓÒ×ÓÊ÷µÄ×îĞ¡Öµ)±£Ö¤×î¶àÖ»ÓĞÒ»¸öÓÒº¢×Ó£¬
-        //     ËùÒÔÉ¾³ıËü¾Í×ª»¯ÎªÁËÉÏÃæµÄÇé¿ö1»òÇé¿ö2£¬ÎÊÌâ±»¼ò»¯ÁË£¡
-        //     °¸Àı: ´Ó 10 µÄÓÒ×ÓÊ÷ {15} ÖĞÉ¾³ı 15¡£ÕâÊÇÒ»¸öÒ¶×Ó½ÚµãÉ¾³ı(Çé¿ö1)¡£
-
-        // ²½Öè a: ÕÒµ½ÓÒ×ÓÊ÷µÄ×îĞ¡½Úµã (ÖĞĞòºó¼ÌÕß)
-        Node* successor = _find_min_recursive(node->right);
-
-        // ²½Öè b: ½«ºó¼ÌÕßµÄÊı¾İ¿½±´µ½µ±Ç°½Úµã
-        memcpy(node->data, successor->data, bst->element_size);
-
-        // ²½Öè c: µİ¹éµØ´ÓÓÒ×ÓÊ÷ÖĞÉ¾³ıÄÇ¸öºó¼ÌÕß
-        node->right = _remove_recursive(bst, node->right, successor->data);
-    }
-    return node;
-}
-
-
-// Ë½ÓĞ¸¨Öúº¯Êı£ºµİ¹é±éÀú
-static void _traverse_recursive(const Node* node, VisitFunc visit, TraverseOrder order) {
-    if (node == NULL) return;
-
-    if (order == PRE_ORDER) visit(node->data);
-    _traverse_recursive(node->left, visit, order);
-    if (order == IN_ORDER) visit(node->data);
-    _traverse_recursive(node->right, visit, order);
-    if (order == POST_ORDER) visit(node->data);
-}
-
-// --- Public API Implementations ---
-
-BST* bst_create(size_t element_size, CompareFunc compare_func) {
-    if (element_size == 0 || !compare_func) return NULL;
-    BST* bst = (BST*)malloc(sizeof(BST));
-    if (!bst) return NULL;
-    bst->root = NULL;
-    bst->element_size = element_size;
-    bst->size = 0;
-    bst->compare = compare_func;
-    return bst;
-}
-
-void bst_destroy(BST** p_bst) {
-    if (p_bst && *p_bst) {
-        _destroy_recursive((*p_bst)->root);
-        free(*p_bst);
-        *p_bst = NULL;
-    }
-}
-
-bool bst_insert(BST* bst, const void* element_data) {
-    if (!bst || !element_data) return false;
-    size_t old_size = bst->size;
-    bst->root = _insert_recursive(bst, bst->root, element_data);
-    return bst->size > old_size; // Èç¹ûsizeÔö¼ÓÁË£¬ËµÃ÷²åÈë³É¹¦
-}
-
-bool bst_remove(BST* bst, const void* element_data) {
-    if (!bst || !element_data) return false;
-    size_t old_size = bst->size;
-    bst->root = _remove_recursive(bst, bst->root, element_data);
-    return bst->size < old_size; // Èç¹ûsize¼õĞ¡ÁË£¬ËµÃ÷É¾³ı³É¹¦
-}
-
-bool bst_search(const BST* bst, const void* key) {
-    if (!bst || !key) return false;
-    Node* current = bst->root;
-    while (current != NULL) {
-        int cmp = bst->compare(key, current->data);
-        if (cmp == 0) return true;
-        if (cmp < 0) current = current->left;
-        else current = current->right;
-    }
-    return false;
-}
-
-void bst_traverse(const BST* bst, TraverseOrder order, VisitFunc visit_func) {
-    if (bst && visit_func) {
-        _traverse_recursive(bst->root, visit_func, order);
-    }
-}
-
-bool bst_is_empty(const BST* bst) { return !bst || bst->size == 0; }
+// bst.c
+
+#include "bst.h"
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+
+// --- Private Structure Definitions ---
+
+typedef struct Node {
+    void* data;
+    struct Node* left;
+    struct Node* right;
+} Node;
+
+struct BST {
+    Node* root;
+    size_t element_size;
+    size_t size;
+    CompareFunc compare;
+};
+
+// --- Static Helper Functions (Recursive Implementations) ---
+
+// ç§æœ‰è¾…åŠ©å‡½æ•°ï¼šåˆ›å»ºä¸€ä¸ªæ–°èŠ‚ç‚¹
+static Node* _create_node(const void* data, size_t element_size) {
+    Node* new_node = (Node*)malloc(sizeof(Node));
+    if (!new_node) return NULL;
+
+    new_node->data = malloc(element_size);
+    if (!new_node->data) {
+        free(new_node);
+        return NULL;
+    }
+    memcpy(new_node->data, data, element_size);
+    new_node->left = NULL;
+    new_node->right = NULL;
+    return new_node;
+}
+
+// ç§æœ‰è¾…åŠ©å‡½æ•°ï¼šé€’å½’é”€æ¯æ ‘ï¼ˆååºéå†ï¼‰
+static void _destroy_recursive(Node* node) {
+    if (node == NULL) return;
+    _destroy_recursive(node->left);
+    _destroy_recursive(node->right);
+    free(node->data);
+    free(node);
+}
+
+// ç§æœ‰è¾…åŠ©å‡½æ•°ï¼šé€’å½’æ’å…¥æ–°èŠ‚ç‚¹
+static Node* _insert_recursive(BST* bst, Node* node, const void* data) {
+    /*
+     * å‡½æ•°åŠŸèƒ½: åœ¨ä»¥ `node` ä¸ºæ ¹çš„å­æ ‘ä¸­é€’å½’åœ°æ’å…¥æ•°æ®ã€‚
+     * è¿”å›å€¼æ˜¯å…³é”®: å®ƒè¿”å›è¿™æ£µå­æ ‘çš„æ–°æ ¹ã€‚å¤§å¤šæ•°æƒ…å†µä¸‹æ ¹ä¸å˜ï¼Œ
+     * ä½†åœ¨æ’å…¥åˆ°ç©ºå­æ ‘æ—¶ï¼Œæ–°åˆ›å»ºçš„èŠ‚ç‚¹å°†ä½œä¸ºæ–°æ ¹è¿”å›ï¼Œ
+     * å…¶çˆ¶èŠ‚ç‚¹çš„ left æˆ– right æŒ‡é’ˆå°†è¢«æ­£ç¡®èµ‹å€¼ã€‚
+     *
+     * æ•™å­¦æ¡ˆä¾‹: å‡è®¾æ ‘ä¸­å·²æœ‰ {10, 5}ã€‚æˆ‘ä»¬è¦æ’å…¥ 7ã€‚
+     *            10
+     *           /
+     *          5
+     * 1. è°ƒç”¨ _insert(bst, root(10), 7)ã€‚7 < 10ï¼Œè¿›å…¥å·¦å­æ ‘ã€‚
+     *    æ‰§è¡Œ: root->left = _insert(bst, root->left(5), 7);
+     * 2. åœ¨æ­¥éª¤1çš„é€’å½’è°ƒç”¨ä¸­: _insert(bst, node(5), 7)ã€‚7 > 5ï¼Œè¿›å…¥å³å­æ ‘ã€‚
+     *    æ‰§è¡Œ: node->right = _insert(bst, node->right(NULL), 7);
+     * 3. åœ¨æ­¥éª¤2çš„é€’å½’è°ƒç”¨ä¸­: _insert(bst, NULL, 7)ã€‚node ä¸º NULLï¼Œè¿™æ˜¯åŸºæœ¬æƒ…å†µã€‚
+     *    åˆ›å»ºä¸€ä¸ªæ–°èŠ‚ç‚¹ [7]ï¼Œå¹¶å°†å…¶è¿”å›ã€‚
+     * 4. è¿”å›åˆ°æ­¥éª¤2: node->right (5çš„å³å­èŠ‚ç‚¹) è¢«èµ‹å€¼ä¸ºæ–°è¿”å›çš„èŠ‚ç‚¹ [7]ã€‚
+     *    ç„¶åæ­¥éª¤2è¿”å›èŠ‚ç‚¹ [5] (å®ƒçš„æ ¹æ²¡å˜)ã€‚
+     * 5. è¿”å›åˆ°æ­¥éª¤1: root->left (10çš„å·¦å­èŠ‚ç‚¹) è¢«èµ‹å€¼ä¸ºè¿”å›çš„èŠ‚ç‚¹ [5] (å®ƒçš„æ ¹ä¹Ÿæ²¡å˜)ã€‚
+     *    æœ€ç»ˆå®Œæˆæ’å…¥ã€‚
+    */
+    // åŸºæœ¬æƒ…å†µï¼šå¦‚æœå½“å‰èŠ‚ç‚¹ä¸ºç©ºï¼Œè¯´æ˜æˆ‘ä»¬æ‰¾åˆ°äº†æ’å…¥ä½ç½®ã€‚
+    if (node == NULL) {
+        bst->size++;
+        return _create_node(data, bst->element_size);
+    }
+
+    int cmp = bst->compare(data, node->data);
+
+	// compare(a, b) 
+    // cmp 
+	// cpm < 0 è¡¨ç¤º a < b
+    // cmp > 0 è¡¨ç¤º a > b
+    // cmp == 0 è¡¨ç¤º a == b
+    // è¿™é‡Œçš„é€»è¾‘æ˜¯ï¼šå¦‚æœæ–°æ•°æ®å°äºå½“å‰èŠ‚ç‚¹æ•°æ®ï¼Œå°±å»å·¦å­æ ‘æ’å…¥ï¼›å¦‚æœå¤§äºï¼Œå°±å»å³å­æ ‘æ’å…¥ã€‚
+	// æ³¨æ„ï¼šå¦‚æœ cmp == 0ï¼Œè¯´æ˜æ•°æ®å·²å­˜åœ¨ï¼Œæˆ‘ä»¬ä»€ä¹ˆéƒ½ä¸åšï¼Œç›´æ¥è¿”å›åŸèŠ‚ç‚¹ã€‚
+
+	// if (new data < current_node_data) {
+
+    if (cmp < 0) {
+        // æ–°æ•°æ®æ¯”å½“å‰èŠ‚ç‚¹å°ï¼Œé€’å½’åœ°æ’å…¥åˆ°å·¦å­æ ‘
+        node->left = _insert_recursive(bst, node->left, data);
+        // node->leftæ˜¯ä»€ä¹ˆï¼Ÿ
+        // node->left NULL
+
+        // 20 tree insert 10
+		// node->left = _insert_recursive(bst, node->left, data);
+        // Node 20 address : 0x4000
+		// node: åœ¨å½“å‰æ ˆå¸§ä¸­ï¼Œå‚æ•°nodeçš„å€¼æ˜¯ä¸€ä¸ªpointerï¼ŒæŒ‡å‘å½“å‰èŠ‚ç‚¹(20)çš„åœ°å€ã€‚
+		// data: 20 a pointer, => int 20 å†…å­˜
+        // left: NULL
+		// right : NULL
+		// data: 10 a pointer, => int 10 å†…å­˜ ç­‰å¾…è¢«æ’å…¥çš„å€¼çš„å†…å­˜åœ°å€
+        // Call stack:
+        // è°ƒç”¨æ ˆ
+		// 1. _insert_recursive(bst, node(20), 10)
+		//  => _insert_recursive(node=0x4000, data=&10)  æ ˆé¡¶
+        //_insert_recursive(bst, node->left, data);
+		// bst ä¼ å…¥BSTçš„ç»“æ„æŒ‡é’ˆ
+		// node->left è¯»å–å½“å‰çš„Nodeï¼ˆåœ°å€0x4000ï¼‰çš„leftæˆå‘˜
+		// data ä¼ å…¥æŒ‡å‘æ•´æ•°10çš„æŒ‡é’ˆï¼ˆ&10ï¼‰
+        // 2. å‘èµ·é€’å½’è°ƒç”¨
+        // PUSH
+        // //  => _insert_recursive(node=NULL, data=&10)  æ ˆé¡¶
+        // //  => _insert_recursive(node=0x4000, data=&10)  
+
+    }
+    else if (cmp > 0) {
+        // æ–°æ•°æ®æ¯”å½“å‰èŠ‚ç‚¹å¤§ï¼Œé€’å½’åœ°æ’å…¥åˆ°å³å­æ ‘
+        node->right = _insert_recursive(bst, node->right, data);
+    }
+    // å¦‚æœ cmp == 0ï¼Œè¯´æ˜æ•°æ®å·²å­˜åœ¨ï¼Œæˆ‘ä»¬ä»€ä¹ˆéƒ½ä¸åšï¼Œç›´æ¥è¿”å›åŸèŠ‚ç‚¹ã€‚
+
+    return node; // è¿”å›å½“å‰å­æ ‘çš„æ ¹ï¼ˆå¯èƒ½å·²æ›´æ–°äº†å…¶å­èŠ‚ç‚¹ï¼‰
+}
+
+// ç§æœ‰è¾…åŠ©å‡½æ•°ï¼šæŸ¥æ‰¾å­æ ‘ä¸­æœ€å°çš„èŠ‚ç‚¹ï¼ˆç”¨äºåˆ é™¤ï¼‰
+static Node* _find_min_recursive(Node* node) {
+    // åœ¨BSTä¸­ï¼Œæœ€å·¦è¾¹çš„èŠ‚ç‚¹æ°¸è¿œæ˜¯æœ€å°çš„ã€‚
+    while (node && node->left != NULL) {
+        node = node->left;
+    }
+    return node;
+}
+
+// ======================================================================
+// ====================  åˆ é™¤æ“ä½œ - æ•™å­¦æ ¸å¿ƒåŒºåŸŸ  ======================
+// ======================================================================
+static Node* _remove_recursive(BST* bst, Node* node, const void* key) {
+    /*
+     * å‡½æ•°åŠŸèƒ½: åœ¨ä»¥ `node` ä¸ºæ ¹çš„å­æ ‘ä¸­é€’å½’åœ°åˆ é™¤å€¼ä¸º `key` çš„èŠ‚ç‚¹ã€‚
+     * è¿™æ˜¯BSTä¸­æœ€å¤æ‚çš„æ“ä½œï¼Œæœ‰ä¸‰ç§ä¸»è¦æƒ…å†µã€‚
+    */
+
+    // åŸºæœ¬æƒ…å†µï¼šå¦‚æœèŠ‚ç‚¹ä¸ºç©ºï¼Œè¯´æ˜æ²¡æ‰¾åˆ°è¦åˆ é™¤çš„é”®ï¼Œç›´æ¥è¿”å›ã€‚
+    if (node == NULL) return NULL;
+
+    // æ­¥éª¤ 1: åƒæœç´¢ä¸€æ ·ï¼Œæ‰¾åˆ°è¦åˆ é™¤çš„èŠ‚ç‚¹ã€‚
+    int cmp = bst->compare(key, node->data);
+    if (cmp < 0) {
+        node->left = _remove_recursive(bst, node->left, key);
+    }
+    else if (cmp > 0) {
+        node->right = _remove_recursive(bst, node->right, key);
+    }
+    else {
+        // æƒ…å†µ 1: è¦åˆ é™¤çš„èŠ‚ç‚¹æ˜¯å¶å­èŠ‚ç‚¹ (æ²¡æœ‰å­èŠ‚ç‚¹)ã€‚
+       
+        if (node->left == NULL && node->right == NULL) {
+            // --- æ‰¾åˆ°äº†è¦åˆ é™¤çš„èŠ‚ç‚¹ (node) ---
+            bst->size--; // å…ˆæŠŠsizeå‡æ‰
+            free(node->data);
+            free(node);
+            return NULL; // 
+        }
+
+        // æƒ…å†µ 2: è¦åˆ é™¤çš„èŠ‚ç‚¹åªæœ‰ä¸€ä¸ªå­èŠ‚ç‚¹ (å·¦æˆ–å³)ã€‚
+        
+        if (node->left == NULL) {
+            // --- æ‰¾åˆ°äº†è¦åˆ é™¤çš„èŠ‚ç‚¹ (node) ---
+            bst->size--; // å…ˆæŠŠsizeå‡æ‰
+            Node* temp = node->right; // ä¿å­˜å³å­èŠ‚ç‚¹çš„å¼•ç”¨
+            free(node->data);
+            free(node);
+            return temp; // è¿”å›å³å­èŠ‚ç‚¹ç»™çˆ¶èŠ‚ç‚¹ï¼Œå®Œæˆâ€œé¢†å…»â€ã€‚
+        }
+        else if (node->right == NULL) {
+            // --- æ‰¾åˆ°äº†è¦åˆ é™¤çš„èŠ‚ç‚¹ (node) ---
+            bst->size--; // å…ˆæŠŠsizeå‡æ‰
+            Node* temp = node->left; // ä¿å­˜å·¦å­èŠ‚ç‚¹çš„å¼•ç”¨
+            free(node->data);
+            free(node);
+            return temp; // è¿”å›å·¦å­èŠ‚ç‚¹ç»™çˆ¶èŠ‚ç‚¹ã€‚
+        }
+
+        // æƒ…å†µ 3: è¦åˆ é™¤çš„èŠ‚ç‚¹æœ‰ä¸¤ä¸ªå­èŠ‚ç‚¹ (æœ€å¤æ‚çš„æƒ…å†µ)ã€‚
+
+        // ç­–ç•¥:
+        //  a. æ‰¾åˆ°è¿™ä¸ªèŠ‚ç‚¹çš„â€œä¸­åºåç»§è€…â€(In-order Successor)ã€‚
+        //     ä¸­åºåç»§è€…å°±æ˜¯å®ƒå³å­æ ‘ä¸­æœ€å°çš„é‚£ä¸ªèŠ‚ç‚¹ã€‚
+        //     å¯¹äºèŠ‚ç‚¹10ï¼Œå®ƒçš„å³å­æ ‘æ˜¯ {15}ï¼Œå…¶ä¸­æœ€å°çš„èŠ‚ç‚¹å°±æ˜¯ 15ã€‚
+        //     æ¡ˆä¾‹: åˆ é™¤ 20ã€‚å³å­æ ‘æ˜¯ {30,25,40}ï¼Œå…¶ä¸­æœ€å°çš„èŠ‚ç‚¹æ˜¯ 25ã€‚
+        //  b. å°†åç»§è€…çš„â€œæ•°æ®â€å¤åˆ¶åˆ°å½“å‰è¦åˆ é™¤çš„èŠ‚ç‚¹ä¸­ã€‚
+        //     æ¡ˆä¾‹: æ‰¾åˆ° 10 çš„åç»§è€… 15ã€‚å°† 15 çš„æ•°æ®æ‹·è´åˆ° 10 çš„èŠ‚ç‚¹é‡Œã€‚
+        //     æ ‘åœ¨é€»è¾‘ä¸Šå˜æˆäº†:
+        //              15 (ä½†ç‰©ç†ä¸Šè¿˜æ˜¯åŸæ¥çš„10å·èŠ‚ç‚¹)
+        //            /    \
+        //          5      15
+        //         / \     
+        //        3   7
+        //  c. ç°åœ¨é—®é¢˜è½¬åŒ–ä¸ºï¼šä»å³å­æ ‘ä¸­åˆ é™¤é‚£ä¸ªåç»§è€…ã€‚
+        //     è¿™éå¸¸å·§å¦™ï¼Œå› ä¸ºåç»§è€…(å³å­æ ‘çš„æœ€å°å€¼)ä¿è¯æœ€å¤šåªæœ‰ä¸€ä¸ªå³å­©å­ï¼Œ
+        //     æ‰€ä»¥åˆ é™¤å®ƒå°±è½¬åŒ–ä¸ºäº†ä¸Šé¢çš„æƒ…å†µ1æˆ–æƒ…å†µ2ï¼Œé—®é¢˜è¢«ç®€åŒ–äº†ï¼
+        //     æ¡ˆä¾‹: ä» 10 çš„å³å­æ ‘ {15} ä¸­åˆ é™¤ 15ã€‚è¿™æ˜¯ä¸€ä¸ªå¶å­èŠ‚ç‚¹åˆ é™¤(æƒ…å†µ1)ã€‚
+
+        // æ­¥éª¤ a: æ‰¾åˆ°å³å­æ ‘çš„æœ€å°èŠ‚ç‚¹ (ä¸­åºåç»§è€…)
+        Node* successor = _find_min_recursive(node->right);
+
+        // æ­¥éª¤ b: å°†åç»§è€…çš„æ•°æ®æ‹·è´åˆ°å½“å‰èŠ‚ç‚¹
+        memcpy(node->data, successor->data, bst->element_size);
+
+        // æ­¥éª¤ c: é€’å½’åœ°ä»å³å­æ ‘ä¸­åˆ é™¤é‚£ä¸ªåç»§è€…
+        node->right = _remove_recursive(bst, node->right, successor->data);
+    }
+    return node;
+}
+
+
+// ç§æœ‰è¾…åŠ©å‡½æ•°ï¼šé€’å½’éå†
+static void _traverse_recursive(const Node* node, VisitFunc visit, TraverseOrder order) {
+    if (node == NULL) return;
+
+    if (order == PRE_ORDER) visit(node->data);
+    _traverse_recursive(node->left, visit, order);
+    if (order == IN_ORDER) visit(node->data);
+    _traverse_recursive(node->right, visit, order);
+    if (order == POST_ORDER) visit(node->data);
+}
+
+// --- Public API Implementations ---
+
+BST* bst_create(size_t element_size, CompareFunc compare_func) {
+    if (element_size == 0 || !compare_func) return NULL;
+    BST* bst = (BST*)malloc(sizeof(BST));
+    if (!bst) return NULL;
+    bst->root = NULL;
+    bst->element_size = element_size;
+    bst->size = 0;
+    bst->compare = compare_func;
+    return bst;
+}
+
+void bst_destroy(BST** p_bst) {
+    if (p_bst && *p_bst) {
+        _destroy_recursive((*p_bst)->root);
+        free(*p_bst);
+        *p_bst = NULL;
+    }
+}
+
+bool bst_insert(BST* bst, const void* element_data) {
+    if (!bst || !element_data) return false;
+    size_t old_size = bst->size;
+    bst->root = _insert_recursive(bst, bst->root, element_data);
+    return bst->size > old_size; // å¦‚æœsizeå¢åŠ äº†ï¼Œè¯´æ˜æ’å…¥æˆåŠŸ
+}
+
+bool bst_remove(BST* bst, const void* element_data) {
+    if (!bst || !element_data) return false;
+    size_t old_size = bst->size;
+    bst->root = _remove_recursive(bst, bst->root, element_data);
+    return bst->size < old_size; // å¦‚æœsizeå‡å°äº†ï¼Œè¯´æ˜åˆ é™¤æˆåŠŸ
+}
+
+bool bst_search(const BST* bst, const void* key) {
+    if (!bst || !key) return false;
+    Node* current = bst->root;
+    while (current != NULL) {
+        int cmp = bst->compare(key, current->data);
+        if (cmp == 0) return true;
+        if (cmp < 0) current = current->left;
+        else current = current->right;
+    }
+    return false;
+}
+
+void bst_traverse(const BST* bst, TraverseOrder order, VisitFunc visit_func) {
+    if (bst && visit_func) {
+        _traverse_recursive(bst->root, visit_func, order);
+    }
+}
+
+bool bst_is_empty(const BST* bst) { return !bst || bst->size == 0; }
 size_t bst_get_size(const BST* bst) { return bst ? bst->size : 0; }

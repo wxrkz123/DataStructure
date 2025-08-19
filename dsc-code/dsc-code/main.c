@@ -1,50 +1,50 @@
-#define _CRT_SECURE_NO_WARNINGS
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h> // ĞèÒª°üº¬ string.h À´Ê¹ÓÃ strcpy
-
-#include "DynamicArray.h"
-
-// ¶¨ÒåÎÒÃÇ×Ô¼ºµÄ»Øµ÷º¯Êı
-// 1. ÕâÊÇÒ»¸öÖªµÀÈçºÎ´òÓ¡StudentµÄº¯Êı
-// ËüµÄº¯ÊıÇ©Ãû±ØĞëºÍº¯ÊıÖ¸ÕëµÄ¶¨ÒåÍêÈ«Æ¥Åä
-void print_student(const void* data) {
-    // ½ÓÊÕµ½µÄdataÊÇÒ»¸övoid*Ö¸Õë£¬ÎÒÃÇĞèÒª½«Ëü×ª»»ÎªÎÒÃÇÕæÕıµÄÀàĞÍ
-    const Student* s_ptr = (const Student*)data;
-    printf("Student: {id: %d, name: \"%s\"}", s_ptr->id, s_ptr->name);
-}
-
-
-int main() {
-    printf("--- ²âÊÔ Student ¶¯Ì¬Êı×é ---\n");
-    DynamicArray* student_list = create_array(2);
-
-    Student s1 = { 101, "Alice" };
-    Student s2 = { 102, "Bob" };
-    array_append(student_list, s1);
-    array_append(student_list, s2);
-
-    // µ÷ÓÃÍ¨ÓÃµÄ print_array£¬²¢°Ñ¡°ÈçºÎ´òÓ¡Ñ§Éú¡±µÄº¯Êı´«¸øËü£¡
-    printf("´òÓ¡Ñ§ÉúÃûµ¥£º\n");
-    print_array(student_list, &print_student); // & ÊÇ¿ÉÑ¡µÄ£¬µ«¸üÇåÎú
-
-    destroy_array(student_list);
-
-    printf("\n\n--- ²âÊÔ Integer ¶¯Ì¬Êı×é ---\n");
-    // ÎªÁËÔËĞĞÕâ¸ö²âÊÔ£¬ÄãĞèÒªÁÙÊ±½« DynamicArray.h ÖĞµÄ
-    // typedef Student Data; ¸Ä»Ø typedef int Data; È»ºóÖØĞÂ±àÒë
-    /*
-    DynamicArray* number_list = create_array(5);
-    array_append(number_list, 10);
-    array_append(number_list, 20);
-    array_append(number_list, 30);
-
-    // Í¬Ñùµ÷ÓÃÄÇ¸öÍòÄÜµÄ print_array£¬µ«Õâ´Î°Ñ¡°ÈçºÎ´òÓ¡ÕûÊı¡±µÄº¯Êı´«¸øËü£¡
-    printf("´òÓ¡Êı×ÖÁĞ±í£º\n");
-    print_array(number_list, &print_int);
-
-    destroy_array(number_list);
-    */
-
-    return 0;
+#define _CRT_SECURE_NO_WARNINGS
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h> // éœ€è¦åŒ…å« string.h æ¥ä½¿ç”¨ strcpy
+
+#include "DynamicArray.h"
+
+// å®šä¹‰æˆ‘ä»¬è‡ªå·±çš„å›è°ƒå‡½æ•°
+// 1. è¿™æ˜¯ä¸€ä¸ªçŸ¥é“å¦‚ä½•æ‰“å°Studentçš„å‡½æ•°
+// å®ƒçš„å‡½æ•°ç­¾åå¿…é¡»å’Œå‡½æ•°æŒ‡é’ˆçš„å®šä¹‰å®Œå…¨åŒ¹é…
+void print_student(const void* data) {
+    // æ¥æ”¶åˆ°çš„dataæ˜¯ä¸€ä¸ªvoid*æŒ‡é’ˆï¼Œæˆ‘ä»¬éœ€è¦å°†å®ƒè½¬æ¢ä¸ºæˆ‘ä»¬çœŸæ­£çš„ç±»å‹
+    const Student* s_ptr = (const Student*)data;
+    printf("Student: {id: %d, name: \"%s\"}", s_ptr->id, s_ptr->name);
+}
+
+
+int main() {
+    printf("--- æµ‹è¯• Student åŠ¨æ€æ•°ç»„ ---\n");
+    DynamicArray* student_list = create_array(2);
+
+    Student s1 = { 101, "Alice" };
+    Student s2 = { 102, "Bob" };
+    array_append(student_list, s1);
+    array_append(student_list, s2);
+
+    // è°ƒç”¨é€šç”¨çš„ print_arrayï¼Œå¹¶æŠŠâ€œå¦‚ä½•æ‰“å°å­¦ç”Ÿâ€çš„å‡½æ•°ä¼ ç»™å®ƒï¼
+    printf("æ‰“å°å­¦ç”Ÿåå•ï¼š\n");
+    print_array(student_list, &print_student); // & æ˜¯å¯é€‰çš„ï¼Œä½†æ›´æ¸…æ™°
+
+    destroy_array(student_list);
+
+    printf("\n\n--- æµ‹è¯• Integer åŠ¨æ€æ•°ç»„ ---\n");
+    // ä¸ºäº†è¿è¡Œè¿™ä¸ªæµ‹è¯•ï¼Œä½ éœ€è¦ä¸´æ—¶å°† DynamicArray.h ä¸­çš„
+    // typedef Student Data; æ”¹å› typedef int Data; ç„¶åé‡æ–°ç¼–è¯‘
+    /*
+    DynamicArray* number_list = create_array(5);
+    array_append(number_list, 10);
+    array_append(number_list, 20);
+    array_append(number_list, 30);
+
+    // åŒæ ·è°ƒç”¨é‚£ä¸ªä¸‡èƒ½çš„ print_arrayï¼Œä½†è¿™æ¬¡æŠŠâ€œå¦‚ä½•æ‰“å°æ•´æ•°â€çš„å‡½æ•°ä¼ ç»™å®ƒï¼
+    printf("æ‰“å°æ•°å­—åˆ—è¡¨ï¼š\n");
+    print_array(number_list, &print_int);
+
+    destroy_array(number_list);
+    */
+
+    return 0;
 }

@@ -1,251 +1,251 @@
-// trie.c (Generic Version)
-
-#include "trie.h"
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
-
-#define ALPHABET_SIZE 26
-
-typedef struct TrieNode {
-    // bool isEndOfWord;
-    // Êı¾İ²å²Û
-    void* value; // ÓÃvoid*Ìæ»»bool isEndOfWord¡£NULL±íÊ¾·Çµ¥´Ê½áÎ²¡£
-
-	// Ö¸ÕëÊı×é£¬Êı×éµÄÃ¿¸ö¸ñ×Ó(0-25)£¬¶¼ÓÃÀ´´æ·ÅÖ¸ÏòÁíÒ»¸öTrieNodeµÄÖ¸Õë¡£
-    struct TrieNode* children[ALPHABET_SIZE];
-} TrieNode;
-
-struct Trie {
-    TrieNode* root;
-    ValueDestroyer valueDestroyer; // ´æ´¢ÓÃ»§Ìá¹©µÄÎö¹¹º¯Êı
-};
-
-// --- Ë½ÓĞº¯ÊıÔ­ĞÍ±£³Ö²»±ä ---
-static TrieNode* TrieNode_Create(void);
-static void TrieNode_DestroyRecursive(TrieNode* node, ValueDestroyer destroyer);
-static int CharToIndex(char c);
-static bool TrieNode_DeleteRecursiveHelper(TrieNode** pNode,
-    const char* key,
-    int depth,
-    ValueDestroyer destroyer);
-
-// --- ¹«¹²º¯ÊıÊµÏÖĞŞ¸Ä ---
-
-Trie* Trie_Create(ValueDestroyer destroyer) {
-    Trie* trie = (Trie*)malloc(sizeof(Trie));
-    if (!trie) return NULL;
-
-    trie->root = TrieNode_Create();
-    if (!trie->root) {
-        free(trie);
-        return NULL;
-    }
-    trie->valueDestroyer = destroyer; // ±£´æÎö¹¹º¯Êı
-    return trie;
-}
-
-void Trie_Destroy(Trie* trie) {
-    if (!trie) return;
-    TrieNode_DestroyRecursive(trie->root, trie->valueDestroyer);
-    free(trie);
-}
-
-bool Trie_Insert(Trie* trie, const char* key, void* value) {
-    if (!trie || !trie->root || !key) return false;
-    // ²åÈëNULLÖµÊÇÎŞÒâÒåµÄ£¬ÒòÎªÎÒÃÇÓÃNULLÀ´±ê¼Ç·Ç½áÎ²½Úµã
-    assert(value != NULL && "Cannot insert a NULL value into the Trie.");
-
-
-	// crawlÖ¸ÕëÓÃÓÚ±éÀúTrie "ÅÀĞĞÖ¸Õë"
-    TrieNode* crawl = trie->root;
-    int len = strlen(key);
-
-	// ±éÀúÃ¿¸ö×Ö·û£¬½«Æä×ª»»ÎªË÷Òı£¬²¢ÔÚTrieÖĞ²åÈë»ò²éÕÒÏàÓ¦µÄ½Úµã
-    for (int i = 0; i < len; ++i) {
-        int index = CharToIndex(key[i]);
-        if (index == -1) return false;
-
-        if (!crawl->children[index]) {
-            crawl->children[index] = TrieNode_Create();
-            if (!crawl->children[index]) return false;
-        }
-
-		// ÒÆ¶¯µ½ÏÂÒ»¸ö½Úµã£¨ÎŞÂÛÊÇ·ñÊÇĞÂµÄ£©
-        crawl = crawl->children[index];
-    }
-
-    // ×¢Òâ£ºÈç¹û crawl->value Ö®Ç°ÒÑ¾­ÓĞÖµ£¬ÕâÀï»áÖ±½Ó¸²¸Ç¡£
-    // Ò»¸ö¸üÍêÉÆµÄ¿â¿ÉÄÜ»áÏÈµ÷ÓÃdestroyerÊÍ·Å¾ÉÖµ¡£Îª¼ò»¯£¬´Ë´¦ÓÉÓÃ»§¸ºÔğ¡£
-
-	// ½«Õû¸ö½ÚµãµÄÖµÉèÖÃÎª´«ÈëµÄ·ÇNULLÖ¸Õë£¨value£©
-
-    // te
-
-    // not prefix
-
-	// ÕâÀïµÄÂß¼­ÊÇ£ºÈç¹ûÒ»¸ö½ÚµãµÄvalue²»ÎªNULL£¬Ôò±íÊ¾ÕâÊÇÒ»¸öµ¥´ÊµÄ½áÎ²¡£
-	// crawl->isEndOfWord = true;
-    crawl->value = value;
-    return true;
-}
-
-void* Trie_Search(const Trie* trie, const char* key) {
-    if (!trie || !trie->root || !key) return NULL;
-
-    const TrieNode* crawl = trie->root;
-    int len = strlen(key);
-
-    for (int i = 0; i < len; ++i) {
-        int index = CharToIndex(key[i]);
-
-		// Èç¹û×Ö·û²»ÔÚ×ÖÄ¸±í·¶Î§ÄÚ£¬Ö±½Ó·µ»ØNULL
-        if (index == -1 || !crawl->children[index]) {
-            return NULL;
-        }
-
-		// Ç°½øµ½ÏÂÒ»¸ö½Úµã
-        crawl = crawl->children[index];
-    }
-
-    // ·µ»Ø´æ´¢µÄÖµµÄÖ¸Õë£¬Èç¹û²»ÊÇÒ»¸ö½áÎ²£¨¼´ÖµÎªNULL£©£¬Ôò·µ»ØNULL¡£
-    return crawl ? crawl->value : NULL;
-}
-
-// StartsWithµÄÊµÏÖ»ù±¾²»±ä
-bool Trie_StartsWith(const Trie* trie, const char* prefix) {
-    if (!trie || !trie->root || !prefix) return false;
-    const TrieNode* crawl = trie->root;
-    int len = strlen(prefix);
-    for (int i = 0; i < len; ++i) {
-        int index = CharToIndex(prefix[i]);
-        if (index == -1 || !crawl->children[index]) return false;
-        crawl = crawl->children[index];
-    }
-    return crawl != NULL;
-}
-
-void Trie_Delete(Trie* trie, const char* key) {
-    if (!trie || !key || !*key) { // ¼ì²étrie, keyºÍ¿Õ×Ö·û´®
-        return;
-    }
-    TrieNode_DeleteRecursiveHelper(&trie->root, key, 0, trie->valueDestroyer);
-}
-
-/**
- * @brief ¼ì²éÒ»¸ö½ÚµãÊÇ·ñ¿ÉÒÔ±»É¾³ı¡£
- * @param node Òª¼ì²éµÄ½Úµã¡£
- * @return Èç¹û½ÚµãÃ»ÓĞÖµ²¢ÇÒÃ»ÓĞ×Ó½Úµã£¬·µ»Øtrue¡£
- */
-static bool IsNodeEmpty(TrieNode* node) {
-    if (node->value) {
-        return false;
-    }
-    for (int i = 0; i < ALPHABET_SIZE; i++) {
-        if (node->children[i]) {
-            return false;
-        }
-    }
-    return true;
-}
-
-
-
-// --- Ë½ÓĞº¯ÊıÊµÏÖĞŞ¸Ä ---
-
-static TrieNode* TrieNode_Create(void) {
-    TrieNode* node = (TrieNode*)malloc(sizeof(TrieNode));
-    if (node) {
-        node->value = NULL; // ³õÊ¼»¯ÎªNULL
-        for (int i = 0; i < ALPHABET_SIZE; ++i) {
-            node->children[i] = NULL;
-        }
-    }
-    return node;
-}
-
-static void TrieNode_DestroyRecursive(TrieNode* node, ValueDestroyer destroyer) {
-    if (!node) return;
-
-
-	// µİ¹éÏú»ÙËùÓĞ×Ó½Úµã
-    for (int i = 0; i < ALPHABET_SIZE; ++i) {
-        TrieNode_DestroyRecursive(node->children[i], destroyer);
-    }
-
-    // ¹Ø¼üÒ»²½£ºÔÚÊÍ·Å½Úµã±¾ÉíÖ®Ç°£¬¼ì²éÊÇ·ñÓĞÓÃ»§Êı¾İĞèÒªÊÍ·Å
-    if (node->value && destroyer) {
-        destroyer(node->value);
-    }
-    free(node);
-}
-
-static int CharToIndex(char c) {
-    if (c >= 'a' && c <= 'z') return c - 'a';
-    return -1;
-}
-
-// ÎïÀíÉ¾³ı
-
-/**
- * @brief µİ¹éµØÉ¾³ı¼ü¡£
- * @param pNode Ö¸Ïòµ±Ç°½ÚµãÖ¸ÕëµÄÖ¸Õë£¬ÔÊĞíÎÒÃÇĞŞ¸Ä¸¸½ÚµãÖĞµÄÖ¸Õë¡£
- * @param key ÒªÉ¾³ıµÄ¼ü¡£
- * @param depth µ±Ç°µİ¹éÉî¶È¡£
- * @param destroyer ÓÃÓÚÊÍ·ÅÖµµÄº¯Êı¡£
- * @return Èç¹ûµ±Ç°½ÚµãÔÚÉ¾³ıºó±äÎª¿Õ£¬¿ÉÒÔ±»¸¸½Úµã°²È«ÒÆ³ı£¬Ôò·µ»Øtrue¡£
- */
-static bool TrieNode_DeleteRecursiveHelper(TrieNode** pNode, 
-    const char* key, 
-    int depth, 
-    ValueDestroyer destroyer) {
-
-
-    // **
-
-	// TrieNode** pNode: &l->children['e'];
-	// TrieNode* node = *pNode; : node ÏÖÔÚÊÇ'e'½ÚµãµÄµØÖ·
-   
-
-	// »ñÈ¡µ±Ç°½Úµã
-    TrieNode* node = *pNode;
-
-    if (!node) {
-        return false; // ¼ü²»´æÔÚ
-    }
-
-    // key[5] \0
-    // Èç¹ûµ½´ïÁË¼üµÄÄ©Î²
-    if (key[depth] == '\0') {
-        // Èç¹ûÕâ¸ö½ÚµãÈ·ÊµÊÇÒ»¸öµ¥´ÊµÄ½áÎ²
-        if (node->value) {
-            if (destroyer) {
-                destroyer(node->value);
-            }
-			// node->isEndOfWord = false; // ²»ÊÇµ¥´Ê½áÎ²
-            node->value = NULL; // ÀÁÉ¾³ı£º±ê¼ÇÎª·Ç½áÎ²
-        }
-        // ¼ì²éÕâ¸ö½ÚµãÏÖÔÚÊÇ·ñ¿ÉÒÔ±»ÎïÀíÉ¾³ı
-        if (IsNodeEmpty(node)) {
-            free(node);
-            *pNode = NULL; // ½«¸¸½ÚµãÖ¸Ïò´Ë½ÚµãµÄÖ¸ÕëÉèÎªNULL
-            return true;
-        }
-        return false;
-    }
-
-    // µİ¹éµ½ÏÂÒ»¸ö½Úµã
-    int index = CharToIndex(key[depth]);
-    if (index == -1) return false; // ÎŞĞ§×Ö·û
-
-    if (TrieNode_DeleteRecursiveHelper(&node->children[index], key, depth + 1, destroyer)) {
-        // Èç¹û×Ó½Úµã±»É¾³ıÁË£¬ÔÙ´Î¼ì²éµ±Ç°½ÚµãÊÇ·ñÒ²±äÎª¿ÕÁË
-        if (IsNodeEmpty(node)) {
-            free(node);
-            *pNode = NULL;
-            return true;
-        }
-    }
-
-    return false;
+// trie.c (Generic Version)
+
+#include "trie.h"
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
+
+#define ALPHABET_SIZE 26
+
+typedef struct TrieNode {
+    // bool isEndOfWord;
+    // æ•°æ®æ’æ§½
+    void* value; // ç”¨void*æ›¿æ¢bool isEndOfWordã€‚NULLè¡¨ç¤ºéå•è¯ç»“å°¾ã€‚
+
+	// æŒ‡é’ˆæ•°ç»„ï¼Œæ•°ç»„çš„æ¯ä¸ªæ ¼å­(0-25)ï¼Œéƒ½ç”¨æ¥å­˜æ”¾æŒ‡å‘å¦ä¸€ä¸ªTrieNodeçš„æŒ‡é’ˆã€‚
+    struct TrieNode* children[ALPHABET_SIZE];
+} TrieNode;
+
+struct Trie {
+    TrieNode* root;
+    ValueDestroyer valueDestroyer; // å­˜å‚¨ç”¨æˆ·æä¾›çš„ææ„å‡½æ•°
+};
+
+// --- ç§æœ‰å‡½æ•°åŸå‹ä¿æŒä¸å˜ ---
+static TrieNode* TrieNode_Create(void);
+static void TrieNode_DestroyRecursive(TrieNode* node, ValueDestroyer destroyer);
+static int CharToIndex(char c);
+static bool TrieNode_DeleteRecursiveHelper(TrieNode** pNode,
+    const char* key,
+    int depth,
+    ValueDestroyer destroyer);
+
+// --- å…¬å…±å‡½æ•°å®ç°ä¿®æ”¹ ---
+
+Trie* Trie_Create(ValueDestroyer destroyer) {
+    Trie* trie = (Trie*)malloc(sizeof(Trie));
+    if (!trie) return NULL;
+
+    trie->root = TrieNode_Create();
+    if (!trie->root) {
+        free(trie);
+        return NULL;
+    }
+    trie->valueDestroyer = destroyer; // ä¿å­˜ææ„å‡½æ•°
+    return trie;
+}
+
+void Trie_Destroy(Trie* trie) {
+    if (!trie) return;
+    TrieNode_DestroyRecursive(trie->root, trie->valueDestroyer);
+    free(trie);
+}
+
+bool Trie_Insert(Trie* trie, const char* key, void* value) {
+    if (!trie || !trie->root || !key) return false;
+    // æ’å…¥NULLå€¼æ˜¯æ— æ„ä¹‰çš„ï¼Œå› ä¸ºæˆ‘ä»¬ç”¨NULLæ¥æ ‡è®°éç»“å°¾èŠ‚ç‚¹
+    assert(value != NULL && "Cannot insert a NULL value into the Trie.");
+
+
+	// crawlæŒ‡é’ˆç”¨äºéå†Trie "çˆ¬è¡ŒæŒ‡é’ˆ"
+    TrieNode* crawl = trie->root;
+    int len = strlen(key);
+
+	// éå†æ¯ä¸ªå­—ç¬¦ï¼Œå°†å…¶è½¬æ¢ä¸ºç´¢å¼•ï¼Œå¹¶åœ¨Trieä¸­æ’å…¥æˆ–æŸ¥æ‰¾ç›¸åº”çš„èŠ‚ç‚¹
+    for (int i = 0; i < len; ++i) {
+        int index = CharToIndex(key[i]);
+        if (index == -1) return false;
+
+        if (!crawl->children[index]) {
+            crawl->children[index] = TrieNode_Create();
+            if (!crawl->children[index]) return false;
+        }
+
+		// ç§»åŠ¨åˆ°ä¸‹ä¸€ä¸ªèŠ‚ç‚¹ï¼ˆæ— è®ºæ˜¯å¦æ˜¯æ–°çš„ï¼‰
+        crawl = crawl->children[index];
+    }
+
+    // æ³¨æ„ï¼šå¦‚æœ crawl->value ä¹‹å‰å·²ç»æœ‰å€¼ï¼Œè¿™é‡Œä¼šç›´æ¥è¦†ç›–ã€‚
+    // ä¸€ä¸ªæ›´å®Œå–„çš„åº“å¯èƒ½ä¼šå…ˆè°ƒç”¨destroyeré‡Šæ”¾æ—§å€¼ã€‚ä¸ºç®€åŒ–ï¼Œæ­¤å¤„ç”±ç”¨æˆ·è´Ÿè´£ã€‚
+
+	// å°†æ•´ä¸ªèŠ‚ç‚¹çš„å€¼è®¾ç½®ä¸ºä¼ å…¥çš„éNULLæŒ‡é’ˆï¼ˆvalueï¼‰
+
+    // te
+
+    // not prefix
+
+	// è¿™é‡Œçš„é€»è¾‘æ˜¯ï¼šå¦‚æœä¸€ä¸ªèŠ‚ç‚¹çš„valueä¸ä¸ºNULLï¼Œåˆ™è¡¨ç¤ºè¿™æ˜¯ä¸€ä¸ªå•è¯çš„ç»“å°¾ã€‚
+	// crawl->isEndOfWord = true;
+    crawl->value = value;
+    return true;
+}
+
+void* Trie_Search(const Trie* trie, const char* key) {
+    if (!trie || !trie->root || !key) return NULL;
+
+    const TrieNode* crawl = trie->root;
+    int len = strlen(key);
+
+    for (int i = 0; i < len; ++i) {
+        int index = CharToIndex(key[i]);
+
+		// å¦‚æœå­—ç¬¦ä¸åœ¨å­—æ¯è¡¨èŒƒå›´å†…ï¼Œç›´æ¥è¿”å›NULL
+        if (index == -1 || !crawl->children[index]) {
+            return NULL;
+        }
+
+		// å‰è¿›åˆ°ä¸‹ä¸€ä¸ªèŠ‚ç‚¹
+        crawl = crawl->children[index];
+    }
+
+    // è¿”å›å­˜å‚¨çš„å€¼çš„æŒ‡é’ˆï¼Œå¦‚æœä¸æ˜¯ä¸€ä¸ªç»“å°¾ï¼ˆå³å€¼ä¸ºNULLï¼‰ï¼Œåˆ™è¿”å›NULLã€‚
+    return crawl ? crawl->value : NULL;
+}
+
+// StartsWithçš„å®ç°åŸºæœ¬ä¸å˜
+bool Trie_StartsWith(const Trie* trie, const char* prefix) {
+    if (!trie || !trie->root || !prefix) return false;
+    const TrieNode* crawl = trie->root;
+    int len = strlen(prefix);
+    for (int i = 0; i < len; ++i) {
+        int index = CharToIndex(prefix[i]);
+        if (index == -1 || !crawl->children[index]) return false;
+        crawl = crawl->children[index];
+    }
+    return crawl != NULL;
+}
+
+void Trie_Delete(Trie* trie, const char* key) {
+    if (!trie || !key || !*key) { // æ£€æŸ¥trie, keyå’Œç©ºå­—ç¬¦ä¸²
+        return;
+    }
+    TrieNode_DeleteRecursiveHelper(&trie->root, key, 0, trie->valueDestroyer);
+}
+
+/**
+ * @brief æ£€æŸ¥ä¸€ä¸ªèŠ‚ç‚¹æ˜¯å¦å¯ä»¥è¢«åˆ é™¤ã€‚
+ * @param node è¦æ£€æŸ¥çš„èŠ‚ç‚¹ã€‚
+ * @return å¦‚æœèŠ‚ç‚¹æ²¡æœ‰å€¼å¹¶ä¸”æ²¡æœ‰å­èŠ‚ç‚¹ï¼Œè¿”å›trueã€‚
+ */
+static bool IsNodeEmpty(TrieNode* node) {
+    if (node->value) {
+        return false;
+    }
+    for (int i = 0; i < ALPHABET_SIZE; i++) {
+        if (node->children[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+
+
+// --- ç§æœ‰å‡½æ•°å®ç°ä¿®æ”¹ ---
+
+static TrieNode* TrieNode_Create(void) {
+    TrieNode* node = (TrieNode*)malloc(sizeof(TrieNode));
+    if (node) {
+        node->value = NULL; // åˆå§‹åŒ–ä¸ºNULL
+        for (int i = 0; i < ALPHABET_SIZE; ++i) {
+            node->children[i] = NULL;
+        }
+    }
+    return node;
+}
+
+static void TrieNode_DestroyRecursive(TrieNode* node, ValueDestroyer destroyer) {
+    if (!node) return;
+
+
+	// é€’å½’é”€æ¯æ‰€æœ‰å­èŠ‚ç‚¹
+    for (int i = 0; i < ALPHABET_SIZE; ++i) {
+        TrieNode_DestroyRecursive(node->children[i], destroyer);
+    }
+
+    // å…³é”®ä¸€æ­¥ï¼šåœ¨é‡Šæ”¾èŠ‚ç‚¹æœ¬èº«ä¹‹å‰ï¼Œæ£€æŸ¥æ˜¯å¦æœ‰ç”¨æˆ·æ•°æ®éœ€è¦é‡Šæ”¾
+    if (node->value && destroyer) {
+        destroyer(node->value);
+    }
+    free(node);
+}
+
+static int CharToIndex(char c) {
+    if (c >= 'a' && c <= 'z') return c - 'a';
+    return -1;
+}
+
+// ç‰©ç†åˆ é™¤
+
+/**
+ * @brief é€’å½’åœ°åˆ é™¤é”®ã€‚
+ * @param pNode æŒ‡å‘å½“å‰èŠ‚ç‚¹æŒ‡é’ˆçš„æŒ‡é’ˆï¼Œå…è®¸æˆ‘ä»¬ä¿®æ”¹çˆ¶èŠ‚ç‚¹ä¸­çš„æŒ‡é’ˆã€‚
+ * @param key è¦åˆ é™¤çš„é”®ã€‚
+ * @param depth å½“å‰é€’å½’æ·±åº¦ã€‚
+ * @param destroyer ç”¨äºé‡Šæ”¾å€¼çš„å‡½æ•°ã€‚
+ * @return å¦‚æœå½“å‰èŠ‚ç‚¹åœ¨åˆ é™¤åå˜ä¸ºç©ºï¼Œå¯ä»¥è¢«çˆ¶èŠ‚ç‚¹å®‰å…¨ç§»é™¤ï¼Œåˆ™è¿”å›trueã€‚
+ */
+static bool TrieNode_DeleteRecursiveHelper(TrieNode** pNode, 
+    const char* key, 
+    int depth, 
+    ValueDestroyer destroyer) {
+
+
+    // **
+
+	// TrieNode** pNode: &l->children['e'];
+	// TrieNode* node = *pNode; : node ç°åœ¨æ˜¯'e'èŠ‚ç‚¹çš„åœ°å€
+   
+
+	// è·å–å½“å‰èŠ‚ç‚¹
+    TrieNode* node = *pNode;
+
+    if (!node) {
+        return false; // é”®ä¸å­˜åœ¨
+    }
+
+    // key[5] \0
+    // å¦‚æœåˆ°è¾¾äº†é”®çš„æœ«å°¾
+    if (key[depth] == '\0') {
+        // å¦‚æœè¿™ä¸ªèŠ‚ç‚¹ç¡®å®æ˜¯ä¸€ä¸ªå•è¯çš„ç»“å°¾
+        if (node->value) {
+            if (destroyer) {
+                destroyer(node->value);
+            }
+			// node->isEndOfWord = false; // ä¸æ˜¯å•è¯ç»“å°¾
+            node->value = NULL; // æ‡’åˆ é™¤ï¼šæ ‡è®°ä¸ºéç»“å°¾
+        }
+        // æ£€æŸ¥è¿™ä¸ªèŠ‚ç‚¹ç°åœ¨æ˜¯å¦å¯ä»¥è¢«ç‰©ç†åˆ é™¤
+        if (IsNodeEmpty(node)) {
+            free(node);
+            *pNode = NULL; // å°†çˆ¶èŠ‚ç‚¹æŒ‡å‘æ­¤èŠ‚ç‚¹çš„æŒ‡é’ˆè®¾ä¸ºNULL
+            return true;
+        }
+        return false;
+    }
+
+    // é€’å½’åˆ°ä¸‹ä¸€ä¸ªèŠ‚ç‚¹
+    int index = CharToIndex(key[depth]);
+    if (index == -1) return false; // æ— æ•ˆå­—ç¬¦
+
+    if (TrieNode_DeleteRecursiveHelper(&node->children[index], key, depth + 1, destroyer)) {
+        // å¦‚æœå­èŠ‚ç‚¹è¢«åˆ é™¤äº†ï¼Œå†æ¬¡æ£€æŸ¥å½“å‰èŠ‚ç‚¹æ˜¯å¦ä¹Ÿå˜ä¸ºç©ºäº†
+        if (IsNodeEmpty(node)) {
+            free(node);
+            *pNode = NULL;
+            return true;
+        }
+    }
+
+    return false;
 }

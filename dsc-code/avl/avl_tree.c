@@ -1,477 +1,477 @@
-#include "avl_tree.h"
-#include <stdlib.h>
-#include <assert.h>
-
-// AVL½Úµã½á¹¹
-struct AVLNode {
-	void* data;
-	AVLNode* left;
-	AVLNode* right;
-	int height;
-};
-
-// AVLÊ÷½á¹¹
-
-/*
-* ½á¹¹Ìå AVLTree ÓÃÓÚ±íÊ¾ AVL Ê÷¡£
-* Ëü°üº¬ÒÔÏÂ³ÉÔ±£º
-* - root: Ö¸ÏòÊ÷µÄ¸ù½Úµã¡£
-* - compare: ±È½Ïº¯Êı£¬ÓÃÓÚ±È½ÏÁ½¸öÊı¾İÔªËØ¡£
-* - free_func: ÊÍ·ÅÊı¾İµÄ»Øµ÷º¯Êı£¬ÓÃÓÚÔÚÉ¾³ı½ÚµãÊ±ÊÍ·ÅÄÚ´æ¡£
-* - context: ÉÏÏÂÎÄÖ¸Õë£¬ÓÃÓÚ´«µİ¶îÍâĞÅÏ¢¸ø±È½Ïº¯ÊıºÍÊÍ·Åº¯Êı¡£
-* - size: Ê÷ÖĞÔªËØµÄÊıÁ¿¡£
-*/
-struct AVLTree {
-	AVLNode* root;
-	AVLCompareFunc compare;
-	AVLFreeFunc free_func;
-	void* context;
-	size_t size;
-};
-
-// ÄÚ²¿º¯ÊıÉùÃ÷
-static AVLNode* node_create(void* data);
-static void node_destroy(AVLNode* node, AVLFreeFunc free_func, void* context);
-static int node_height(const AVLNode* node);
-static void node_update_height(AVLNode* node);
-static int node_balance_factor(const AVLNode* node);
-static AVLNode* node_rotate_left(AVLNode* node);
-static AVLNode* node_rotate_right(AVLNode* node);
-static AVLNode* node_balance(AVLNode* node);
-static AVLNode* node_insert(AVLNode* node, void* data, AVLCompareFunc compare, void* context, bool* inserted);
-static AVLNode* node_delete(AVLNode* node, const void* data, AVLCompareFunc compare, void* context, AVLFreeFunc free_func, bool* deleted);
-static AVLNode* node_find_min(AVLNode* node);
-static void* node_find(const AVLNode* node, const void* data, AVLCompareFunc compare, void* context);
-static void node_traverse_inorder(const AVLNode* node, AVLTraverseFunc func, void* context);
-static void node_traverse_preorder(const AVLNode* node, AVLTraverseFunc func, void* context);
-static void node_traverse_postorder(const AVLNode* node, AVLTraverseFunc func, void* context);
-static bool node_validate(const AVLNode* node, AVLCompareFunc compare, void* context, const void* min, const void* max);
-
-// ´´½¨AVLÊ÷
-AVLTree* avl_create(AVLCompareFunc compare, AVLFreeFunc free_func, void* context) {
-	assert(compare != NULL);
-
-	AVLTree* tree = (AVLTree*)malloc(sizeof(AVLTree));
-	if (tree == NULL) {
-		return NULL;
-	}
-
-	tree->root = NULL;
-	tree->compare = compare;
-	tree->free_func = free_func;
-	tree->context = context;
-	tree->size = 0;
-
-	return tree;
-}
-
-// Ïú»ÙAVLÊ÷
-void avl_destroy(AVLTree* tree) {
-	if (tree == NULL) {
-		return;
-	}
-
-	node_destroy(tree->root, tree->free_func, tree->context);
-	free(tree);
-}
-
-// ²åÈëÔªËØ
-bool avl_insert(AVLTree* tree, void* data) {
-	assert(tree != NULL);
-	assert(data != NULL);
-
-	bool inserted = false;
-	tree->root = node_insert(tree->root, data, tree->compare, tree->context, &inserted);
-
-	if (inserted) {
-		tree->size++;
-	}
-
-	return inserted;
-}
-
-// É¾³ıÔªËØ
-bool avl_delete(AVLTree* tree, const void* data) {
-	assert(tree != NULL);
-	assert(data != NULL);
-
-	bool deleted = false;
-	tree->root = node_delete(tree->root, data, tree->compare, tree->context, tree->free_func, &deleted);
-
-	if (deleted) {
-		tree->size--;
-	}
-
-	return deleted;
-}
-
-// ²éÕÒÔªËØ
-void* avl_find(const AVLTree* tree, const void* data) {
-	assert(tree != NULL);
-	assert(data != NULL);
-
-	return node_find(tree->root, data, tree->compare, tree->context);
-}
-
-// ¸üĞÂÔªËØ
-bool avl_update(AVLTree* tree, const void* old_data, void* new_data) {
-	assert(tree != NULL);
-	assert(old_data != NULL);
-	assert(new_data != NULL);
-
-	// Èç¹ûĞÂ¾ÉÊı¾İÏàµÈ£¬Ö±½Ó·µ»Ø³É¹¦
-	if (tree->compare(old_data, new_data, tree->context) == 0) {
-		return true;
-	}
-
-	// ÏÈ²éÕÒ¾ÉÊı¾İÊÇ·ñ´æÔÚ
-	if (avl_find(tree, old_data) == NULL) {
-		return false;
-	}
-
-	// É¾³ı¾ÉÊı¾İ
-	avl_delete(tree, old_data);
-
-	// ²åÈëĞÂÊı¾İ
-	return avl_insert(tree, new_data);
-}
-
-// »ñÈ¡Ê÷µÄ´óĞ¡
-size_t avl_size(const AVLTree* tree) {
-	assert(tree != NULL);
-	return tree->size;
-}
-
-// ¼ì²éÊ÷ÊÇ·ñÎª¿Õ
-bool avl_is_empty(const AVLTree* tree) {
-	assert(tree != NULL);
-	return tree->size == 0;
-}
-
-// ÖĞĞò±éÀú
-void avl_traverse_inorder(const AVLTree* tree, AVLTraverseFunc func, void* context) {
-	assert(tree != NULL);
-	assert(func != NULL);
-
-	node_traverse_inorder(tree->root, func, context);
-}
-
-// Ç°Ğò±éÀú
-void avl_traverse_preorder(const AVLTree* tree, AVLTraverseFunc func, void* context) {
-	assert(tree != NULL);
-	assert(func != NULL);
-
-	node_traverse_preorder(tree->root, func, context);
-}
-
-// ºóĞò±éÀú
-void avl_traverse_postorder(const AVLTree* tree, AVLTraverseFunc func, void* context) {
-	assert(tree != NULL);
-	assert(func != NULL);
-
-	node_traverse_postorder(tree->root, func, context);
-}
-
-// »ñÈ¡Ê÷µÄ¸ß¶È
-int avl_height(const AVLTree* tree) {
-	assert(tree != NULL);
-	return node_height(tree->root);
-}
-
-// ÑéÖ¤AVLÊ÷µÄÆ½ºâĞÔ
-bool avl_validate(const AVLTree* tree) {
-	assert(tree != NULL);
-	return node_validate(tree->root, tree->compare, tree->context, NULL, NULL);
-}
-
-// ÄÚ²¿º¯ÊıÊµÏÖ
-
-// ´´½¨½Úµã
-static AVLNode* node_create(void* data) {
-	AVLNode* node = (AVLNode*)malloc(sizeof(AVLNode));
-	if (node == NULL) {
-		return NULL;
-	}
-
-	node->data = data;
-	node->left = NULL;
-	node->right = NULL;
-	node->height = 1;
-
-	return node;
-}
-
-// Ïú»Ù½Úµã¼°Æä×ÓÊ÷
-static void node_destroy(AVLNode* node, AVLFreeFunc free_func, void* context) {
-	if (node == NULL) {
-		return;
-	}
-
-	node_destroy(node->left, free_func, context);
-	node_destroy(node->right, free_func, context);
-
-	if (free_func != NULL) {
-		free_func(node->data, context);
-	}
-
-	free(node);
-}
-
-// »ñÈ¡½Úµã¸ß¶È
-static int node_height(const AVLNode* node) {
-	return node ? node->height : 0;
-}
-
-// ¸üĞÂ½Úµã¸ß¶È
-static void node_update_height(AVLNode* node) {
-	if (node == NULL) {
-		return;
-	}
-
-	int left_height = node_height(node->left);
-	int right_height = node_height(node->right);
-
-	// ¸ß¶ÈÎª×Ó½Úµã¸ß¶ÈµÄ×î´óÖµ¼Ó1
-	// 1 + max(left_height, right_height);
-	node->height = 1 + (left_height > right_height ? left_height : right_height);
-}
-
-// ¼ÆËãÆ½ºâÒò×Ó
-static int node_balance_factor(const AVLNode* node) {
-	// Æ½ºâÒò×Ó = ×ó×ÓÊ÷¸ß¶È - ÓÒ×ÓÊ÷¸ß¶È
-
-	return node ? node_height(node->left) - node_height(node->right) : 0;
-}
-
-// ×óĞı
-static AVLNode* node_rotate_left(AVLNode* node) {
-	assert(node != NULL);
-	assert(node->right != NULL);
-
-	AVLNode* new_root = node->right;
-	node->right = new_root->left;
-	new_root->left = node;
-
-	node_update_height(node);
-	node_update_height(new_root);
-
-	return new_root;
-}
-
-// ÓÒĞı
-static AVLNode* node_rotate_right(AVLNode* node) {
-	assert(node != NULL);
-	assert(node->left != NULL);
-
-	AVLNode* new_root = node->left;
-	node->left = new_root->right;
-	new_root->right = node;
-
-	node_update_height(node);
-	node_update_height(new_root);
-
-	return new_root;
-}
-
-// Æ½ºâ½Úµã
-static AVLNode* node_balance(AVLNode* node) {
-	if (node == NULL) {
-		return NULL;
-	}
-
-	node_update_height(node);
-	int balance = node_balance_factor(node);
-
-	// ×óÖØ
-	if (balance > 1) {
-		// ×óÓÒÇé¿ö
-		if (node_balance_factor(node->left) < 0) {
-			node->left = node_rotate_left(node->left);
-		}
-		// ×ó×óÇé¿ö
-		return node_rotate_right(node);
-	}
-
-	// ÓÒÖØ
-	if (balance < -1) {
-		// ÓÒ×óÇé¿ö
-		if (node_balance_factor(node->right) > 0) {
-			node->right = node_rotate_right(node->right);
-		}
-		// ÓÒÓÒÇé¿ö
-		return node_rotate_left(node);
-	}
-
-	return node;
-}
-
-// ²åÈë½Úµã
-static AVLNode* node_insert(AVLNode* node,
-	void* data, AVLCompareFunc compare,
-	void* context, bool* inserted) {
-	// ÕÒµ½²åÈëÎ»ÖÃ
-	if (node == NULL) {
-		*inserted = true;
-		return node_create(data);
-	}
-
-	int cmp = compare(data, node->data, context);
-
-	if (cmp < 0) {
-		node->left = node_insert(node->left, data, compare, context, inserted);
-	}
-	else if (cmp > 0) {
-		node->right = node_insert(node->right, data, compare, context, inserted);
-	}
-	else {
-		// ÔªËØÒÑ´æÔÚ
-		*inserted = false;
-		return node;
-	}
-
-	// ÖØĞÂÆ½ºâ
-	return node_balance(node);
-}
-
-// ²éÕÒ×îĞ¡½Úµã
-static AVLNode* node_find_min(AVLNode* node) {
-	while (node != NULL && node->left != NULL) {
-		node = node->left;
-	}
-	return node;
-}
-
-// É¾³ı½Úµã
-static AVLNode* node_delete(AVLNode* node, const void* data, AVLCompareFunc compare, void* context, AVLFreeFunc free_func, bool* deleted) {
-	if (node == NULL) {
-		*deleted = false;
-		return NULL;
-	}
-
-	int cmp = compare(data, node->data, context);
-
-	if (cmp < 0) {
-		node->left = node_delete(node->left, data, compare, context, free_func, deleted);
-	}
-	else if (cmp > 0) {
-		node->right = node_delete(node->right, data, compare, context, free_func, deleted);
-	}
-	else {
-		// ÕÒµ½ÒªÉ¾³ıµÄ½Úµã
-		*deleted = true;
-
-		if (node->left == NULL || node->right == NULL) {
-			// ÖÁÉÙÓĞÒ»¸ö×Ó½ÚµãÎª¿Õ
-			AVLNode* temp = node->left ? node->left : node->right;
-
-			if (free_func != NULL) {
-				free_func(node->data, context);
-			}
-			free(node);
-
-			return temp;
-		}
-		else {
-			// Á½¸ö×Ó½Úµã¶¼´æÔÚ
-			AVLNode* min_right = node_find_min(node->right);
-
-			// ½»»»Êı¾İ
-			void* temp_data = node->data;
-			node->data = min_right->data;
-			min_right->data = temp_data;
-
-			// É¾³ıºó¼Ì½Úµã
-			node->right = node_delete(node->right, temp_data, compare, context, free_func, deleted);
-		}
-	}
-
-	// ÖØĞÂÆ½ºâ
-	return node_balance(node);
-}
-
-// ²éÕÒ½Úµã
-static void* node_find(const AVLNode* node, const void* data, AVLCompareFunc compare, void* context) {
-	if (node == NULL) {
-		return NULL;
-	}
-
-	int cmp = compare(data, node->data, context);
-
-	if (cmp < 0) {
-		return node_find(node->left, data, compare, context);
-	}
-	else if (cmp > 0) {
-		return node_find(node->right, data, compare, context);
-	}
-	else {
-		return node->data;
-	}
-}
-
-// ÖĞĞò±éÀú
-static void node_traverse_inorder(const AVLNode* node, AVLTraverseFunc func, void* context) {
-	if (node == NULL) {
-		return;
-	}
-
-	node_traverse_inorder(node->left, func, context);
-	func(node->data, context);
-	node_traverse_inorder(node->right, func, context);
-}
-
-// Ç°Ğò±éÀú
-static void node_traverse_preorder(const AVLNode* node, AVLTraverseFunc func, void* context) {
-	if (node == NULL) {
-		return;
-	}
-
-	func(node->data, context);
-	node_traverse_preorder(node->left, func, context);
-	node_traverse_preorder(node->right, func, context);
-}
-
-// ºóĞò±éÀú
-static void node_traverse_postorder(const AVLNode* node, AVLTraverseFunc func, void* context) {
-	if (node == NULL) {
-		return;
-	}
-
-	node_traverse_postorder(node->left, func, context);
-	node_traverse_postorder(node->right, func, context);
-	func(node->data, context);
-}
-
-// ÑéÖ¤½Úµã
-static bool node_validate(const AVLNode* node, 
-	AVLCompareFunc compare, 
-	void* context,
-	const void* min, const void* max) {
-	if (node == NULL) {
-		return true;
-	}
-
-	// ¼ì²éBSTĞÔÖÊ
-	if (min != NULL && compare(node->data, min, context) <= 0) {
-		return false;
-	}
-	if (max != NULL && compare(node->data, max, context) >= 0) {
-		return false;
-	}
-
-	// ¼ì²éÆ½ºâÒò×Ó
-	int balance = node_balance_factor(node);
-	if (balance < -1 || balance > 1) {
-		return false;
-	}
-
-	// ¼ì²é¸ß¶ÈÊÇ·ñÕıÈ·
-	int expected_height = 1 + (node_height(node->left) > node_height(node->right) ?
-		node_height(node->left) : node_height(node->right));
-	if (node->height != expected_height) {
-		return false;
-	}
-
-	// µİ¹é¼ì²é×ÓÊ÷
-	return node_validate(node->left, compare, context, min, node->data) &&
-		node_validate(node->right, compare, context, node->data, max);
-}
+#include "avl_tree.h"
+#include <stdlib.h>
+#include <assert.h>
+
+// AVLèŠ‚ç‚¹ç»“æ„
+struct AVLNode {
+	void* data;
+	AVLNode* left;
+	AVLNode* right;
+	int height;
+};
+
+// AVLæ ‘ç»“æ„
+
+/*
+* ç»“æ„ä½“ AVLTree ç”¨äºè¡¨ç¤º AVL æ ‘ã€‚
+* å®ƒåŒ…å«ä»¥ä¸‹æˆå‘˜ï¼š
+* - root: æŒ‡å‘æ ‘çš„æ ¹èŠ‚ç‚¹ã€‚
+* - compare: æ¯”è¾ƒå‡½æ•°ï¼Œç”¨äºæ¯”è¾ƒä¸¤ä¸ªæ•°æ®å…ƒç´ ã€‚
+* - free_func: é‡Šæ”¾æ•°æ®çš„å›è°ƒå‡½æ•°ï¼Œç”¨äºåœ¨åˆ é™¤èŠ‚ç‚¹æ—¶é‡Šæ”¾å†…å­˜ã€‚
+* - context: ä¸Šä¸‹æ–‡æŒ‡é’ˆï¼Œç”¨äºä¼ é€’é¢å¤–ä¿¡æ¯ç»™æ¯”è¾ƒå‡½æ•°å’Œé‡Šæ”¾å‡½æ•°ã€‚
+* - size: æ ‘ä¸­å…ƒç´ çš„æ•°é‡ã€‚
+*/
+struct AVLTree {
+	AVLNode* root;
+	AVLCompareFunc compare;
+	AVLFreeFunc free_func;
+	void* context;
+	size_t size;
+};
+
+// å†…éƒ¨å‡½æ•°å£°æ˜
+static AVLNode* node_create(void* data);
+static void node_destroy(AVLNode* node, AVLFreeFunc free_func, void* context);
+static int node_height(const AVLNode* node);
+static void node_update_height(AVLNode* node);
+static int node_balance_factor(const AVLNode* node);
+static AVLNode* node_rotate_left(AVLNode* node);
+static AVLNode* node_rotate_right(AVLNode* node);
+static AVLNode* node_balance(AVLNode* node);
+static AVLNode* node_insert(AVLNode* node, void* data, AVLCompareFunc compare, void* context, bool* inserted);
+static AVLNode* node_delete(AVLNode* node, const void* data, AVLCompareFunc compare, void* context, AVLFreeFunc free_func, bool* deleted);
+static AVLNode* node_find_min(AVLNode* node);
+static void* node_find(const AVLNode* node, const void* data, AVLCompareFunc compare, void* context);
+static void node_traverse_inorder(const AVLNode* node, AVLTraverseFunc func, void* context);
+static void node_traverse_preorder(const AVLNode* node, AVLTraverseFunc func, void* context);
+static void node_traverse_postorder(const AVLNode* node, AVLTraverseFunc func, void* context);
+static bool node_validate(const AVLNode* node, AVLCompareFunc compare, void* context, const void* min, const void* max);
+
+// åˆ›å»ºAVLæ ‘
+AVLTree* avl_create(AVLCompareFunc compare, AVLFreeFunc free_func, void* context) {
+	assert(compare != NULL);
+
+	AVLTree* tree = (AVLTree*)malloc(sizeof(AVLTree));
+	if (tree == NULL) {
+		return NULL;
+	}
+
+	tree->root = NULL;
+	tree->compare = compare;
+	tree->free_func = free_func;
+	tree->context = context;
+	tree->size = 0;
+
+	return tree;
+}
+
+// é”€æ¯AVLæ ‘
+void avl_destroy(AVLTree* tree) {
+	if (tree == NULL) {
+		return;
+	}
+
+	node_destroy(tree->root, tree->free_func, tree->context);
+	free(tree);
+}
+
+// æ’å…¥å…ƒç´ 
+bool avl_insert(AVLTree* tree, void* data) {
+	assert(tree != NULL);
+	assert(data != NULL);
+
+	bool inserted = false;
+	tree->root = node_insert(tree->root, data, tree->compare, tree->context, &inserted);
+
+	if (inserted) {
+		tree->size++;
+	}
+
+	return inserted;
+}
+
+// åˆ é™¤å…ƒç´ 
+bool avl_delete(AVLTree* tree, const void* data) {
+	assert(tree != NULL);
+	assert(data != NULL);
+
+	bool deleted = false;
+	tree->root = node_delete(tree->root, data, tree->compare, tree->context, tree->free_func, &deleted);
+
+	if (deleted) {
+		tree->size--;
+	}
+
+	return deleted;
+}
+
+// æŸ¥æ‰¾å…ƒç´ 
+void* avl_find(const AVLTree* tree, const void* data) {
+	assert(tree != NULL);
+	assert(data != NULL);
+
+	return node_find(tree->root, data, tree->compare, tree->context);
+}
+
+// æ›´æ–°å…ƒç´ 
+bool avl_update(AVLTree* tree, const void* old_data, void* new_data) {
+	assert(tree != NULL);
+	assert(old_data != NULL);
+	assert(new_data != NULL);
+
+	// å¦‚æœæ–°æ—§æ•°æ®ç›¸ç­‰ï¼Œç›´æ¥è¿”å›æˆåŠŸ
+	if (tree->compare(old_data, new_data, tree->context) == 0) {
+		return true;
+	}
+
+	// å…ˆæŸ¥æ‰¾æ—§æ•°æ®æ˜¯å¦å­˜åœ¨
+	if (avl_find(tree, old_data) == NULL) {
+		return false;
+	}
+
+	// åˆ é™¤æ—§æ•°æ®
+	avl_delete(tree, old_data);
+
+	// æ’å…¥æ–°æ•°æ®
+	return avl_insert(tree, new_data);
+}
+
+// è·å–æ ‘çš„å¤§å°
+size_t avl_size(const AVLTree* tree) {
+	assert(tree != NULL);
+	return tree->size;
+}
+
+// æ£€æŸ¥æ ‘æ˜¯å¦ä¸ºç©º
+bool avl_is_empty(const AVLTree* tree) {
+	assert(tree != NULL);
+	return tree->size == 0;
+}
+
+// ä¸­åºéå†
+void avl_traverse_inorder(const AVLTree* tree, AVLTraverseFunc func, void* context) {
+	assert(tree != NULL);
+	assert(func != NULL);
+
+	node_traverse_inorder(tree->root, func, context);
+}
+
+// å‰åºéå†
+void avl_traverse_preorder(const AVLTree* tree, AVLTraverseFunc func, void* context) {
+	assert(tree != NULL);
+	assert(func != NULL);
+
+	node_traverse_preorder(tree->root, func, context);
+}
+
+// ååºéå†
+void avl_traverse_postorder(const AVLTree* tree, AVLTraverseFunc func, void* context) {
+	assert(tree != NULL);
+	assert(func != NULL);
+
+	node_traverse_postorder(tree->root, func, context);
+}
+
+// è·å–æ ‘çš„é«˜åº¦
+int avl_height(const AVLTree* tree) {
+	assert(tree != NULL);
+	return node_height(tree->root);
+}
+
+// éªŒè¯AVLæ ‘çš„å¹³è¡¡æ€§
+bool avl_validate(const AVLTree* tree) {
+	assert(tree != NULL);
+	return node_validate(tree->root, tree->compare, tree->context, NULL, NULL);
+}
+
+// å†…éƒ¨å‡½æ•°å®ç°
+
+// åˆ›å»ºèŠ‚ç‚¹
+static AVLNode* node_create(void* data) {
+	AVLNode* node = (AVLNode*)malloc(sizeof(AVLNode));
+	if (node == NULL) {
+		return NULL;
+	}
+
+	node->data = data;
+	node->left = NULL;
+	node->right = NULL;
+	node->height = 1;
+
+	return node;
+}
+
+// é”€æ¯èŠ‚ç‚¹åŠå…¶å­æ ‘
+static void node_destroy(AVLNode* node, AVLFreeFunc free_func, void* context) {
+	if (node == NULL) {
+		return;
+	}
+
+	node_destroy(node->left, free_func, context);
+	node_destroy(node->right, free_func, context);
+
+	if (free_func != NULL) {
+		free_func(node->data, context);
+	}
+
+	free(node);
+}
+
+// è·å–èŠ‚ç‚¹é«˜åº¦
+static int node_height(const AVLNode* node) {
+	return node ? node->height : 0;
+}
+
+// æ›´æ–°èŠ‚ç‚¹é«˜åº¦
+static void node_update_height(AVLNode* node) {
+	if (node == NULL) {
+		return;
+	}
+
+	int left_height = node_height(node->left);
+	int right_height = node_height(node->right);
+
+	// é«˜åº¦ä¸ºå­èŠ‚ç‚¹é«˜åº¦çš„æœ€å¤§å€¼åŠ 1
+	// 1 + max(left_height, right_height);
+	node->height = 1 + (left_height > right_height ? left_height : right_height);
+}
+
+// è®¡ç®—å¹³è¡¡å› å­
+static int node_balance_factor(const AVLNode* node) {
+	// å¹³è¡¡å› å­ = å·¦å­æ ‘é«˜åº¦ - å³å­æ ‘é«˜åº¦
+
+	return node ? node_height(node->left) - node_height(node->right) : 0;
+}
+
+// å·¦æ—‹
+static AVLNode* node_rotate_left(AVLNode* node) {
+	assert(node != NULL);
+	assert(node->right != NULL);
+
+	AVLNode* new_root = node->right;
+	node->right = new_root->left;
+	new_root->left = node;
+
+	node_update_height(node);
+	node_update_height(new_root);
+
+	return new_root;
+}
+
+// å³æ—‹
+static AVLNode* node_rotate_right(AVLNode* node) {
+	assert(node != NULL);
+	assert(node->left != NULL);
+
+	AVLNode* new_root = node->left;
+	node->left = new_root->right;
+	new_root->right = node;
+
+	node_update_height(node);
+	node_update_height(new_root);
+
+	return new_root;
+}
+
+// å¹³è¡¡èŠ‚ç‚¹
+static AVLNode* node_balance(AVLNode* node) {
+	if (node == NULL) {
+		return NULL;
+	}
+
+	node_update_height(node);
+	int balance = node_balance_factor(node);
+
+	// å·¦é‡
+	if (balance > 1) {
+		// å·¦å³æƒ…å†µ
+		if (node_balance_factor(node->left) < 0) {
+			node->left = node_rotate_left(node->left);
+		}
+		// å·¦å·¦æƒ…å†µ
+		return node_rotate_right(node);
+	}
+
+	// å³é‡
+	if (balance < -1) {
+		// å³å·¦æƒ…å†µ
+		if (node_balance_factor(node->right) > 0) {
+			node->right = node_rotate_right(node->right);
+		}
+		// å³å³æƒ…å†µ
+		return node_rotate_left(node);
+	}
+
+	return node;
+}
+
+// æ’å…¥èŠ‚ç‚¹
+static AVLNode* node_insert(AVLNode* node,
+	void* data, AVLCompareFunc compare,
+	void* context, bool* inserted) {
+	// æ‰¾åˆ°æ’å…¥ä½ç½®
+	if (node == NULL) {
+		*inserted = true;
+		return node_create(data);
+	}
+
+	int cmp = compare(data, node->data, context);
+
+	if (cmp < 0) {
+		node->left = node_insert(node->left, data, compare, context, inserted);
+	}
+	else if (cmp > 0) {
+		node->right = node_insert(node->right, data, compare, context, inserted);
+	}
+	else {
+		// å…ƒç´ å·²å­˜åœ¨
+		*inserted = false;
+		return node;
+	}
+
+	// é‡æ–°å¹³è¡¡
+	return node_balance(node);
+}
+
+// æŸ¥æ‰¾æœ€å°èŠ‚ç‚¹
+static AVLNode* node_find_min(AVLNode* node) {
+	while (node != NULL && node->left != NULL) {
+		node = node->left;
+	}
+	return node;
+}
+
+// åˆ é™¤èŠ‚ç‚¹
+static AVLNode* node_delete(AVLNode* node, const void* data, AVLCompareFunc compare, void* context, AVLFreeFunc free_func, bool* deleted) {
+	if (node == NULL) {
+		*deleted = false;
+		return NULL;
+	}
+
+	int cmp = compare(data, node->data, context);
+
+	if (cmp < 0) {
+		node->left = node_delete(node->left, data, compare, context, free_func, deleted);
+	}
+	else if (cmp > 0) {
+		node->right = node_delete(node->right, data, compare, context, free_func, deleted);
+	}
+	else {
+		// æ‰¾åˆ°è¦åˆ é™¤çš„èŠ‚ç‚¹
+		*deleted = true;
+
+		if (node->left == NULL || node->right == NULL) {
+			// è‡³å°‘æœ‰ä¸€ä¸ªå­èŠ‚ç‚¹ä¸ºç©º
+			AVLNode* temp = node->left ? node->left : node->right;
+
+			if (free_func != NULL) {
+				free_func(node->data, context);
+			}
+			free(node);
+
+			return temp;
+		}
+		else {
+			// ä¸¤ä¸ªå­èŠ‚ç‚¹éƒ½å­˜åœ¨
+			AVLNode* min_right = node_find_min(node->right);
+
+			// äº¤æ¢æ•°æ®
+			void* temp_data = node->data;
+			node->data = min_right->data;
+			min_right->data = temp_data;
+
+			// åˆ é™¤åç»§èŠ‚ç‚¹
+			node->right = node_delete(node->right, temp_data, compare, context, free_func, deleted);
+		}
+	}
+
+	// é‡æ–°å¹³è¡¡
+	return node_balance(node);
+}
+
+// æŸ¥æ‰¾èŠ‚ç‚¹
+static void* node_find(const AVLNode* node, const void* data, AVLCompareFunc compare, void* context) {
+	if (node == NULL) {
+		return NULL;
+	}
+
+	int cmp = compare(data, node->data, context);
+
+	if (cmp < 0) {
+		return node_find(node->left, data, compare, context);
+	}
+	else if (cmp > 0) {
+		return node_find(node->right, data, compare, context);
+	}
+	else {
+		return node->data;
+	}
+}
+
+// ä¸­åºéå†
+static void node_traverse_inorder(const AVLNode* node, AVLTraverseFunc func, void* context) {
+	if (node == NULL) {
+		return;
+	}
+
+	node_traverse_inorder(node->left, func, context);
+	func(node->data, context);
+	node_traverse_inorder(node->right, func, context);
+}
+
+// å‰åºéå†
+static void node_traverse_preorder(const AVLNode* node, AVLTraverseFunc func, void* context) {
+	if (node == NULL) {
+		return;
+	}
+
+	func(node->data, context);
+	node_traverse_preorder(node->left, func, context);
+	node_traverse_preorder(node->right, func, context);
+}
+
+// ååºéå†
+static void node_traverse_postorder(const AVLNode* node, AVLTraverseFunc func, void* context) {
+	if (node == NULL) {
+		return;
+	}
+
+	node_traverse_postorder(node->left, func, context);
+	node_traverse_postorder(node->right, func, context);
+	func(node->data, context);
+}
+
+// éªŒè¯èŠ‚ç‚¹
+static bool node_validate(const AVLNode* node, 
+	AVLCompareFunc compare, 
+	void* context,
+	const void* min, const void* max) {
+	if (node == NULL) {
+		return true;
+	}
+
+	// æ£€æŸ¥BSTæ€§è´¨
+	if (min != NULL && compare(node->data, min, context) <= 0) {
+		return false;
+	}
+	if (max != NULL && compare(node->data, max, context) >= 0) {
+		return false;
+	}
+
+	// æ£€æŸ¥å¹³è¡¡å› å­
+	int balance = node_balance_factor(node);
+	if (balance < -1 || balance > 1) {
+		return false;
+	}
+
+	// æ£€æŸ¥é«˜åº¦æ˜¯å¦æ­£ç¡®
+	int expected_height = 1 + (node_height(node->left) > node_height(node->right) ?
+		node_height(node->left) : node_height(node->right));
+	if (node->height != expected_height) {
+		return false;
+	}
+
+	// é€’å½’æ£€æŸ¥å­æ ‘
+	return node_validate(node->left, compare, context, min, node->data) &&
+		node_validate(node->right, compare, context, node->data, max);
+}
