@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>现代循环队列浏览器 - 指针级高亮教学版</title>
-
+    <title>共享栈教学演示器</title>
+    
     <!-- Dependencies -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -13,259 +13,619 @@
     <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
     <script src="https://unpkg.com/@popperjs/core@2"></script>
     <script src="https://unpkg.com/tippy.js@6"></script>
-
+    
     <style>
-        body { background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
-        .notyf__toast { border-radius: 0.5rem; }
-        .slot-element { transition: all 0.4s ease-in-out; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         
-        /* Set a generous max-width for the tooltip box */
-        .tippy-box { max-width: 350px !important; }
-
-        .highlight-front-slot { 
-            border-color: #3b82f6 !important; background-color: #eff6ff !important; 
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
         }
-        .highlight-rear-slot { 
-            border-color: #ec4899 !important; background-color: #fdf2f8 !important; 
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.18);
         }
-        .highlight-add {
-            border-color: #22c55e !important; background-color: #f0fdf4 !important; transform: scale(1.05);
+        
+        .operation-btn {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: none;
+            outline: none;
         }
-        .highlight-remove {
-            opacity: 0.3; transform: scale(0.9);
+        
+        .operation-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
         }
-        .pointer-label { transition: opacity 0.3s ease-in-out; }
+        
+        .operation-btn:active {
+            transform: translateY(0);
+        }
+        
+        .stack-element {
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            cursor: pointer;
+            min-height: 96px;
+        }
+        
+        .stack-element:hover {
+            transform: translateY(-5px) scale(1.05);
+            z-index: 10;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+        
+        .stack-element.empty {
+            border: 2px dashed #d1d5db;
+            background: #f9fafb;
+        }
+        
+        .stack-element.stack0 {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            border: 2px solid #1e40af;
+            color: white;
+            box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
+        }
+        
+        .stack-element.stack1 {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            border: 2px solid #991b1b;
+            color: white;
+            box-shadow: 0 4px 6px rgba(239, 68, 68, 0.3);
+        }
+        
+        @keyframes pushAnimation {
+            0% { transform: scale(0) rotate(180deg); opacity: 0; }
+            50% { transform: scale(1.1) rotate(90deg); }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+        
+        @keyframes popAnimation {
+            0% { transform: scale(1) rotate(0deg); opacity: 1; }
+            100% { transform: scale(0) rotate(-180deg); opacity: 0; }
+        }
+        
+        .push-animation {
+            animation: pushAnimation 0.5s ease-out;
+        }
+        
+        .pop-animation {
+            animation: popAnimation 0.5s ease-out;
+        }
+        
+        .pointer-indicator {
+            position: absolute;
+            font-size: 24px;
+            animation: bounce 2s infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+        
+        .slider-track {
+            background: linear-gradient(to right, #667eea 0%, #764ba2 100%);
+        }
     </style>
 </head>
 <body>
-
-<div id="app" class="max-w-6xl mx-auto px-4 py-8">
-    
-    <div class="text-center mb-8">
-        <h1 class="text-4xl font-bold text-slate-800">现代循环队列浏览器</h1>
-        <p class="text-slate-500 mt-2">通过取模运算，在固定数组中实现高效的空间复用</p>
-    </div>
-
-    <!-- Controls Panel -->
-    <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-            <div class="space-y-4">
-                <h3 class="font-semibold text-lg text-slate-700 border-b pb-2">操作</h3>
-                <div class="flex gap-2">
-                    <input type="text" v-model="inputs.value" placeholder="入队值" @keyup.enter="enqueue" class="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500 transition">
-                </div>
-                <div class="flex flex-wrap gap-2">
-                    <button @click="enqueue" :disabled="isBusy || isFull" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300 disabled:cursor-not-allowed">入队 (Enqueue)</button>
-                    <button @click="dequeue" :disabled="isBusy || isEmpty" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300 disabled:cursor-not-allowed">出队 (Dequeue)</button>
-                </div>
+    <div id="app">
+        <div class="container mx-auto p-6 max-w-7xl">
+            <!-- 标题 -->
+            <div class="text-center mb-8">
+                <h1 class="text-5xl font-bold text-white mb-2">现代共享栈浏览器</h1>
+                <p class="text-white/80 text-lg">在单个数组中实现两个栈，高效利用存储空间</p>
             </div>
-            <div class="space-y-4">
-                 <h3 class="font-semibold text-lg text-slate-700 border-b pb-2">管理</h3>
-                 <div class="flex items-center gap-2">
-                    <label for="capacity" class="text-slate-600 whitespace-nowrap">容量:</label>
-                    <input type="range" v-model.number="inputs.capacity" @change="resetQueue" min="6" max="16" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
-                    <span class="font-mono text-purple-600 w-8 text-center">{{ inputs.capacity }}</span>
-                </div>
-                 <button @click="resetQueue" :disabled="isBusy" class="w-full bg-slate-600 hover:bg-slate-700 text-white font-semibold py-2 px-4 rounded-md transition disabled:bg-slate-300">重置队列</button>
-            </div>
-        </div>
-    </div>
-
-
-    <!-- Visualization -->
-    <div class="bg-white p-6 rounded-xl shadow-lg">
-        <!-- Header Info -->
-        <div class="grid grid-cols-3 items-center mb-6 pb-4 border-b border-slate-200">
-            <div class="text-left">
-                <div class="font-semibold text-blue-600">队头 (Front)</div>
-                <div>指针: <span class="font-mono text-lg font-bold">{{ front }}</span></div>
-            </div>
-            <div class="text-center">
-                 <div class="font-bold text-slate-700 text-lg">队列状态</div>
-                 <div v-if="isFull" class="font-semibold text-red-500 animate-pulse">队满!</div>
-                 <div v-else-if="isEmpty" class="font-semibold text-slate-500">队空</div>
-                 <div v-else class="text-slate-500">大小: <span class="font-mono">{{ size }} / {{ capacity }}</span></div>
-            </div>
-            <div class="text-right">
-                <div class="font-semibold text-pink-600">队尾 (Rear)</div>
-                <div>指针: <span class="font-mono text-lg font-bold">{{ rear }}</span></div>
-            </div>
-        </div>
-        
-        <!-- Queue Array -->
-        <div v-auto-animate="{ duration: 400 }" class="grid" :style="{ gridTemplateColumns: `repeat(${capacity}, minmax(0, 1fr))` }">
-             <div v-for="(slot, index) in visualQueue" :key="index" class="relative h-28">
-                <!-- Pointer Labels -->
-                <div v-if="index === front && !isEmpty" class="pointer-label absolute top-0 left-1/2 -translate-x-1/2 -mt-1 bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded-full z-10">FRONT</div>
-                <div v-if="index === rear" class="pointer-label absolute top-0 left-1/2 -translate-x-1/2 -mt-1 bg-pink-500 text-white text-xs font-bold px-2 py-0.5 rounded-full z-10">REAR</div>
-
-                <!-- Slot Element -->
-                <div class="slot-element h-24 m-1 rounded-lg flex items-center justify-center border-2"
-                    :class="getSlotClass(slot, index)"
-                    :data-tippy-content="getTippyContent(slot, index)">
-                    <span v-if="slot" class="font-mono text-xl font-semibold text-slate-800">
-                        {{ slot.value }}
-                    </span>
-                </div>
-                <!-- Index Label -->
-                <div class="absolute bottom-0.5 left-1/2 -translate-x-1/2 text-xs text-slate-400">{{ index }}</div>
-             </div>
-        </div>
-    </div>
-</div>
-
-<script>
-    const { createApp, ref, reactive, computed, onMounted, nextTick, watch } = Vue;
-
-    createApp({
-        setup() {
-            // --- State ---
-            const queue = ref([]);
-            const capacity = ref(8);
-            const front = ref(0);
-            const rear = ref(0);
-            const size = ref(0);
-            const isBusy = ref(false);
-            const inputs = reactive({ value: 'Q1', capacity: 8 });
-
-            // --- Computed Properties ---
-            const isEmpty = computed(() => size.value === 0);
-            const isFull = computed(() => size.value === capacity.value);
-            const visualQueue = computed(() => {
-                const arr = new Array(capacity.value).fill(null);
-                queue.value.forEach((item, i) => { arr[i] = item });
-                return arr;
-            });
-
-            // --- Tools ---
-            const notyf = new Notyf({ duration: 4000, position: { x: 'right', y: 'top' }, dismissible: true, types: [ { type: 'info', backgroundColor: '#3b82f6', icon: false }, { type: 'success', backgroundColor: '#22c55e' }, { type: 'error', backgroundColor: '#ef4444' }] });
-            const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-            const initTooltips = () => { 
-                tippy('[data-tippy-content]', { 
-                    arrow: true, 
-                    animation: 'fade', 
-                    allowHTML: true,
-                    // Force append to body to escape clipping from parent stacking contexts
-                    appendTo: () => document.body 
-                }); 
-            };
-
-            // --- Core Operations ---
-            const resetQueue = async () => {
-                isBusy.value = true;
-                capacity.value = inputs.capacity;
-                queue.value = new Array(capacity.value).fill(null);
-                front.value = 0;
-                rear.value = 0;
-                size.value = 0;
-                
-                await nextTick();
-                
-                const initialData = ['A', 'B', 'C'];
-                for (const val of initialData) {
-                    if (size.value < capacity.value) {
-                        queue.value[rear.value] = { value: val, highlight: null };
-                        rear.value = (rear.value + 1) % capacity.value;
-                        size.value++;
-                    }
-                }
-                
-                initTooltips();
-                notyf.success(`循环队列已重置，容量为 ${capacity.value}。`);
-                isBusy.value = false;
-            };
-
-            const enqueue = async () => {
-                const value = inputs.value;
-                if (!value || isBusy.value) return;
-                if (isFull.value) { notyf.error('队列已满，无法入队！'); return; }
-
-                isBusy.value = true;
-
-                notyf.open({ type: 'info', message: `<b>第1步:</b> 定位到队尾指针 'rear' (索引 ${rear.value})。` });
-                await sleep(2000);
-                
-                notyf.open({ type: 'info', message: `<b>第2步:</b> 在 rear 位置放入新元素 '${value}'。` });
-                const newItem = { value, highlight: 'add' };
-                queue.value[rear.value] = newItem;
-                await sleep(2000);
-                
-                notyf.open({ type: 'info', message: `<b>第3步:</b> 'rear' 指针向前移动，size 增加。` });
-                rear.value = (rear.value + 1) % capacity.value;
-                size.value++;
-
-                await nextTick();
-                newItem.highlight = null;
-                inputs.value = '';
-                isBusy.value = false;
-            };
-
-            const dequeue = async () => {
-                if (isEmpty.value || isBusy.value) { notyf.error('队列为空，无法出队！'); return; }
-
-                isBusy.value = true;
-                const itemToDequeue = queue.value[front.value];
-                const dequeuedValue = itemToDequeue.value;
-
-                notyf.open({ type: 'info', message: `<b>第1步:</b> 定位到队头指针 'front' (索引 ${front.value})。` });
-                itemToDequeue.highlight = 'remove';
-                await sleep(2000);
-
-                notyf.open({ type: 'info', message: `<b>第2步:</b> 元素 '${dequeuedValue}' 已“逻辑移除”。` });
-                queue.value[front.value] = null;
-                await sleep(2000);
-                
-                notyf.success(`<b>第3步:</b> 'front' 指针向前移动，size 减小。`);
-                front.value = (front.value + 1) % capacity.value;
-                size.value--;
-                
-                isBusy.value = false;
-            };
             
-            // --- UI Helpers ---
-            const getSlotClass = (slot, index) => {
-                const classes = [];
-                if (!slot) {
-                    classes.push('bg-slate-100', 'border-dashed', 'border-slate-300');
-                } else {
-                    classes.push('bg-slate-200', 'border-slate-300');
-                    if (slot.highlight === 'add') classes.push('highlight-add');
-                    if (slot.highlight === 'remove') classes.push('highlight-remove');
-                }
-                if (index === front.value && !isEmpty.value) classes.push('highlight-front-slot');
-                if (index === rear.value) {
-                    classes.push('highlight-rear-slot', 'border-dashed');
-                }
-                return classes;
-            };
-
-            const getTippyContent = (slot, index) => {
-                let valueLine = `值: ${slot ? slot.value : '空'}`;
-                let pointerLine = '';
-
-                if (index === front.value && index === rear.value && isEmpty.value) {
-                    pointerLine = `<br><span style='color: #64748b;'>Front 和 Rear 重合 (队空)</span>`;
-                } else if (index === front.value) {
-                    pointerLine = `<br><span style='color: #3b82f6;'>Front 指针 (队头元素)</span>`;
-                } else if (index === rear.value) {
-                    pointerLine = `<br><span style='color: #ec4899;'>Rear 指针 (下一个入队位置)</span>`;
-                }
+            <!-- 主面板 -->
+            <div class="glass-card p-6 mb-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- 操作面板 -->
+                    <div class="lg:col-span-1">
+                        <h2 class="text-2xl font-bold mb-4 text-gray-800">操作面板</h2>
+                        
+                        <!-- 栈选择 -->
+                        <div class="mb-6">
+                            <div class="flex gap-2 mb-4">
+                                <button 
+                                    @click="selectedStack = 0"
+                                    :class="['flex-1 py-3 px-4 rounded-lg font-semibold operation-btn', 
+                                             selectedStack === 0 ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700']">
+                                    栈 0
+                                </button>
+                                <button 
+                                    @click="selectedStack = 1"
+                                    :class="['flex-1 py-3 px-4 rounded-lg font-semibold operation-btn',
+                                             selectedStack === 1 ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-700']">
+                                    栈 1
+                                </button>
+                            </div>
+                            
+                            <!-- 输入框 -->
+                            <input 
+                                v-model="inputValue"
+                                @keyup.enter="push"
+                                type="text" 
+                                placeholder="输入要压入的值"
+                                class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none text-lg">
+                        </div>
+                        
+                        <!-- 操作按钮 -->
+                        <div class="grid grid-cols-2 gap-3 mb-6">
+                            <button 
+                                @click="push"
+                                :disabled="isFull"
+                                :class="['py-3 px-4 rounded-lg font-semibold operation-btn',
+                                         isFull ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-green-500 text-white hover:bg-green-600']">
+                                入栈 (Push)
+                            </button>
+                            <button 
+                                @click="pop"
+                                :disabled="isEmpty"
+                                :class="['py-3 px-4 rounded-lg font-semibold operation-btn',
+                                         isEmpty ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-orange-500 text-white hover:bg-orange-600']">
+                                出栈 (Pop)
+                            </button>
+                            <button 
+                                @click="peek"
+                                :disabled="isEmpty"
+                                :class="['py-3 px-4 rounded-lg font-semibold operation-btn',
+                                         isEmpty ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-purple-500 text-white hover:bg-purple-600']">
+                                查看栈顶 (Peek)
+                            </button>
+                            <button 
+                                @click="clear"
+                                :disabled="isEmpty"
+                                :class="['py-3 px-4 rounded-lg font-semibold operation-btn',
+                                         isEmpty ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-red-500 text-white hover:bg-red-600']">
+                                清空栈 (Clear)
+                            </button>
+                        </div>
+                        
+                        <!-- 批量操作 -->
+                        <div class="mb-6">
+                            <h3 class="text-lg font-semibold mb-2">批量操作</h3>
+                            <button 
+                                @click="randomPush"
+                                class="w-full py-3 px-4 rounded-lg font-semibold bg-indigo-500 text-white hover:bg-indigo-600 operation-btn">
+                                随机压入5个元素
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 查看与管理 -->
+                    <div class="lg:col-span-2">
+                        <h2 class="text-2xl font-bold mb-4 text-gray-800">查看 & 管理</h2>
+                        
+                        <!-- 容量控制 -->
+                        <div class="mb-6 p-4 bg-gray-50 rounded-lg">
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="text-lg font-semibold">总容量：</label>
+                                <span class="text-2xl font-bold text-purple-600">{{ maxSize }}</span>
+                            </div>
+                            <input 
+                                type="range" 
+                                v-model="maxSize"
+                                @change="resizeStack"
+                                min="4" 
+                                max="12" 
+                                class="w-full h-2 rounded-lg appearance-none cursor-pointer slider-track">
+                        </div>
+                        
+                        <!-- 重置栈空间按钮 -->
+                        <button 
+                            @click="resetStack"
+                            class="w-full py-3 px-4 rounded-lg font-semibold bg-gray-700 text-white hover:bg-gray-800 operation-btn mb-6">
+                            重置栈空间
+                        </button>
+                        
+                        <!-- 栈状态信息 -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="p-4 bg-blue-50 rounded-lg">
+                                <h3 class="text-lg font-semibold text-blue-700 mb-2">栈 0 (从左到右)</h3>
+                                <div class="space-y-1">
+                                    <p>Top₀: <span class="font-bold text-xl">{{ top0 }}</span></p>
+                                    <p>Size₀: <span class="font-bold text-xl">{{ size0 }}</span></p>
+                                    <p>状态: <span class="font-bold">{{ stack0Status }}</span></p>
+                                </div>
+                            </div>
+                            <div class="p-4 bg-red-50 rounded-lg">
+                                <h3 class="text-lg font-semibold text-red-700 mb-2">栈 1 (从右到左)</h3>
+                                <div class="space-y-1">
+                                    <p>Top₁: <span class="font-bold text-xl">{{ top1 }}</span></p>
+                                    <p>Size₁: <span class="font-bold text-xl">{{ size1 }}</span></p>
+                                    <p>状态: <span class="font-bold">{{ stack1Status }}</span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 共享存储空间可视化 -->
+            <div class="glass-card p-6">
+                <h2 class="text-2xl font-bold mb-6 text-gray-800 text-center">共享存储空间</h2>
+                <div class="text-center mb-4">
+                    <span class="text-sm text-gray-600">可用: {{ availableSpace }} 个栈槽 | 栈满: {{ isFull ? '是' : '否' }}</span>
+                </div>
                 
-                return `索引: ${index}<br>${valueLine}${pointerLine}`;
-            };
-
-            // --- Lifecycle ---
-            onMounted(resetQueue);
-            watch(visualQueue, () => nextTick(initTooltips), { deep: true, immediate: true });
-
-            return {
-                capacity, front, rear, size, isBusy, inputs, isEmpty, isFull, visualQueue,
-                resetQueue, enqueue, dequeue,
-                getSlotClass, getTippyContent
-            };
-        }
-    }).mount('#app');
-</script>
-
+                <!-- 栈元素展示 -->
+                <div class="relative max-w-4xl mx-auto">
+                    <!-- Top指针指示器 -->
+                    <div v-if="top0 >= 0" 
+                         class="pointer-indicator text-blue-500"
+                         :style="{left: `calc(${(top0 + 0.5) * (100 / maxSize)}% - 30px)`, top: '-40px'}">
+                        ↓ Top₀
+                    </div>
+                    <div v-if="top1 < maxSize" 
+                         class="pointer-indicator text-red-500"
+                         :style="{left: `calc(${(top1 + 0.5) * (100 / maxSize)}% - 30px)`, top: '-40px'}">
+                        ↓ Top₁
+                    </div>
+                    
+                    <div class="grid gap-2" :style="{gridTemplateColumns: `repeat(${maxSize}, 1fr)`}">
+                        <div v-for="(element, index) in sharedStack" 
+                             :key="index"
+                             :ref="'element-' + index"
+                             @click="showElementInfo(index)"
+                             :class="['stack-element h-24 rounded-lg flex flex-col items-center justify-center font-bold text-lg relative cursor-pointer',
+                                      element.stack === 0 ? 'stack0' : element.stack === 1 ? 'stack1' : 'empty']">
+                            <div v-if="element.value !== null" class="text-2xl">
+                                {{ element.value }}
+                            </div>
+                            <div class="text-xs mt-1 opacity-75">
+                                [{{ index }}]
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 地址标签 -->
+                    <div class="grid gap-2 mt-2" :style="{gridTemplateColumns: `repeat(${maxSize}, 1fr)`}">
+                        <div v-for="i in maxSize" :key="'addr-' + i" class="text-center text-xs text-gray-500">
+                            地址: {{ i - 1 }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 操作历史 -->
+            <div class="glass-card p-6 mt-6">
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">操作历史</h2>
+                <div class="max-h-40 overflow-y-auto">
+                    <div v-if="history.length === 0" class="text-gray-500 text-center py-4">
+                        暂无操作记录
+                    </div>
+                    <div v-else class="space-y-2">
+                        <div v-for="(record, index) in history" 
+                             :key="index"
+                             class="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                            <span :class="['font-semibold', record.stack === 0 ? 'text-blue-600' : 'text-red-600']">
+                                栈{{ record.stack }}
+                            </span>
+                            <span class="text-gray-700">{{ record.operation }}</span>
+                            <span v-if="record.value !== undefined" class="font-mono">值: {{ record.value }}</span>
+                            <span class="text-gray-500 text-sm">{{ record.time }}</span>
+                        </div>
+                    </div>
+                </div>
+                <button v-if="history.length > 0" 
+                        @click="clearHistory"
+                        class="mt-3 text-sm text-gray-500 hover:text-gray-700">
+                    清除历史
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const { createApp } = Vue;
+        
+        createApp({
+            data() {
+                return {
+                    maxSize: 8,
+                    sharedStack: [],
+                    top0: -1,
+                    top1: 8,
+                    selectedStack: 0,
+                    inputValue: '',
+                    history: [],
+                    notyf: null
+                }
+            },
+            computed: {
+                size0() {
+                    return this.top0 + 1;
+                },
+                size1() {
+                    return this.maxSize - this.top1;
+                },
+                isFull() {
+                    return this.top0 + 1 >= this.top1;
+                },
+                isEmpty() {
+                    if (this.selectedStack === 0) {
+                        return this.top0 === -1;
+                    } else {
+                        return this.top1 === this.maxSize;
+                    }
+                },
+                availableSpace() {
+                    return this.top1 - this.top0 - 1;
+                },
+                stack0Status() {
+                    if (this.top0 === -1) return '空';
+                    if (this.top0 + 1 >= this.top1) return '满';
+                    return '正常';
+                },
+                stack1Status() {
+                    if (this.top1 === this.maxSize) return '空';
+                    if (this.top0 + 1 >= this.top1) return '满';
+                    return '正常';
+                }
+            },
+            methods: {
+                initStack() {
+                    this.sharedStack = Array(this.maxSize).fill(null).map(() => ({
+                        value: null,
+                        stack: null
+                    }));
+                    this.top0 = -1;
+                    this.top1 = this.maxSize;
+                },
+                
+                push() {
+                    if (!this.inputValue.trim()) {
+                        this.notyf.dismissAll();
+                        this.notyf.error('请输入要压入的值');
+                        return;
+                    }
+                    
+                    if (this.isFull) {
+                        this.notyf.dismissAll();
+                        this.notyf.error('栈已满，无法继续压入');
+                        return;
+                    }
+                    
+                    const value = this.inputValue.trim();
+                    this.notyf.dismissAll();
+                    
+                    if (this.selectedStack === 0) {
+                        this.top0++;
+                        this.sharedStack[this.top0] = {
+                            value: value,
+                            stack: 0
+                        };
+                        this.$nextTick(() => {
+                            const element = this.$refs['element-' + this.top0]?.[0];
+                            if (element) {
+                                element.classList.add('push-animation');
+                                setTimeout(() => element.classList.remove('push-animation'), 500);
+                            }
+                        });
+                        this.addHistory(0, 'PUSH', value);
+                        this.notyf.success(`已将 "${value}" 压入栈0`);
+                    } else {
+                        this.top1--;
+                        this.sharedStack[this.top1] = {
+                            value: value,
+                            stack: 1
+                        };
+                        this.$nextTick(() => {
+                            const element = this.$refs['element-' + this.top1]?.[0];
+                            if (element) {
+                                element.classList.add('push-animation');
+                                setTimeout(() => element.classList.remove('push-animation'), 500);
+                            }
+                        });
+                        this.addHistory(1, 'PUSH', value);
+                        this.notyf.success(`已将 "${value}" 压入栈1`);
+                    }
+                    
+                    this.inputValue = '';
+                },
+                
+                pop() {
+                    if (this.isEmpty) {
+                        this.notyf.dismissAll();
+                        this.notyf.error(`栈${this.selectedStack}为空，无法出栈`);
+                        return;
+                    }
+                    
+                    this.notyf.dismissAll();
+                    
+                    if (this.selectedStack === 0) {
+                        const element = this.$refs['element-' + this.top0]?.[0];
+                        if (element) {
+                            element.classList.add('pop-animation');
+                        }
+                        
+                        const value = this.sharedStack[this.top0].value;
+                        setTimeout(() => {
+                            this.sharedStack[this.top0] = { value: null, stack: null };
+                            this.top0--;
+                        }, 400);
+                        
+                        this.addHistory(0, 'POP', value);
+                        this.notyf.success(`已从栈0弹出 "${value}"`);
+                    } else {
+                        const element = this.$refs['element-' + this.top1]?.[0];
+                        if (element) {
+                            element.classList.add('pop-animation');
+                        }
+                        
+                        const value = this.sharedStack[this.top1].value;
+                        setTimeout(() => {
+                            this.sharedStack[this.top1] = { value: null, stack: null };
+                            this.top1++;
+                        }, 400);
+                        
+                        this.addHistory(1, 'POP', value);
+                        this.notyf.success(`已从栈1弹出 "${value}"`);
+                    }
+                },
+                
+                peek() {
+                    if (this.isEmpty) {
+                        this.notyf.dismissAll();
+                        this.notyf.error(`栈${this.selectedStack}为空`);
+                        return;
+                    }
+                    
+                    this.notyf.dismissAll();
+                    
+                    if (this.selectedStack === 0) {
+                        const value = this.sharedStack[this.top0].value;
+                        this.notyf.success(`栈0栈顶元素: "${value}"`);
+                        this.addHistory(0, 'PEEK', value);
+                    } else {
+                        const value = this.sharedStack[this.top1].value;
+                        this.notyf.success(`栈1栈顶元素: "${value}"`);
+                        this.addHistory(1, 'PEEK', value);
+                    }
+                },
+                
+                clear() {
+                    if (this.isEmpty) {
+                        this.notyf.dismissAll();
+                        this.notyf.error(`栈${this.selectedStack}已经为空`);
+                        return;
+                    }
+                    
+                    this.notyf.dismissAll();
+                    
+                    if (this.selectedStack === 0) {
+                        for (let i = 0; i <= this.top0; i++) {
+                            this.sharedStack[i] = { value: null, stack: null };
+                        }
+                        this.top0 = -1;
+                        this.addHistory(0, 'CLEAR');
+                        this.notyf.success('已清空栈0');
+                    } else {
+                        for (let i = this.top1; i < this.maxSize; i++) {
+                            this.sharedStack[i] = { value: null, stack: null };
+                        }
+                        this.top1 = this.maxSize;
+                        this.addHistory(1, 'CLEAR');
+                        this.notyf.success('已清空栈1');
+                    }
+                },
+                
+                randomPush() {
+                    const items = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+                    let count = 0;
+                    const maxCount = Math.min(5, this.availableSpace);
+                    
+                    if (maxCount === 0) {
+                        this.notyf.error('栈已满，无法继续压入');
+                        return;
+                    }
+                    
+                    const interval = setInterval(() => {
+                        if (count >= maxCount || this.isFull) {
+                            clearInterval(interval);
+                            return;
+                        }
+                        
+                        this.inputValue = items[Math.floor(Math.random() * items.length)] + 
+                                         Math.floor(Math.random() * 100);
+                        this.push();
+                        count++;
+                    }, 300);
+                },
+                
+                resetStack() {
+                    this.initStack();
+                    this.history = [];
+                    this.notyf.success('栈空间已重置');
+                },
+                
+                resizeStack() {
+                    this.initStack();
+                    this.history = [];
+                    this.notyf.success(`栈容量已调整为 ${this.maxSize}`);
+                },
+                
+                showElementInfo(index) {
+                    const element = this.sharedStack[index];
+                    // 清除之前的所有通知
+                    this.notyf.dismissAll();
+                    
+                    if (element.value === null) {
+                        this.notyf.open({
+                            type: 'info',
+                            message: `地址[${index}]: 空闲空间`,
+                            duration: 2000
+                        });
+                    } else {
+                        this.notyf.open({
+                            type: 'info',
+                            message: `地址[${index}]: 值="${element.value}", 属于栈${element.stack}`,
+                            duration: 2000
+                        });
+                    }
+                },
+                
+                addHistory(stack, operation, value) {
+                    const now = new Date();
+                    this.history.unshift({
+                        stack,
+                        operation,
+                        value,
+                        time: `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`
+                    });
+                    
+                    if (this.history.length > 10) {
+                        this.history.pop();
+                    }
+                },
+                
+                clearHistory() {
+                    this.history = [];
+                    this.notyf.success('操作历史已清除');
+                }
+            },
+            mounted() {
+                this.notyf = new Notyf({
+                    duration: 2000,
+                    position: { x: 'right', y: 'top' },
+                    dismissible: true,
+                    ripple: false,
+                    types: [
+                        {
+                            type: 'info',
+                            background: '#667eea',
+                            icon: false
+                        }
+                    ]
+                });
+                
+                this.initStack();
+                
+                // 添加 Tippy.js 提示
+                this.$nextTick(() => {
+                    tippy('[ref^="element-"]', {
+                        content: '点击查看元素详情',
+                        placement: 'top',
+                        animation: 'scale'
+                    });
+                });
+                
+                // 自动动画元素
+                const animatedElements = document.querySelectorAll('.stack-element');
+                autoAnimate(document.querySelector('.grid'));
+            }
+        }).mount('#app');
+    </script>
 </body>
 </html>
