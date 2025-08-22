@@ -20,11 +20,11 @@
   </p>
   
   <p align="center">
-    <a href="#✨-features">Features</a> •
-    <a href="#🚀-quick-start">Quick Start</a> •
-    <a href="#📁-project-structure">Structure</a> •
-    <a href="#🤝-contributing">Contributing</a> •
-    <a href="#📄-license">License</a>
+    <a href="#-features">Features</a> •
+    <a href="#-quick-start">Quick Start</a> •
+    <a href="#-project-structure">Structure</a> •
+    <a href="#-contributing">Contributing</a> •
+    <a href="#-license">License</a>
   </p>
   
 </div>
