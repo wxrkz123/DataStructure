@@ -105,7 +105,7 @@ Node* createNode(int value) {
 
 ## 🤝 Contributing
 
-We welcome all forms of contributions! Check out the [Contributing Guide](CONTRIBUTING.md) to learn how to:
+We welcome all forms of contributions! Check out the [Contributing Guide](CONTRIBUTING_EN.md) to learn how to:
 
 - 🐛 Report issues
 - 💡 Suggest new features
